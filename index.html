@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Funil de Vendas Kanban</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React/ReactDOM via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel para transformar JSX no navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Ícones (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      html, body { height: 100%; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useState, useRef } = React;
+
+const colorPalette = {
+    lightGreen: '#d4edda',
+    lightBlue: '#d1ecf1',
+    lilac: '#dbcff8',
+    yellow: '#fff3cd',
+    pink: '#f8c0c8',
+    lightGrey: '#e9ecef',
+        offWhite: '#f8f9fa',
+};
+
+const softPastelColors = [
+  '#FFB3BA', // Light Pink
+  '#FFDFBA', // Peach
+  '#FFFFBA', // Pale Yellow
+  '#BAFFC9', // Mint Green
+  '#BAE1FF', // Light Blue
+  '#E0BBE4', // Lavender
+  '#FFD7A3', // Light Orange
+  '#CCE2CB', // Sage Green
+  '#F0EAD6', // Beige
+  '#D4EEFF', // Sky Blue
+  '#F5DEB3', // Wheat
+];
+
+const getBackgroundColor = (columnId) => {
+    const mapping = {
+        'primeiro-contato': colorPalette.lightGreen,
+        'demonstrou-interesse': colorPalette.lightBlue,
+        'contato-pessoal': colorPalette.lilac,
+        'fez-orcamento': colorPalette.yellow,
+        'contratou': colorPalette.pink,
+        'descartados': colorPalette.lightGrey,
+        'arquivados': colorPalette.offWhite,
+    };
+    return mapping[columnId] || colorPalette.lightBlue;
+};
+
+      const defaultBoardState = {
+        columns: {
+          'primeiro-contato': { id: 'primeiro-contato', title: 'Primeiro Contato' },
+          'demonstrou-interesse': { id: 'demonstrou-interesse', title: 'Demonstrou Interesse' },
+          'contato-pessoal': { id: 'contato-pessoal', title: 'Contato Pessoal' },
+          'fez-orcamento': { id: 'fez-orcamento', title: 'Fez Orçamento' },
+          'contratou': { id: 'contratou', title: 'Contratou' },
+          'arquivados': { id: 'arquivados', title: 'Arquivados' },
+          'descartados': { id: 'descartados', title: 'Descartados' },
+        },
+        columnOrder: [
+          'primeiro-contato',
+          'demonstrou-interesse',
+          'contato-pessoal',
+          'fez-orcamento',
+          'contratou',
+          'arquivados',
+          'descartados',
+        ],
+        categories: ['Casamento', 'Corporativo', 'Bar', 'Teatro'],
+        teamMembers: [],
+        columnsLocked: true,
+      };
+
+      const storageKey = 'kanban-funil-vendas-v1';
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function saveState(state) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+        } catch (e) {}
+      }
+
+      function uid() {
+        return Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+
+      function App() {
+        const [boardState, setBoardState] = useState(() => {
+          const saved = loadState()?.boardState;
+          return {
+            ...(saved || defaultBoardState),
+            columnsLocked: saved?.columnsLocked ?? true,
+            hiddenColumns: saved?.hiddenColumns ?? { arquivados: false, descartados: false },
+          };
+        });
+        const [clients, setClients] = useState(() => loadState()?.clients || []);
+        const [userId, setUserId] = useState(() => loadState()?.userId || uid());
+        const [showAddClient, setShowAddClient] = useState(false);
+    const [editingClientId, setEditingClientId] = useState(null);
+    const [showAddCategory, setShowAddCategory] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [clientToDelete, setClientToDelete] = useState(null);
+    const [isAddingColumn, setIsAddingColumn] = useState(false);
+    const [draggedItem, setDraggedItem] = useState(null);
+    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+
+        // Estado para filtros
+        const [filterCategory, setFilterCategory] = useState('');
+        const [filterMember, setFilterMember] = useState('');
+
+        // Estado para desfazer exclusões
+        const [deletedClients, setDeletedClients] = useState(() => loadState()?.deletedClients || []);
+        const [lastDeletedClient, setLastDeletedClient] = useState(null);
+        const [deletedColumns, setDeletedColumns] = useState(() => loadState()?.deletedColumns || []);
+        const [lastDeletedColumn, setLastDeletedColumn] = useState(null);
+
+        useEffect(() => {
+          saveState({ boardState, clients, userId });
+        }, [boardState, clients, userId]);
+
+        useEffect(() => {
+          saveState({ boardState, clients, userId, deletedClients });
+        }, [boardState, clients, userId, deletedClients]);
+
+        useEffect(() => {
+          saveState({ boardState, clients, userId, deletedClients, deletedColumns });
+        }, [boardState, clients, userId, deletedClients, deletedColumns]);
+
+        const columnOrder = boardState.columnOrder || [];
+        const columns = boardState.columns || {};
+        const categories = Array.isArray(boardState.categories) ? boardState.categories : [];
+        const teamMembers = Array.isArray(boardState.teamMembers) ? boardState.teamMembers : [];
+
+        const [columnsWidths, setColumnsWidths] = useState({});
+        const resizingRef = useRef({ isResizing: false, columnId: null, startX: 0, startWidth: 0 });
+    useEffect(() => {
+        const handleResize = () => {
+            const totalColumns = columnOrder.length;
+            if (!totalColumns) return;
+                const minWidth = 280;
+                const maxWidth = 400;
+                const availableWidth = window.innerWidth - 64;
+                const calculatedWidth = Math.max(minWidth, Math.min(maxWidth, availableWidth / totalColumns));
+                const newWidths = {};
+            columnOrder.forEach((key) => (newWidths[key] = calculatedWidth));
+                setColumnsWidths(newWidths);
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+        }, [columnOrder.join('|')]);
+
+        useEffect(() => {
+          function onMouseMove(e) {
+            const r = resizingRef.current;
+            if (!r.isResizing || !r.columnId) return;
+            const dx = e.clientX - r.startX;
+            const minWidth = 220;
+            const maxWidth = 720;
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, r.startWidth + dx));
+            setBoardState((prev) => ({
+              ...prev,
+              columnWidths: { ...(prev.columnWidths || {}), [r.columnId]: newWidth },
+            }));
+          }
+          function onMouseUp() {
+            resizingRef.current = { isResizing: false, columnId: null, startX: 0, startWidth: 0 };
+          }
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+          return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          };
+        }, []);
+
+        function handleDragStart(e, clientId) {
+        setDraggedItem(clientId);
+          e.dataTransfer.effectAllowed = 'move';
+        }
+    const handleDragOver = (e) => e.preventDefault();
+        function handleDrop(e, targetColumnId) {
+        e.preventDefault();
+        if (!draggedItem) return;
+          setClients((prev) => prev.map((c) => (c.id === draggedItem ? { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() } : c)));
+          setDraggedItem(null);
+        }
+
+        function addClient(client) {
+          const id = uid();
+          setClients((prev) => {
+            // Determinar a maior ordem existente na coluna de destino para o novo cliente ir para o final
+            const clientsInTargetColumn = prev.filter(c => c.columnId === columnOrder[0]);
+            const maxOrder = clientsInTargetColumn.reduce((max, c) => Math.max(max, c.order || 0), 0);
+            const newOrder = maxOrder + 1;
+
+            return [
+              ...prev,
+              {
+                ...client,
+                id,
+                columnId: columnOrder[0],
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                notes: client.notes || [],
+                order: newOrder, // Adicionando a propriedade de ordem
+              },
+            ];
+          });
+        }
+
+        function updateClient(updated) {
+          setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        }
+
+        function moveClientOrder(clientId, direction) {
+          setClients(prevClients => {
+            const clientToMove = prevClients.find(c => c.id === clientId);
+            if (!clientToMove) return prevClients;
+
+            const clientsInSameColumn = prevClients.filter(c => c.columnId === clientToMove.columnId)
+              .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            const currentPosIndex = clientsInSameColumn.findIndex(c => c.id === clientId);
+            if (currentPosIndex === -1) return prevClients;
+
+            let targetPosIndex;
+            if (direction === 'up') {
+              targetPosIndex = currentPosIndex - 1;
+            } else { // direction === 'down'
+              targetPosIndex = currentPosIndex + 1;
+            }
+
+            if (targetPosIndex < 0 || targetPosIndex >= clientsInSameColumn.length) {
+              return prevClients; // Não pode mover mais para cima ou para baixo
+            }
+
+            // Criar uma nova array para a coluna e manipular a ordem
+            const reorderedColumnClients = [...clientsInSameColumn];
+            const [removed] = reorderedColumnClients.splice(currentPosIndex, 1);
+            reorderedColumnClients.splice(targetPosIndex, 0, removed);
+
+            // Reatribuir a propriedade 'order' sequencialmente
+            const updatedClientsInColumn = reorderedColumnClients.map((client, index) => ({
+              ...client,
+              order: index + 1, // Atribui nova ordem sequencial
+              lastUpdated: new Date().toISOString(),
+            }));
+
+            // Combinar os clientes da coluna atualizados com os outros clientes
+            const otherClients = prevClients.filter(c => c.columnId !== clientToMove.columnId);
+            return [...otherClients, ...updatedClientsInColumn];
+          });
+        }
+
+        function deleteClient(clientId) {
+          const clientToDelete = clients.find(c => c.id === clientId);
+          if (!clientToDelete) return;
+          
+          // Salvar para desfazer
+          setLastDeletedClient({ ...clientToDelete, deletedAt: new Date().toISOString() });
+          setDeletedClients(prev => [...prev, { ...clientToDelete, deletedAt: new Date().toISOString() }]);
+          
+          setClients(prev => prev.filter(c => c.id !== clientId));
+        }
+
+        function undoLastDeletion() {
+          if (!lastDeletedClient) return;
+          
+          // Restaurar o cliente
+          setClients(prev => [...prev, { ...lastDeletedClient, lastUpdated: new Date().toISOString() }]);
+          
+          // Limpar o último deletado
+          setLastDeletedClient(null);
+        }
+
+        function undoLastColumnDeletion() {
+          if (!lastDeletedColumn) return;
+          
+          // Restaurar a coluna
+          setBoardState(prev => {
+            const newColumns = { ...prev.columns, [lastDeletedColumn.id]: { id: lastDeletedColumn.id, title: lastDeletedColumn.title } };
+            const tailFixed = ['arquivados', 'descartados'].filter(id => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter(id => !tailFixed.includes(id));
+            const newColumnOrder = [...base, lastDeletedColumn.id, ...tailFixed];
+            
+            return { ...prev, columns: newColumns, columnOrder: newColumnOrder };
+          });
+          
+          // Restaurar os clientes da coluna apenas se eles não existirem mais
+          if (lastDeletedColumn.clients && lastDeletedColumn.clients.length > 0) {
+            setClients(prev => {
+              const existingClientIds = prev.map(c => c.id);
+              const clientsToRestore = lastDeletedColumn.clients.filter(c => !existingClientIds.includes(c.id));
+              return [...prev, ...clientsToRestore.map(c => ({ ...c, lastUpdated: new Date().toISOString() }))];
+            });
+          }
+          
+          // Limpar o último deletado
+          setLastDeletedColumn(null);
+        }
+
+        function addCategory(newCat) {
+          const name = (newCat || '').trim();
+          if (!name) return;
+          setBoardState((prev) => ({ ...prev, categories: [...(prev.categories || []), name] }));
+        }
+
+        function deleteCategory(cat) {
+          setBoardState((prev) => ({ ...prev, categories: (prev.categories || []).filter((c) => c !== cat) }));
+        }
+
+        function changeColumnColor(columnId) {
+          setBoardState(prev => {
+            const currentColumn = prev.columns[columnId];
+            if (!currentColumn) return prev;
+            
+            const availableColors = softPastelColors.filter(color => color !== currentColumn.color);
+            const newColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+
+            return {
+              ...prev,
+              columns: {
+                ...prev.columns,
+                [columnId]: { ...currentColumn, color: newColor }
+              }
+            };
+          });
+        }
+
+        function addColumn(name) {
+          const trimmed = (name || '').trim();
+          if (!trimmed) return;
+          const newId = trimmed.toLowerCase().replace(/\s+/g, '-');
+          setBoardState((prev) => {
+            if (prev.columnsLocked) return prev;
+            const tailFixed = ['arquivados', 'descartados'].filter((id) => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter((id) => !tailFixed.includes(id));
+            return {
+              ...prev,
+              columns: { ...prev.columns, [newId]: { id: newId, title: trimmed } },
+              columnOrder: [...base, newId, ...tailFixed],
+            };
+          });
+        }
+
+        function deleteColumn(columnId) {
+          if (boardState.columnsLocked) return;
+          if (["arquivados", "descartados"].includes(columnId)) return;
+          
+          const columnToDelete = columns[columnId];
+          if (!columnToDelete) return;
+          
+          // Salvar para desfazer
+          setLastDeletedColumn({ 
+            ...columnToDelete, 
+            deletedAt: new Date().toISOString(),
+            clients: clients.filter(c => c.columnId === columnId)
+          });
+          setDeletedColumns(prev => [...prev, { 
+            ...columnToDelete, 
+            deletedAt: new Date().toISOString(),
+            clients: clients.filter(c => c.columnId === columnId)
+          }]);
+          
+          const firstColumnId = columnOrder.find((id) => !["arquivados", "descartados"].includes(id)) || columnOrder[0];
+          setClients((prev) => prev.map((c) => (c.columnId === columnId ? { ...c, columnId: firstColumnId } : c)));
+          setBoardState((prev) => {
+            const newCols = { ...prev.columns };
+            delete newCols[columnId];
+            const tailFixed = ["arquivados", "descartados"].filter((id) => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter((id) => id !== columnId && !tailFixed.includes(id));
+            return { ...prev, columns: newCols, columnOrder: [...base, ...tailFixed] };
+          });
+        }
+
+        function moveColumn(columnId, direction) {
+          if (boardState.columnsLocked) return;
+          if (["arquivados", "descartados"].includes(columnId)) return;
+          setBoardState((prev) => {
+            const tailFixed = ["arquivados", "descartados"].filter((id) => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter((id) => !tailFixed.includes(id));
+            const idx = base.indexOf(columnId);
+            if (idx === -1) return prev;
+            const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+            if (targetIdx < 0 || targetIdx >= base.length) return prev;
+            const swapped = [...base];
+            const temp = swapped[idx];
+            swapped[idx] = swapped[targetIdx];
+            swapped[targetIdx] = temp;
+            return { ...prev, columnOrder: [...swapped, ...tailFixed] };
+          });
+        }
+
+        const canMoveLeft = (columnId) => {
+          if (["arquivados", "descartados"].includes(columnId)) return false;
+          const tailFixed = ["arquivados", "descartados"].filter((id) => columnOrder.includes(id));
+          const base = columnOrder.filter((id) => !tailFixed.includes(id));
+          const idx = base.indexOf(columnId);
+          return idx > 0;
+        };
+        const canMoveRight = (columnId) => {
+          if (["arquivados", "descartados"].includes(columnId)) return false;
+          const tailFixed = ["arquivados", "descartados"].filter((id) => columnOrder.includes(id));
+          const base = columnOrder.filter((id) => !tailFixed.includes(id));
+          const idx = base.indexOf(columnId);
+          return idx !== -1 && idx < base.length - 1;
+        };
+
+        const [uiState, setUiState] = useState({
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '' },
+          newCategory: '',
+          newColumnName: '',
+          newTeamMemberName: '',
+        });
+
+        function handleAddNote(tempClient, setTempClient, text) {
+          if (!text.trim()) return;
+          const updated = [
+            ...(Array.isArray(tempClient.notes) ? tempClient.notes : []),
+            { text, timestamp: new Date().toISOString() },
+          ];
+          setTempClient({ ...tempClient, notes: updated });
+        }
+
+        function addTeamMember(name) {
+          const trimmed = (name || '').trim();
+          if (!trimmed) return;
+          setBoardState((prev) => ({
+            ...prev,
+            teamMembers: [...(Array.isArray(prev.teamMembers) ? prev.teamMembers : []), trimmed],
+          }));
+        }
+
+        function saveToLocalFile() {
+          const data = { boardState, clients, userId };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kanban-funil-vendas-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          try {
+            a.click();
+            alert('Dados salvos localmente com sucesso!');
+          } catch (error) {
+            console.error("Erro ao tentar baixar o arquivo: ", error);
+            alert('Erro ao salvar localmente. Verifique as configurações do seu navegador ou o console para mais detalhes.');
+          }
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
+        function exportToGoogleSheets() {
+          // Criar dados formatados para CSV (mais compatível)
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização'];
+          
+          const csvData = [
+            headers.join(','),
+            ...clients.map(client => [
+              `"${client.name || ''}"`,
+              `"${client.email || ''}"`,
+              `"${client.phone || ''}"`,
+              `"${client.category || ''}"`,
+              `"${client.assignedTo || ''}"`,
+              client.rating || 0,
+              `"${columns[client.columnId]?.title || client.columnId || ''}"`,
+              `"${(client.notes || []).map(note => note.text).join(' | ')}"`,
+              `"${new Date(client.createdAt).toLocaleDateString('pt-BR')}"`,
+              `"${new Date(client.lastUpdated).toLocaleDateString('pt-BR')}"`
+            ].join(','))
+          ].join('\n');
+
+          // Criar e baixar arquivo CSV
+          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kanban-funil-vendas-${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(a);
+          try {
+            a.click();
+            alert('Arquivo CSV exportado com sucesso! Você pode importar este arquivo no Google Sheets.');
+          } catch (error) {
+            console.error("Erro ao tentar baixar o arquivo: ", error);
+            alert('Erro ao exportar CSV. Verifique as configurações do seu navegador ou o console para mais detalhes.');
+          }
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
+        function importFromLocalFile(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const importedData = JSON.parse(e.target.result);
+              
+              // Validar se os dados são válidos
+              if (!importedData.boardState || !importedData.clients) {
+                throw new Error('Arquivo inválido: deve conter boardState e clients');
+              }
+
+              // Confirmar antes de sobrescrever
+              if (confirm('Isso irá substituir todos os dados atuais. Continuar?')) {
+                setBoardState(importedData.boardState);
+                setClients(importedData.clients);
+                if (importedData.userId) {
+                  setUserId(importedData.userId);
+                }
+                alert('Dados importados com sucesso!');
+              }
+            } catch (error) {
+              alert('Erro ao importar dados: ' + error.message);
+            }
+            
+            // Limpar o input para permitir importar o mesmo arquivo novamente
+            event.target.value = '';
+          };
+          reader.readAsText(file);
+        }
+
+        function importFromGoogleSheets() {
+          // Função para importar dados do Google Sheets via URL pública
+          const url = prompt('Cole a URL pública da planilha do Google Sheets:');
+          if (!url) return;
+
+          // Extrair ID da planilha da URL
+          const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          if (!match) {
+            alert('URL inválida. Certifique-se de que a planilha está pública.');
+            return;
+          }
+
+          const sheetId = match[1];
+          const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+
+          fetch(csvUrl)
+            .then(response => response.text())
+            .then(csvData => {
+              try {
+                // Converter CSV para dados estruturados
+                const lines = csvData.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                const importedClients = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                  if (lines[i].trim()) {
+                    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                    const client = {
+                      id: uid(),
+                      name: values[0] || '',
+                      email: values[1] || '',
+                      phone: values[2] || '',
+                      category: values[3] || '',
+                      assignedTo: values[4] || '',
+                      rating: parseInt(values[5]) || 0,
+                      notes: values[7] ? [{ text: values[7], timestamp: new Date().toISOString() }] : [],
+                      columnId: 'primeiro-contato', // Coluna padrão
+                      createdAt: new Date().toISOString(),
+                      lastUpdated: new Date().toISOString()
+                    };
+                    importedClients.push(client);
+                  }
+                }
+
+                if (confirm(`Importar ${importedClients.length} clientes da planilha?`)) {
+                  setClients(prev => [...prev, ...importedClients]);
+                  alert(`${importedClients.length} clientes importados com sucesso!`);
+                }
+              } catch (error) {
+                alert('Erro ao processar dados da planilha: ' + error.message);
+              }
+            })
+            .catch(error => {
+              alert('Erro ao acessar a planilha. Certifique-se de que ela está pública.');
+            });
+        }
+
+    return (
+          <div className="max-w-full mx-auto p-4 sm:p-8">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+              <h1 className="text-3xl sm:text-4xl font-bold">Tarefas</h1>
+                    <div className="flex flex-wrap gap-2">
+                <button onClick={() => setShowAddClient(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Cliente</button>
+                <button onClick={() => setShowAddCategory(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Categoria</button>
+                <button onClick={() => !boardState.columnsLocked && setIsAddingColumn(true)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-800 hover:shadow-lg'} font-semibold py-2 px-4 rounded-full shadow-md transition-all`}>+ Coluna</button>
+                <button onClick={() => setShowAddMemberModal(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Membro</button>
+                <button onClick={() => setBoardState((prev) => ({ ...prev, columnsLocked: !prev.columnsLocked }))} className={`${boardState.columnsLocked ? 'bg-red-500 text-white' : 'bg-white text-gray-800 hover:shadow-lg'} font-semibold py-2 px-4 rounded-full shadow-md transition-all`}>{boardState.columnsLocked ? 'Destravar colunas' : 'Travar colunas'}</button>
+                <button onClick={saveToLocalFile} className="bg-green-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">💾 Salvar</button>
+                <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
+                <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
+                <button onClick={importFromGoogleSheets} className="bg-purple-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📥 Importar Sheets</button>
+                {lastDeletedClient && (
+                  <button 
+                    onClick={undoLastDeletion} 
+                    className="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    title={`Desfazer exclusão de "${lastDeletedClient.name}"`}
+                  >
+                    ↩ Desfazer Cliente
+                  </button>
+                )}
+                {lastDeletedColumn && (
+                  <button 
+                    onClick={undoLastColumnDeletion} 
+                    className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    title={`Desfazer exclusão da coluna "${lastDeletedColumn.title}"`}
+                  >
+                    ↩ Desfazer Coluna
+                  </button>
+                )}
+                    </div>
+                </header>
+
+                {/* Filtros */}
+                <div className="flex flex-wrap gap-4 mb-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="filterCategory" className="font-semibold">Filtrar por Categoria:</label>
+                    <select
+                      id="filterCategory"
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                      className="p-2 border rounded-md"
+                    >
+                      <option value="">Todas</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="filterMember" className="font-semibold">Filtrar por Membro:</label>
+                    <select
+                      id="filterMember"
+                      value={filterMember}
+                      onChange={(e) => setFilterMember(e.target.value)}
+                      className="p-2 border rounded-md"
+                    >
+                      <option value="">Todos</option>
+                      {teamMembers.map((member) => (
+                        <option key={member} value={member}>{member}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Input file oculto para importação */}
+                <input
+                  id="importFile"
+                  type="file"
+                  accept=".json"
+                  onChange={importFromLocalFile}
+                  style={{ display: 'none' }}
+                />
+
+                {(showAddClient || editingClientId) && (
+                    <ClientForm
+                client={
+                  editingClientId ? clients.find((c) => c.id === editingClientId) : uiState.newClient
+                }
+                setClient={
+                  editingClientId
+                    ? (client) => setClients(clients.map((c) => (c.id === editingClientId ? client : c)))
+                    : (client) => setUiState((s) => ({ ...s, newClient: client }))
+                }
+                onSubmit={(e) => {
+                            e.preventDefault();
+                  if (editingClientId) {
+                    const updated = clients.find((c) => c.id === editingClientId);
+                    if (updated) updateClient(updated);
+                                setEditingClientId(null);
+                  } else {
+                    if (!uiState.newClient.name) return;
+                    addClient(uiState.newClient);
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '' } }));
+                    setShowAddClient(false);
+                  }
+                }}
+                onClose={() => {
+                  setShowAddClient(false);
+                  setEditingClientId(null);
+                }}
+                categories={categories}
+                teamMembers={teamMembers}
+                handleAddNote={handleAddNote}
+                    />
+                )}
+                
+                {showAddMemberModal && (
+                    <AddMemberModal
+                newTeamMemberName={uiState.newTeamMemberName}
+                setNewTeamMemberName={(v) => setUiState((s) => ({ ...s, newTeamMemberName: v }))}
+                handleAddTeamMember={(e) => {
+                  e.preventDefault();
+                  addTeamMember(uiState.newTeamMemberName);
+                  setUiState((s) => ({ ...s, newTeamMemberName: '' }));
+                  setShowAddMemberModal(false);
+                }}
+                        onClose={() => setShowAddMemberModal(false)}
+                    />
+                )}
+
+            {showAddCategory && (
+              <CategoryForm
+                addCategory={(e) => {
+                  e.preventDefault();
+                  addCategory(uiState.newCategory);
+                  setUiState((s) => ({ ...s, newCategory: '' }));
+                  setShowAddCategory(false);
+                }}
+                newCategory={uiState.newCategory}
+                setNewCategory={(v) => setUiState((s) => ({ ...s, newCategory: v }))}
+                categories={categories}
+                deleteCategory={deleteCategory}
+                onClose={() => setShowAddCategory(false)}
+              />
+            )}
+
+            {isAddingColumn && (
+              <ColumnForm
+                addColumn={(e) => {
+                  e.preventDefault();
+                  addColumn(uiState.newColumnName);
+                  setUiState((s) => ({ ...s, newColumnName: '' }));
+                  setIsAddingColumn(false);
+                }}
+                newColumnName={uiState.newColumnName}
+                setNewColumnName={(v) => setUiState((s) => ({ ...s, newColumnName: v }))}
+                onClose={() => setIsAddingColumn(false)}
+              />
+            )}
+
+            {showDeleteModal && (
+              <ConfirmModal
+                message={`Tem certeza que deseja excluir "${clientToDelete?.name}"?`}
+                onConfirm={() => {
+                  if (clientToDelete) deleteClient(clientToDelete.id);
+                  setShowDeleteModal(false);
+                }}
+                onCancel={() => setShowDeleteModal(false)}
+              />
+            )}
+
+            <div className="flex overflow-x-auto gap-4 p-4 rounded-xl shadow-lg bg-gray-50 bg-opacity-80 min-h-[70vh]">
+              {(boardState.columnOrder || []).map((columnId) => {
+                        const column = columns[columnId];
+                if (!column) return null;
+                        return (
+                  <div
+                    key={column.id}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, column.id)}
+                    className="relative flex flex-col flex-shrink-0 rounded-lg p-4 shadow-inner transition-all min-h-[60vh]"
+                    style={{ backgroundColor: column.color || getBackgroundColor(column.id), width: `${(boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280).toFixed(2)}px` }}
+                  >
+                    <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
+                      <span>{column.title}</span>
+                      <div className="flex items-center gap-2 text-sm">
+                        {!['arquivados', 'descartados'].includes(column.id) && (
+                          <>
+                            <button onClick={() => moveColumn(column.id, 'left')} disabled={boardState.columnsLocked || !canMoveLeft(column.id)} className={`${boardState.columnsLocked || !canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
+                            <button onClick={() => moveColumn(column.id, 'right')} disabled={boardState.columnsLocked || !canMoveRight(column.id)} className={`${boardState.columnsLocked || !canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
+                            <button onClick={() => changeColumnColor(column.id)} className="text-gray-500 hover:text-purple-500" title="Mudar cor">🎨</button>
+                          </>
+                        )}
+                        {/* Removida opção de ocultar Arquivados/Descartados */}
+                        {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && (
+                          <button onClick={() => deleteColumn(column.id)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-red-500'}`} title="Excluir coluna">🗑</button>
+                        )}
+                      </div>
+                                </h2>
+                                <div className="flex-grow min-h-[100px]">
+                      {clients
+                        .filter((c) => c.columnId === column.id)
+                        .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+                        .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                        .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os clientes pela propriedade 'order'
+                        .map((client) => (
+                          <ClientCard
+                            key={client.id}
+                            client={client}
+                            setEditingClientId={setEditingClientId}
+                            setShowDeleteModal={setShowDeleteModal}
+                            setClientToDelete={setClientToDelete}
+                            onDragStart={(e) => handleDragStart(e, client.id)}
+                            draggedItem={draggedItem}
+                            onDropFiles={(files) => {
+                              const newNotes = Array.from(files).map((file) => ({ text: `Arquivo "${file.name}" adicionado.`, timestamp: new Date().toISOString() }));
+                              setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
+                            }}
+                            columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
+                            moveClientOrder={moveClientOrder}
+                                        />
+                                    ))}
+                                </div>
+                    {/* Resizer handle */}
+                    <div
+                      onMouseDown={(e) => {
+                        const currentWidth = boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280;
+                        resizingRef.current = { isResizing: true, columnId: column.id, startX: e.clientX, startWidth: currentWidth };
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      className="absolute top-0 right-0 h-full w-2 cursor-col-resize select-none"
+                      style={{ transform: 'translateX(50%)' }}
+                      title="Arraste para redimensionar"
+                    />
+                            </div>
+                        );
+                    })}
+                </div>
+
+            <div className="mt-8 p-4 bg-white rounded-lg shadow-md max-w-7xl mx-auto text-center">
+              <h2 className="text-lg font-bold mb-1">ID de Usuário (para colaboração futura)</h2>
+              <p className="text-sm break-all font-mono">{userId}</p>
+            </div>
+        </div>
+    );
+      }
+
+      function ClientForm({ client, setClient, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote }) {
+    const [newNote, setNewNote] = useState('');
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold">{client?.id ? 'Editar Cliente' : 'Adicionar Cliente'}</h2>
+                <button onClick={onClose}>✕</button>
+              </div>
+                <form onSubmit={onSubmit}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label>Nome</label>
+                    <input type="text" value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} className="w-full p-2 border rounded" required />
+                  </div>
+                  <div>
+                    <label>E-mail</label>
+                    <input type="email" value={client.email || ''} onChange={(e) => setClient({ ...client, email: e.target.value })} className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label>Telefone</label>
+                    <input type="tel" value={client.phone || ''} onChange={(e) => setClient({ ...client, phone: e.target.value })} className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label>Categoria</label>
+                    <select value={client.category || ''} onChange={(e) => setClient({ ...client, category: e.target.value })} className="w-full p-2 border rounded">
+                      <option value="">Nenhuma</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Responsável</label>
+                    <select value={client.assignedTo || ''} onChange={(e) => setClient({ ...client, assignedTo: e.target.value })} className="w-full p-2 border rounded">
+                      <option value="">Nenhum</option>
+                      {teamMembers.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Classificação</label>
+                    <div className="flex">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <button key={i} type="button" onClick={() => setClient({ ...client, rating: i + 1 })} className={i < (client.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label>Anotações</label>
+                  <div className="border rounded p-2 h-24 overflow-y-auto bg-gray-50">
+                    {(client.notes || []).map((n, i) => (
+                      <div key={i} className="text-sm mb-1">
+                        <span className="text-xs text-gray-500">{new Date(n.timestamp).toLocaleString()}</span>: {n.text}
+                    </div>
+                    ))}
+            </div>
+        </div>
+                <div className="flex mt-2">
+                  <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
+                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(client, setClient, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+);
+      }
+
+      function ClientCard({ client, setEditingClientId, setShowDeleteModal, setClientToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveClientOrder }) {
+        const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(client.lastUpdated || client.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [client.lastUpdated, client.createdAt]);
+    const isInactive = diffDays > 7;
+    return (
+          <div
+            draggable
+            onDragStart={onDragStart}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); onDropFiles(Array.from(e.dataTransfer.files || [])); }}
+            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === client.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''}`}
+            style={{ width: '100%', padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px` }}
+          >
+            <div className="flex justify-between items-start text-sm">
+                <h3 className="font-bold">{client.name}</h3>
+                <div className="flex flex-col gap-1 items-end">
+                    <div className="flex gap-1">
+                        <button onClick={() => setEditingClientId(client.id)} className="text-gray-500 hover:text-blue-500">✎</button>
+                        <button onClick={() => { setClientToDelete(client); setShowDeleteModal(true); }} className="text-gray-500 hover:text-red-500">🗑</button>
+                    </div>
+                    <div className="flex gap-1 mt-1">
+                        <button onClick={() => moveClientOrder(client.id, 'up')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para cima">▲</button>
+                        <button onClick={() => moveClientOrder(client.id, 'down')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para baixo">▼</button>
+                    </div>
+                </div>
+            </div>
+            <div className="flex text-xs text-gray-600 mt-1">{client.category}</div>
+            <div className="flex my-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className={i < (client.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+              ))}
+            </div>
+            {client.assignedTo && (
+                <div className="flex items-center text-xs text-gray-600 mt-1">
+                <span className="mr-1">👤</span>
+                    <span>{client.assignedTo}</span>
+                </div>
+            )}
+            {isInactive && <div className="mt-1 text-xs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
+        </div>
+    );
+      }
+
+      function ConfirmModal({ message, onConfirm, onCancel }) {
+        return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+              <h3 className="text-xl font-semibold mb-4">Confirmação</h3>
+              <p className="mb-4">{message}</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded">Excluir</button>
+              </div>
+        </div>
+    </div>
+);
+      }
+
+      function AddMemberModal({ newTeamMemberName, setNewTeamMemberName, handleAddTeamMember, onClose }) {
+        return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold">Adicionar Membro da Equipe</h2>
+                <button onClick={onClose}>✕</button>
+              </div>
+            <form onSubmit={handleAddTeamMember}>
+                <input type="text" value={newTeamMemberName} onChange={(e) => setNewTeamMemberName(e.target.value)} placeholder="Nome do novo membro" className="w-full p-2 border rounded-md mb-4 focus:ring-2 focus:ring-blue-500 outline-none" required />
+                <div className="flex justify-end gap-2">
+                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+);
+      }
+
+      function CategoryForm({ addCategory, newCategory, setNewCategory, categories = [], deleteCategory, onClose }) {
+        return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold">Gerenciar Categorias</h2>
+                <button onClick={onClose}>✕</button>
+              </div>
+              <form onSubmit={addCategory} className="flex mb-4 gap-2">
+                <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria" className="flex-grow p-2 border rounded" />
+                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
+              </form>
+              <ul className="space-y-2 max-h-40 overflow-y-auto">
+                {categories.map((cat) => (
+                  <li key={cat} className="flex justify-between items-center bg-gray-100 p-2 rounded">
+                    <span>{cat}</span>
+                    <button onClick={() => deleteCategory(cat)} className="text-red-500">🗑</button>
+                  </li>
+                ))}
+              </ul>
+        </div>
+    </div>
+);
+      }
+
+      function ColumnForm({ addColumn, newColumnName, setNewColumnName, onClose }) {
+    return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 className="text-xl font-semibold mb-4">Adicionar Nova Coluna</h3>
+              <form onSubmit={addColumn}>
+                <input type="text" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="Nome da coluna" className="w-full p-2 border rounded mb-4" />
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
+                </div>
+              </form>
+            </div>
+        </div>
+    );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+  </html>
+
+

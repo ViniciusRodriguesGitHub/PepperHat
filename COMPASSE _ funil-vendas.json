@@ -1,0 +1,89 @@
+{
+  "boardState": {
+    "columns": {
+      "arquivados": {
+        "id": "arquivados",
+        "title": "Arquivados"
+      },
+      "descartados": {
+        "id": "descartados",
+        "title": "Descartados"
+      },
+      "retorno": {
+        "id": "retorno",
+        "title": "Retorno"
+      },
+      "primeiro-contato": {
+        "id": "primeiro-contato",
+        "title": "Primeiro Contato"
+      },
+      "relacionamento": {
+        "id": "relacionamento",
+        "title": "Relacionamento"
+      },
+      "tarefas": {
+        "id": "tarefas",
+        "title": "Tarefas"
+      },
+      "clientes-contratos": {
+        "id": "clientes-contratos",
+        "title": "Clientes Contratos"
+      }
+    },
+    "columnOrder": [
+      "tarefas",
+      "primeiro-contato",
+      "retorno",
+      "relacionamento",
+      "clientes-contratos",
+      "arquivados",
+      "descartados"
+    ],
+    "categories": [],
+    "teamMembers": [
+      "Diana",
+      "Vinícius",
+      "Diana&Vinícius"
+    ],
+    "columnsLocked": false,
+    "hiddenColumns": {
+      "arquivados": true,
+      "descartados": false
+    },
+    "columnWidths": {
+      "primeiro-contato": 220,
+      "contato-pessoal": 220,
+      "fez-orcamento": 220,
+      "contratou": 220,
+      "asdf": 220,
+      "arquivados": 220,
+      "descartados": 220,
+      "deu-retorno": 220,
+      "negociando": 220,
+      "finalizado": 220,
+      "iniciar": 220,
+      "fazendo": 220,
+      "feito": 220,
+      "tarefas": 220,
+      "retorno": 220,
+      "relacionamento": 234
+    }
+  },
+  "clients": [
+    {
+      "name": "Weiss e Nakayama",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "",
+      "assignedTo": "",
+      "id": "6ou0wy4tmpemeluwiej",
+      "columnId": "clientes-contratos",
+      "createdAt": "2025-08-21T20:30:57.835Z",
+      "lastUpdated": "2025-08-21T20:34:47.024Z",
+      "order": 1
+    }
+  ],
+  "userId": "01iw83g6hiq3mek411sl"
+}

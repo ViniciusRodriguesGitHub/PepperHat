@@ -1,0 +1,216 @@
+{
+  "boardState": {
+    "columns": {
+      "arquivados": {
+        "id": "arquivados",
+        "title": "Arquivados"
+      },
+      "descartados": {
+        "id": "descartados",
+        "title": "Descartados"
+      },
+      "iniciar": {
+        "id": "iniciar",
+        "title": "Iniciar",
+        "color": "#F0EAD6"
+      },
+      "fazendo": {
+        "id": "fazendo",
+        "title": "Fazendo",
+        "color": "#FFD7A3"
+      },
+      "feito": {
+        "id": "feito",
+        "title": "Feito",
+        "color": "#BAFFC9"
+      },
+      "tarefas": {
+        "id": "tarefas",
+        "title": "Tarefas",
+        "color": "#BAE1FF"
+      }
+    },
+    "columnOrder": [
+      "tarefas",
+      "iniciar",
+      "fazendo",
+      "feito",
+      "arquivados",
+      "descartados"
+    ],
+    "categories": [
+      "Pepper Hat",
+      "Compasse",
+      "Pessoal"
+    ],
+    "teamMembers": [
+      "Diana",
+      "Vinícius",
+      "Diana&Vinícius"
+    ],
+    "columnsLocked": true,
+    "hiddenColumns": {
+      "arquivados": true,
+      "descartados": false
+    },
+    "columnWidths": {
+      "primeiro-contato": 220,
+      "contato-pessoal": 220,
+      "fez-orcamento": 220,
+      "contratou": 220,
+      "asdf": 220,
+      "arquivados": 220,
+      "descartados": 220,
+      "deu-retorno": 220,
+      "negociando": 220,
+      "finalizado": 220,
+      "iniciar": 220,
+      "fazendo": 220,
+      "feito": 220,
+      "tarefas": 220
+    }
+  },
+  "clients": [
+    {
+      "name": "Cidadania",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Preparar documentos",
+          "timestamp": "2025-08-21T17:09:04.360Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "8eaxhdqzn3amelnp3sa",
+      "columnId": "iniciar",
+      "createdAt": "2025-08-21T17:09:14.987Z",
+      "lastUpdated": "2025-08-21T17:09:41.786Z"
+    },
+    {
+      "name": "Mecanica Mobi",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Está no Mecanico, aguardando aprovação da compasse",
+          "timestamp": "2025-08-21T17:10:34.738Z"
+        },
+        {
+          "text": "Buscar o carro amanhã",
+          "timestamp": "2025-08-21T18:26:54.477Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Compasse",
+      "assignedTo": "Diana",
+      "id": "24s0zfbravfmelnr18b",
+      "columnId": "feito",
+      "createdAt": "2025-08-21T17:10:44.988Z",
+      "lastUpdated": "2025-08-21T19:57:56.237Z"
+    },
+    {
+      "name": "Escanear Exame Nícolas",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "5xo175in3x7melnwnvs",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:15:07.624Z",
+      "lastUpdated": "2025-08-21T17:15:07.624Z"
+    },
+    {
+      "name": "Agendar Exame Nícolas",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "o0tcu5lzwtdmelnxhru",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:15:46.363Z",
+      "lastUpdated": "2025-08-21T17:15:46.363Z"
+    },
+    {
+      "name": "Orçamento Vanessa Martin",
+      "email": "",
+      "phone": "15981794963",
+      "notes": [],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "rqvxk0gtumomelo36b4",
+      "columnId": "feito",
+      "createdAt": "2025-08-21T17:20:11.440Z",
+      "lastUpdated": "2025-08-21T19:50:27.580Z"
+    },
+    {
+      "name": "Aulas Mentoria",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 4,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "xrt6ayxytoqmelocxqt",
+      "columnId": "fazendo",
+      "createdAt": "2025-08-21T17:27:46.901Z",
+      "lastUpdated": "2025-08-21T17:27:48.613Z"
+    },
+    {
+      "name": "Separar material de produção",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Separar macacão, bota, echarpes",
+          "timestamp": "2025-08-21T18:22:47.130Z"
+        },
+        {
+          "text": "Preparar as apresentações",
+          "timestamp": "2025-08-21T18:23:00.220Z"
+        },
+        {
+          "text": "Entregar aparelhagem Renato (cajon e percursão Di e Vi)",
+          "timestamp": "2025-08-21T18:23:41.206Z"
+        },
+        {
+          "text": "Entregar aparelhagem de som Cesar",
+          "timestamp": "2025-08-21T18:26:07.945Z"
+        }
+      ],
+      "rating": 0,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "j4p5wwliwq7melqg1kp",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T18:26:11.066Z",
+      "lastUpdated": "2025-08-21T18:26:11.066Z"
+    },
+    {
+      "name": "Microsoft",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Passar para o drive familiar",
+          "timestamp": "2025-08-21T18:46:11.231Z"
+        }
+      ],
+      "rating": 0,
+      "category": "Pessoal",
+      "assignedTo": "Diana",
+      "id": "e287gb6sgwmelr5td2",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T18:46:13.479Z",
+      "lastUpdated": "2025-08-21T18:46:13.479Z"
+    }
+  ],
+  "userId": "01iw83g6hiq3mek411sl"
+}
