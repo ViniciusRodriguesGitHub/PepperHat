@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Pimenta na Cidade</title>
+  <style>
+    /* Remove default margin and make the canvas fill the whole window. */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #87CEEB; /* fallback sky colour while the game loads */
+      touch-action: none; /* prevent double‑tap zoom on mobile */
+    }
+    #gameContainer {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* On‑screen button styling for mobile users */
+    .button-label {
+      pointer-events: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer"></div>
+  <!-- Main game logic (no external dependencies).  Everything is handled in game.js -->
+  <script src="game.js"></script>
+</body>
+</html>
