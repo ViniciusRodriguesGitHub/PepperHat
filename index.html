@@ -430,7 +430,7 @@ const getBackgroundColor = (columnId) => {
         };
 
         const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '' },
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '' },
           newCategory: '',
           newColumnName: '',
           newTeamMemberName: '',
@@ -475,7 +475,7 @@ const getBackgroundColor = (columnId) => {
 
         function exportToGoogleSheets() {
           // Criar dados formatados para CSV (mais compatível)
-          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização'];
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço'];
           
           const csvData = [
             headers.join(','),
@@ -489,7 +489,8 @@ const getBackgroundColor = (columnId) => {
               `"${columns[client.columnId]?.title || client.columnId || ''}"`,
               `"${(client.notes || []).map(note => note.text).join(' | ')}"`,
               `"${new Date(client.createdAt).toLocaleDateString('pt-BR')}"`,
-              `"${new Date(client.lastUpdated).toLocaleDateString('pt-BR')}"`
+              `"${new Date(client.lastUpdated).toLocaleDateString('pt-BR')}"`,
+              `"${client.address || ''}"`
             ].join(','))
           ].join('\n');
 
@@ -582,7 +583,8 @@ const getBackgroundColor = (columnId) => {
                       notes: values[7] ? [{ text: values[7], timestamp: new Date().toISOString() }] : [],
                       columnId: 'primeiro-contato', // Coluna padrão
                       createdAt: new Date().toISOString(),
-                      lastUpdated: new Date().toISOString()
+                      lastUpdated: new Date().toISOString(),
+                      address: values[10] || '' // Novo campo Endereço
                     };
                     importedClients.push(client);
                   }
@@ -696,7 +698,7 @@ const getBackgroundColor = (columnId) => {
                   } else {
                     if (!uiState.newClient.name) return;
                     addClient(uiState.newClient);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '' } }));
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '' } }));
                     setShowAddClient(false);
                   }
                 }}
@@ -866,6 +868,10 @@ const getBackgroundColor = (columnId) => {
                     <input type="tel" value={client.phone || ''} onChange={(e) => setClient({ ...client, phone: e.target.value })} className="w-full p-2 border rounded" />
                   </div>
                   <div>
+                    <label>Endereço</label>
+                    <input type="text" value={client.address || ''} onChange={(e) => setClient({ ...client, address: e.target.value })} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
                     <label>Categoria</label>
                     <select value={client.category || ''} onChange={(e) => setClient({ ...client, category: e.target.value })} className="w-full p-2 border rounded">
                       <option value="">Nenhuma</option>
@@ -953,6 +959,12 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex items-center text-xs text-gray-600 mt-1">
                 <span className="mr-1">👤</span>
                     <span>{client.assignedTo}</span>
+                </div>
+            )}
+            {client.address && (
+                <div className="flex items-center text-xs text-gray-600 mt-1">
+                <span className="mr-1">📍</span>
+                    <span>{client.address}</span>
                 </div>
             )}
             {isInactive && <div className="mt-1 text-xs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
