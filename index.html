@@ -701,9 +701,7 @@ const getBackgroundColor = (columnId) => {
 
                 {(showAddClient || editingClientId) && (
                     <ClientForm
-                client={
-                  editingClientId ? clients.find((c) => c.id === editingClientId) : uiState.newClient
-                }
+                client={editingClientId ? clients.find((c) => c.id === editingClientId) : uiState.newClient}
                 setClient={
                   editingClientId
                     ? (client) => setClients(clients.map((c) => (c.id === editingClientId ? client : c)))
@@ -734,6 +732,9 @@ const getBackgroundColor = (columnId) => {
                 categories={categories}
                 teamMembers={teamMembers}
                 handleAddNote={handleAddNote}
+                deleteClient={deleteClient} // Passando a função de exclusão
+                setShowDeleteModal={setShowDeleteModal} // Passando o setter para o modal de confirmação
+                setClientToDelete={setClientToDelete} // Passando o setter para o cliente a ser excluído
                     />
                 )}
                 
@@ -875,7 +876,7 @@ const getBackgroundColor = (columnId) => {
     );
       }
 
-      function ClientForm({ client, setClient, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote }) {
+      function ClientForm({ client, setClient, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteClient, setShowDeleteModal, setClientToDelete }) {
     const [newNote, setNewNote] = useState('');
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -948,6 +949,9 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex justify-end gap-2 mt-6">
                   <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
+                  {client?.id && (
+                    <button type="button" onClick={() => { setClientToDelete(client); setShowDeleteModal(true); onClose(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Cliente</button>
+                  )}
                 </div>
             </form>
         </div>
@@ -968,12 +972,8 @@ const getBackgroundColor = (columnId) => {
             style={{ width: '100%', padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px` }}
           >
             <div className="flex justify-between items-start text-sm">
-                <h3 className="font-bold">{client.name}</h3>
+                <h3 className="font-bold cursor-pointer hover:text-blue-600" onClick={() => setEditingClientId(client.id)}>{client.name}</h3>
                 <div className="flex flex-col gap-1 items-end">
-                    <div className="flex gap-1">
-                        <button onClick={() => setEditingClientId(client.id)} className="text-gray-500 hover:text-blue-500">✎</button>
-                        <button onClick={() => { setClientToDelete(client); setShowDeleteModal(true); }} className="text-gray-500 hover:text-red-500">🗑</button>
-                    </div>
                     <div className="flex gap-1 mt-1">
                         <button onClick={() => moveClientOrder(client.id, 'up')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para cima">▲</button>
                         <button onClick={() => moveClientOrder(client.id, 'down')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para baixo">▼</button>
