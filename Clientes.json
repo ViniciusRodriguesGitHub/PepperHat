@@ -1,0 +1,83 @@
+{
+  "boardState": {
+    "columns": {
+      "arquivados": {
+        "id": "arquivados",
+        "title": "Arquivados"
+      },
+      "descartados": {
+        "id": "descartados",
+        "title": "Descartados"
+      },
+      "contatar": {
+        "id": "contatar",
+        "title": "Contatar",
+        "color": "#BAFFC9"
+      },
+      "responder": {
+        "id": "responder",
+        "title": "Responder",
+        "color": "#FFD7A3"
+      },
+      "negociar": {
+        "id": "negociar",
+        "title": "Negociar"
+      },
+      "contratante": {
+        "id": "contratante",
+        "title": "Contratante"
+      }
+    },
+    "columnOrder": [
+      "contatar",
+      "responder",
+      "negociar",
+      "contratante",
+      "arquivados",
+      "descartados"
+    ],
+    "categories": [
+      "Casamento",
+      "Corporativo",
+      "Teatro",
+      "Casa de Show",
+      "Sesc"
+    ],
+    "teamMembers": [],
+    "columnsLocked": false,
+    "hiddenColumns": {
+      "arquivados": false,
+      "descartados": false
+    },
+    "columnWidths": {
+      "arquivados": 220,
+      "descartados": 220,
+      "contatar": 220,
+      "responder": 220,
+      "negociar": 220,
+      "contratante": 220
+    }
+  },
+  "clients": [
+    {
+      "name": "Sesc Sto Amaro",
+      "email": "",
+      "phone": "011 5541-4000",
+      "notes": [
+        {
+          "text": "87WP+RW Santo Amaro, São Paulo - SP",
+          "timestamp": "2025-08-25T12:54:24.891Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Sesc",
+      "assignedTo": "",
+      "id": "kgcirdx26qomer4ee8r",
+      "columnId": "contatar",
+      "createdAt": "2025-08-25T12:55:39.675Z",
+      "lastUpdated": "2025-08-25T12:55:39.675Z",
+      "order": 1
+    }
+  ],
+  "userId": "1yhi3nurk8qmer3yzhf"
+}
