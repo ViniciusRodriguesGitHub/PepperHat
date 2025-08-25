@@ -1018,6 +1018,12 @@ const getBackgroundColor = (columnId) => {
                     </div>
                 </div>
             </div>
+            {!compactCards && (card.rating > 0 || card.category) && (
+              <div className="flex items-center text-xs text-gray-600 mt-1 gap-2">
+
+                {card.category && <span>{card.category}</span>}
+              </div>
+            )}
             {!compactCards && (
               <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
                 {card.activity === 'Interna' && <span className="mr-1" title="Atividade: Interna">🏠</span>}
@@ -1026,14 +1032,6 @@ const getBackgroundColor = (columnId) => {
                 {card.phone ? <span className="mr-1" title={`Telefone: ${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
                 {card.email ? <span className="mr-1" title={`E-mail: ${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
                 {card.address ? <span className="mr-1" title={`Endereço: ${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
-              </div>
-            )}
-            {!compactCards && card.category && <div className="flex text-xs text-gray-600 mt-1">{card.category}</div>}
-            {!compactCards && card.rating > 0 && (
-              <div className="flex my-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <span key={i} className={i < (card.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-                ))}
               </div>
             )}
             {isInactive && <div className="mt-1 text-xs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
@@ -1046,7 +1044,7 @@ const getBackgroundColor = (columnId) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
               <h3 className="text-xl font-semibold mb-4">Confirmação</h3>
-              <p className="mb-4">Tem certeza que deseja excluir "{cardToDelete?.name}"?</p>
+              <p className="mb-4">{message}</p>
               <div className="flex justify-end gap-2">
                 <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                 <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded">Excluir</button>
