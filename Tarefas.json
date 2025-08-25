@@ -48,6 +48,10 @@
       "Vinícius",
       "Diana&Vinícius"
     ],
+    "activityOptions": [
+      "Interna",
+      "Externa"
+    ],
     "columnsLocked": false,
     "hiddenColumns": {
       "arquivados": true,
@@ -87,7 +91,8 @@
       "id": "8eaxhdqzn3amelnp3sa",
       "columnId": "tarefas",
       "createdAt": "2025-08-21T17:09:14.987Z",
-      "lastUpdated": "2025-08-25T13:54:13.060Z"
+      "lastUpdated": "2025-08-25T13:54:13.060Z",
+      "activity": "Externa"
     },
     {
       "name": "Buscar Mobi",
@@ -113,7 +118,8 @@
       "id": "24s0zfbravfmelnr18b",
       "columnId": "iniciar",
       "createdAt": "2025-08-21T17:10:44.988Z",
-      "lastUpdated": "2025-08-25T13:54:19.555Z"
+      "lastUpdated": "2025-08-25T13:54:19.555Z",
+      "activity": "Externa"
     },
     {
       "name": "Escanear Exame Nícolas",
@@ -126,7 +132,8 @@
       "id": "5xo175in3x7melnwnvs",
       "columnId": "tarefas",
       "createdAt": "2025-08-21T17:15:07.624Z",
-      "lastUpdated": "2025-08-21T17:15:07.624Z"
+      "lastUpdated": "2025-08-21T17:15:07.624Z",
+      "activity": "Interna"
     },
     {
       "name": "Agendar Exame Nícolas",
@@ -139,7 +146,8 @@
       "id": "o0tcu5lzwtdmelnxhru",
       "columnId": "tarefas",
       "createdAt": "2025-08-21T17:15:46.363Z",
-      "lastUpdated": "2025-08-21T17:15:46.363Z"
+      "lastUpdated": "2025-08-21T17:15:46.363Z",
+      "activity": "Interna"
     },
     {
       "name": "Orçamento Vanessa Martin",
@@ -152,7 +160,8 @@
       "id": "rqvxk0gtumomelo36b4",
       "columnId": "arquivados",
       "createdAt": "2025-08-21T17:20:11.440Z",
-      "lastUpdated": "2025-08-25T13:53:22.499Z"
+      "lastUpdated": "2025-08-25T13:53:22.499Z",
+      "activity": "Interna"
     },
     {
       "name": "Aulas Mentoria",
@@ -165,7 +174,8 @@
       "id": "xrt6ayxytoqmelocxqt",
       "columnId": "fazendo",
       "createdAt": "2025-08-21T17:27:46.901Z",
-      "lastUpdated": "2025-08-21T17:27:48.613Z"
+      "lastUpdated": "2025-08-21T17:27:48.613Z",
+      "activity": "Interna"
     },
     {
       "name": "Separar material de produção",
@@ -195,7 +205,8 @@
       "id": "j4p5wwliwq7melqg1kp",
       "columnId": "descartados",
       "createdAt": "2025-08-21T18:26:11.066Z",
-      "lastUpdated": "2025-08-25T13:53:30.741Z"
+      "lastUpdated": "2025-08-25T15:01:31.270Z",
+      "activity": "Interna"
     },
     {
       "name": "Microsoft",
@@ -213,7 +224,8 @@
       "id": "e287gb6sgwmelr5td2",
       "columnId": "tarefas",
       "createdAt": "2025-08-21T18:46:13.479Z",
-      "lastUpdated": "2025-08-21T18:46:13.479Z"
+      "lastUpdated": "2025-08-21T18:46:13.479Z",
+      "activity": "Interna"
     },
     {
       "name": "Montar repertório show dia 06/09",
@@ -232,7 +244,8 @@
       "columnId": "iniciar",
       "createdAt": "2025-08-22T13:40:21.461Z",
       "lastUpdated": "2025-08-22T14:07:41.212Z",
-      "order": 1
+      "order": 1,
+      "activity": "Interna"
     },
     {
       "name": "mandar link das versões",
@@ -251,7 +264,8 @@
       "columnId": "descartados",
       "createdAt": "2025-08-22T14:07:04.911Z",
       "lastUpdated": "2025-08-25T14:02:00.389Z",
-      "order": 2
+      "order": 2,
+      "activity": "Interna"
     },
     {
       "name": "Miriam Modas",
@@ -270,7 +284,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-22T18:16:13.160Z",
       "lastUpdated": "2025-08-22T18:16:13.160Z",
-      "order": 1
+      "order": 1,
+      "activity": "Externa"
     },
     {
       "name": "Ir o Shopping",
@@ -289,7 +304,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:51:23.708Z",
       "lastUpdated": "2025-08-25T13:51:23.708Z",
-      "order": 2
+      "order": 2,
+      "activity": "Externa"
     },
     {
       "name": "Reunião Compasse",
@@ -303,7 +319,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:52:34.727Z",
       "lastUpdated": "2025-08-25T13:52:34.727Z",
-      "order": 3
+      "order": 3,
+      "activity": "Interna"
     },
     {
       "name": "Agendar Endócrino",
@@ -322,7 +339,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:55:43.780Z",
       "lastUpdated": "2025-08-25T13:55:43.780Z",
-      "order": 4
+      "order": 4,
+      "activity": "Interna"
     },
     {
       "name": "Bradesco",
@@ -342,7 +360,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:57:59.932Z",
       "lastUpdated": "2025-08-25T13:57:59.932Z",
-      "order": 5
+      "order": 5,
+      "activity": "Externa"
     },
     {
       "name": "Falar com Beto",
@@ -366,7 +385,8 @@
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:00:08.392Z",
       "lastUpdated": "2025-08-25T14:48:34.927Z",
-      "order": 6
+      "order": 6,
+      "activity": "Interna"
     },
     {
       "name": "Produção de Show",
@@ -394,7 +414,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T14:03:47.899Z",
       "lastUpdated": "2025-08-25T14:03:47.899Z",
-      "order": 6
+      "order": 6,
+      "activity": "Interna"
     },
     {
       "name": "Costureira",
@@ -414,7 +435,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T14:07:44.206Z",
       "lastUpdated": "2025-08-25T14:07:44.206Z",
-      "order": 7
+      "order": 7,
+      "activity": "Externa"
     },
     {
       "name": "Financeiro",
@@ -450,7 +472,8 @@
       "columnId": "iniciar",
       "createdAt": "2025-08-25T14:14:58.033Z",
       "lastUpdated": "2025-08-25T14:15:03.043Z",
-      "order": 8
+      "order": 8,
+      "activity": "Interna"
     },
     {
       "name": "Marcar Mecânico",
@@ -470,7 +493,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T14:50:05.414Z",
       "lastUpdated": "2025-08-25T14:50:05.414Z",
-      "order": 8
+      "order": 8,
+      "activity": "Interna"
     },
     {
       "name": "Atualizar sistema Tarefas",
@@ -499,10 +523,11 @@
       "assignedTo": "Vinícius",
       "address": "",
       "id": "09vsnnqaqrgmer8sks2",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "createdAt": "2025-08-25T14:58:39.795Z",
-      "lastUpdated": "2025-08-25T14:58:39.795Z",
-      "order": 9
+      "lastUpdated": "2025-08-25T18:01:27.875Z",
+      "order": 9,
+      "activity": "Interna"
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

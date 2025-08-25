@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Funil de Vendas Kanban</title>
+    <title>Pepper Hat Apps</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React/ReactDOM via CDN -->
@@ -1010,11 +1010,15 @@ const getBackgroundColor = (columnId) => {
             style={{ width: '100%', padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1 }}
           >
             <div className="flex justify-between items-start text-sm">
-                <h3 className="font-bold cursor-pointer hover:text-blue-600" onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
+                <div className="flex items-center gap-1">
+                  {card.activity === 'Interna' && <span className="mr-1" title="Atividade: Interna">🏠</span>}
+                  {card.activity === 'Externa' && <span className="mr-1" title="Atividade: Externa">🚗</span>}
+                  <h3 className="font-bold cursor-pointer hover:text-blue-600 text-xs" onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
+                </div>
                 <div className="flex flex-col gap-1 items-end">
                     <div className="flex gap-1 mt-1">
-                        <button onClick={() => moveCardOrder(card.id, 'up')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para cima">▲</button>
-                        <button onClick={() => moveCardOrder(card.id, 'down')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para baixo">▼</button>
+                        <button onClick={() => moveCardOrder(card.id, 'up')} className="text-gray-500 hover:text-blue-500 text-sm leading-tight" title="Mover para cima">▲</button>
+                        <button onClick={() => moveCardOrder(card.id, 'down')} className="text-gray-500 hover:text-blue-500 text-sm leading-tight" title="Mover para baixo">▼</button>
                     </div>
                 </div>
             </div>
@@ -1026,8 +1030,6 @@ const getBackgroundColor = (columnId) => {
             )}
             {!compactCards && (
               <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
-                {card.activity === 'Interna' && <span className="mr-1" title="Atividade: Interna">🏠</span>}
-                {card.activity === 'Externa' && <span className="mr-1" title="Atividade: Externa">🚗</span>}
                 {card.assignedTo ? <span className="mr-1" title={`Responsável: ${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
                 {card.phone ? <span className="mr-1" title={`Telefone: ${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
                 {card.email ? <span className="mr-1" title={`E-mail: ${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
