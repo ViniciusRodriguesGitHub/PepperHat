@@ -48,7 +48,7 @@
       "Vinícius",
       "Diana&Vinícius"
     ],
-    "columnsLocked": true,
+    "columnsLocked": false,
     "hiddenColumns": {
       "arquivados": true,
       "descartados": false
@@ -248,9 +248,9 @@
       "category": "Pepper Hat",
       "assignedTo": "Vinícius",
       "id": "a8k19jto47kmemwmor2",
-      "columnId": "feito",
+      "columnId": "descartados",
       "createdAt": "2025-08-22T14:07:04.911Z",
-      "lastUpdated": "2025-08-22T18:21:03.750Z",
+      "lastUpdated": "2025-08-25T14:02:00.389Z",
       "order": 2
     },
     {
@@ -343,6 +343,166 @@
       "createdAt": "2025-08-25T13:57:59.932Z",
       "lastUpdated": "2025-08-25T13:57:59.932Z",
       "order": 5
+    },
+    {
+      "name": "Falar com Beto",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Resolver finalização de contrato",
+          "timestamp": "2025-08-25T14:00:31.240Z"
+        },
+        {
+          "text": "Fazer agenda semanal",
+          "timestamp": "2025-08-25T14:00:59.429Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "hpqy15n4ycqmer6pbd4",
+      "columnId": "fazendo",
+      "createdAt": "2025-08-25T14:00:08.392Z",
+      "lastUpdated": "2025-08-25T14:48:34.927Z",
+      "order": 6
+    },
+    {
+      "name": "Produção de Show",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Produção do Show",
+          "timestamp": "2025-08-25T14:02:55.834Z"
+        },
+        {
+          "text": "Montar Figurino",
+          "timestamp": "2025-08-25T14:03:05.868Z"
+        },
+        {
+          "text": "Montar Repértório definitivo (1h e 2hs)",
+          "timestamp": "2025-08-25T14:03:41.910Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "sxqkdsc0evmer6u0qi",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T14:03:47.899Z",
+      "lastUpdated": "2025-08-25T14:03:47.899Z",
+      "order": 6
+    },
+    {
+      "name": "Costureira",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Levar as roupas pra conserto",
+          "timestamp": "2025-08-25T14:07:34.545Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "yq28nrk6pnmer6z32m",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T14:07:44.206Z",
+      "lastUpdated": "2025-08-25T14:07:44.206Z",
+      "order": 7
+    },
+    {
+      "name": "Financeiro",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Organização do financeiro",
+          "timestamp": "2025-08-25T14:12:50.447Z"
+        },
+        {
+          "text": "Fazer planilha de organização de filtros de financeiro",
+          "timestamp": "2025-08-25T14:13:08.065Z"
+        },
+        {
+          "text": "Impor limites de gastos",
+          "timestamp": "2025-08-25T14:13:17.661Z"
+        },
+        {
+          "text": "Ver aplicação",
+          "timestamp": "2025-08-25T14:13:27.161Z"
+        },
+        {
+          "text": "Atualizar a planilha de investimento",
+          "timestamp": "2025-08-25T14:14:35.579Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "ls2cm7i3czmer78dtd",
+      "columnId": "iniciar",
+      "createdAt": "2025-08-25T14:14:58.033Z",
+      "lastUpdated": "2025-08-25T14:15:03.043Z",
+      "order": 8
+    },
+    {
+      "name": "Marcar Mecânico",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Agendar troca de óleo",
+          "timestamp": "2025-08-25T14:49:25.190Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "id": "r9qr6ecudtmer8hjvp",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T14:50:05.414Z",
+      "lastUpdated": "2025-08-25T14:50:05.414Z",
+      "order": 8
+    },
+    {
+      "name": "Atualizar sistema Tarefas",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Tirar campo de cliente e colocar tafera",
+          "timestamp": "2025-08-25T14:56:05.546Z"
+        },
+        {
+          "text": "Tirar e-mail, telefone e endereço",
+          "timestamp": "2025-08-25T14:56:27.770Z"
+        },
+        {
+          "text": "Adicionar Subcategoria Administrativo ou Externo e separar por cores",
+          "timestamp": "2025-08-25T14:57:13.253Z"
+        },
+        {
+          "text": "Mudar Classificação para Prioridade (grau) ",
+          "timestamp": "2025-08-25T14:58:34.972Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "id": "09vsnnqaqrgmer8sks2",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T14:58:39.795Z",
+      "lastUpdated": "2025-08-25T14:58:39.795Z",
+      "order": 9
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

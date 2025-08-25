@@ -39,7 +39,10 @@
       "arquivados",
       "descartados"
     ],
-    "categories": [],
+    "categories": [
+      "Com Contrato",
+      "Sem Contrato"
+    ],
     "teamMembers": [
       "Diana",
       "Vinícius",
@@ -72,16 +75,36 @@
   "clients": [
     {
       "name": "Weiss e Nakayama",
-      "email": "",
+      "email": "custos@centrofarma.com.br",
       "phone": "",
       "notes": [],
       "rating": 5,
-      "category": "",
-      "assignedTo": "",
+      "category": "Com Contrato",
+      "assignedTo": "Diana",
       "id": "6ou0wy4tmpemeluwiej",
-      "columnId": "clientes-contratos",
+      "columnId": "tarefas",
       "createdAt": "2025-08-21T20:30:57.835Z",
-      "lastUpdated": "2025-08-21T20:34:47.024Z",
+      "lastUpdated": "2025-08-25T15:09:29.806Z",
+      "order": 1
+    },
+    {
+      "name": "L.A Ferretti",
+      "email": "jonas@laferretti.com.br",
+      "phone": "19 99701-0065",
+      "notes": [
+        {
+          "text": "Enviei e-mail na quinta dia 21/08",
+          "timestamp": "2025-08-25T15:06:25.346Z"
+        }
+      ],
+      "rating": 3,
+      "category": "Sem Contrato",
+      "assignedTo": "Diana",
+      "address": "93P9+G4 Santo Antônio de Posse, State of São Paulo",
+      "id": "13j6r5b8owdlmer92qgg",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T15:06:33.713Z",
+      "lastUpdated": "2025-08-25T15:06:33.713Z",
       "order": 1
     }
   ],

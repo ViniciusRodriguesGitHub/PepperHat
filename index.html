@@ -81,6 +81,7 @@ const getBackgroundColor = (columnId) => {
         ],
         categories: ['Casamento', 'Corporativo', 'Bar', 'Teatro'],
         teamMembers: [],
+        activityOptions: ['Interna', 'Externa'], // Novas opções de atividade
         columnsLocked: true,
       };
 
@@ -110,18 +111,19 @@ const getBackgroundColor = (columnId) => {
         const [boardState, setBoardState] = useState(() => {
           const saved = loadState()?.boardState;
           return {
-            ...(saved || defaultBoardState),
+            ...defaultBoardState, // Sempre começar com o estado padrão
+            ...(saved || {}),
             columnsLocked: saved?.columnsLocked ?? true,
             hiddenColumns: saved?.hiddenColumns ?? { arquivados: false, descartados: false },
           };
         });
         const [clients, setClients] = useState(() => loadState()?.clients || []);
         const [userId, setUserId] = useState(() => loadState()?.userId || uid());
-        const [showAddClient, setShowAddClient] = useState(false);
-    const [editingClientId, setEditingClientId] = useState(null);
+        const [showAddCard, setShowAddCard] = useState(false);
+    const [editingCardId, setEditingCardId] = useState(null);
     const [showAddCategory, setShowAddCategory] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [clientToDelete, setClientToDelete] = useState(null);
+    const [cardToDelete, setCardToDelete] = useState(null);
     const [isAddingColumn, setIsAddingColumn] = useState(false);
     const [draggedItem, setDraggedItem] = useState(null);
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -130,30 +132,33 @@ const getBackgroundColor = (columnId) => {
         const [filterCategory, setFilterCategory] = useState('');
         const [filterMember, setFilterMember] = useState('');
         const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de busca
+        const [filterActivity, setFilterActivity] = useState(''); // Novo estado para o filtro de atividade
 
         // Estado para desfazer exclusões
-        const [deletedClients, setDeletedClients] = useState(() => loadState()?.deletedClients || []);
-        const [lastDeletedClient, setLastDeletedClient] = useState(null);
+        const [deletedCards, setDeletedCards] = useState(() => loadState()?.deletedClients || []); // Renomeado de deletedClients
+        const [lastDeletedCard, setLastDeletedCard] = useState(null); // Renomeado de lastDeletedClient
         const [deletedColumns, setDeletedColumns] = useState(() => loadState()?.deletedColumns || []);
         const [lastDeletedColumn, setLastDeletedColumn] = useState(null);
         const [compactCards, setCompactCards] = useState(false); // Novo estado para compactar os cards
+        const [pageTitle, setPageTitle] = useState('Tarefas'); // Novo estado para o título da página
 
         useEffect(() => {
           saveState({ boardState, clients, userId });
         }, [boardState, clients, userId]);
 
         useEffect(() => {
-          saveState({ boardState, clients, userId, deletedClients });
-        }, [boardState, clients, userId, deletedClients]);
+          saveState({ boardState, clients, userId, deletedClients: deletedCards }); // Atualizado para deletedCards
+        }, [boardState, clients, userId, deletedCards]);
 
         useEffect(() => {
-          saveState({ boardState, clients, userId, deletedClients, deletedColumns });
-        }, [boardState, clients, userId, deletedClients, deletedColumns]);
+          saveState({ boardState, clients, userId, deletedClients: deletedCards, deletedColumns }); // Atualizado para deletedCards
+        }, [boardState, clients, userId, deletedCards, deletedColumns]);
 
         const columnOrder = boardState.columnOrder || [];
         const columns = boardState.columns || {};
         const categories = Array.isArray(boardState.categories) ? boardState.categories : [];
         const teamMembers = Array.isArray(boardState.teamMembers) ? boardState.teamMembers : [];
+        const activityOptions = Array.isArray(boardState.activityOptions) ? boardState.activityOptions : []; // Novo estado para as opções de atividade
 
         const [columnsWidths, setColumnsWidths] = useState({});
         const resizingRef = useRef({ isResizing: false, columnId: null, startX: 0, startWidth: 0 });
@@ -198,8 +203,8 @@ const getBackgroundColor = (columnId) => {
           };
         }, []);
 
-        function handleDragStart(e, clientId) {
-        setDraggedItem(clientId);
+        function handleDragStart(e, cardId) {
+        setDraggedItem(cardId);
           e.dataTransfer.effectAllowed = 'move';
         }
     const handleDragOver = (e) => e.preventDefault();
@@ -210,42 +215,42 @@ const getBackgroundColor = (columnId) => {
           setDraggedItem(null);
         }
 
-        function addClient(client) {
+        function addCard(card) { // Renomeado de addClient
           const id = uid();
           setClients((prev) => {
-            // Determinar a maior ordem existente na coluna de destino para o novo cliente ir para o final
-            const clientsInTargetColumn = prev.filter(c => c.columnId === columnOrder[0]);
-            const maxOrder = clientsInTargetColumn.reduce((max, c) => Math.max(max, c.order || 0), 0);
+            // Determinar a maior ordem existente na coluna de destino para o novo card ir para o final
+            const cardsInTargetColumn = prev.filter(c => c.columnId === columnOrder[0]);
+            const maxOrder = cardsInTargetColumn.reduce((max, c) => Math.max(max, c.order || 0), 0);
             const newOrder = maxOrder + 1;
 
             return [
               ...prev,
               {
-                ...client,
+                ...card,
                 id,
-                columnId: columnOrder[0],
-                createdAt: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                notes: client.notes || [],
+            columnId: columnOrder[0],
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+                notes: card.notes || [],
                 order: newOrder, // Adicionando a propriedade de ordem
               },
             ];
           });
         }
 
-        function updateClient(updated) {
+        function updateCard(updated) { // Renomeado de updateClient
           setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
         }
 
-        function moveClientOrder(clientId, direction) {
+        function moveCardOrder(cardId, direction) { // Renomeado de moveClientOrder
           setClients(prevClients => {
-            const clientToMove = prevClients.find(c => c.id === clientId);
-            if (!clientToMove) return prevClients;
+            const cardToMove = prevClients.find(c => c.id === cardId);
+            if (!cardToMove) return prevClients;
 
-            const clientsInSameColumn = prevClients.filter(c => c.columnId === clientToMove.columnId)
+            const cardsInSameColumn = prevClients.filter(c => c.columnId === cardToMove.columnId)
               .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-            const currentPosIndex = clientsInSameColumn.findIndex(c => c.id === clientId);
+            const currentPosIndex = cardsInSameColumn.findIndex(c => c.id === cardId);
             if (currentPosIndex === -1) return prevClients;
 
             let targetPosIndex;
@@ -255,47 +260,47 @@ const getBackgroundColor = (columnId) => {
               targetPosIndex = currentPosIndex + 1;
             }
 
-            if (targetPosIndex < 0 || targetPosIndex >= clientsInSameColumn.length) {
+            if (targetPosIndex < 0 || targetPosIndex >= cardsInSameColumn.length) {
               return prevClients; // Não pode mover mais para cima ou para baixo
             }
 
             // Criar uma nova array para a coluna e manipular a ordem
-            const reorderedColumnClients = [...clientsInSameColumn];
-            const [removed] = reorderedColumnClients.splice(currentPosIndex, 1);
-            reorderedColumnClients.splice(targetPosIndex, 0, removed);
+            const reorderedColumnCards = [...cardsInSameColumn]; // Renomeado de reorderedColumnClients
+            const [removed] = reorderedColumnCards.splice(currentPosIndex, 1);
+            reorderedColumnCards.splice(targetPosIndex, 0, removed);
 
             // Reatribuir a propriedade 'order' sequencialmente
-            const updatedClientsInColumn = reorderedColumnClients.map((client, index) => ({
-              ...client,
+            const updatedCardsInColumn = reorderedColumnCards.map((card, index) => ({ // Renomeado de updatedClientsInColumn
+              ...card,
               order: index + 1, // Atribui nova ordem sequencial
               lastUpdated: new Date().toISOString(),
             }));
 
-            // Combinar os clientes da coluna atualizados com os outros clientes
-            const otherClients = prevClients.filter(c => c.columnId !== clientToMove.columnId);
-            return [...otherClients, ...updatedClientsInColumn];
+            // Combinar os cards da coluna atualizados com os outros cards
+            const otherCards = prevClients.filter(c => c.columnId !== cardToMove.columnId); // Renomeado de otherClients
+            return [...otherCards, ...updatedCardsInColumn];
           });
         }
 
-        function deleteClient(clientId) {
-          const clientToDelete = clients.find(c => c.id === clientId);
-          if (!clientToDelete) return;
+        function deleteCard(cardId) { // Renomeado de deleteClient
+          const cardToDelete = clients.find(c => c.id === cardId);
+          if (!cardToDelete) return;
           
           // Salvar para desfazer
-          setLastDeletedClient({ ...clientToDelete, deletedAt: new Date().toISOString() });
-          setDeletedClients(prev => [...prev, { ...clientToDelete, deletedAt: new Date().toISOString() }]);
+          setLastDeletedCard({ ...cardToDelete, deletedAt: new Date().toISOString() });
+          setDeletedCards(prev => [...prev, { ...cardToDelete, deletedAt: new Date().toISOString() }]);
           
-          setClients(prev => prev.filter(c => c.id !== clientId));
+          setClients(prev => prev.filter(c => c.id !== cardId));
         }
 
         function undoLastDeletion() {
-          if (!lastDeletedClient) return;
+          if (!lastDeletedCard) return;
           
-          // Restaurar o cliente
-          setClients(prev => [...prev, { ...lastDeletedClient, lastUpdated: new Date().toISOString() }]);
+          // Restaurar o card
+          setClients(prev => [...prev, { ...lastDeletedCard, lastUpdated: new Date().toISOString() }]);
           
           // Limpar o último deletado
-          setLastDeletedClient(null);
+          setLastDeletedCard(null);
         }
 
         function undoLastColumnDeletion() {
@@ -311,12 +316,12 @@ const getBackgroundColor = (columnId) => {
             return { ...prev, columns: newColumns, columnOrder: newColumnOrder };
           });
           
-          // Restaurar os clientes da coluna apenas se eles não existirem mais
+          // Restaurar os cards da coluna apenas se eles não existirem mais
           if (lastDeletedColumn.clients && lastDeletedColumn.clients.length > 0) {
             setClients(prev => {
-              const existingClientIds = prev.map(c => c.id);
-              const clientsToRestore = lastDeletedColumn.clients.filter(c => !existingClientIds.includes(c.id));
-              return [...prev, ...clientsToRestore.map(c => ({ ...c, lastUpdated: new Date().toISOString() }))];
+              const existingCardIds = prev.map(c => c.id);
+              const cardsToRestore = lastDeletedColumn.clients.filter(c => !existingCardIds.includes(c.id));
+              return [...prev, ...cardsToRestore.map(c => ({ ...c, lastUpdated: new Date().toISOString() }))];
             });
           }
           
@@ -432,19 +437,19 @@ const getBackgroundColor = (columnId) => {
         };
 
         const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '' },
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '' },
           newCategory: '',
           newColumnName: '',
           newTeamMemberName: '',
         });
 
-        function handleAddNote(tempClient, setTempClient, text) {
+        function handleAddNote(tempCard, setTempCard, text) {
           if (!text.trim()) return;
           const updated = [
-            ...(Array.isArray(tempClient.notes) ? tempClient.notes : []),
+            ...(Array.isArray(tempCard.notes) ? tempCard.notes : []),
             { text, timestamp: new Date().toISOString() },
           ];
-          setTempClient({ ...tempClient, notes: updated });
+          setTempCard({ ...tempCard, notes: updated });
         }
 
         function addTeamMember(name) {
@@ -477,26 +482,27 @@ const getBackgroundColor = (columnId) => {
 
         function exportToGoogleSheets() {
           // Criar dados formatados para CSV (mais compatível)
-          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço'];
-          
-          const csvData = [
-            headers.join(','),
-            ...clients.map(client => [
-              `"${client.name || ''}"`,
-              `"${client.email || ''}"`,
-              `"${client.phone || ''}"`,
-              `"${client.category || ''}"`,
-              `"${client.assignedTo || ''}"`,
-              client.rating || 0,
-              `"${columns[client.columnId]?.title || client.columnId || ''}"`,
-              `"${(client.notes || []).map(note => note.text).join(' | ')}"`,
-              `"${new Date(client.createdAt).toLocaleDateString('pt-BR')}"`,
-              `"${new Date(client.lastUpdated).toLocaleDateString('pt-BR')}"`,
-              `"${client.address || ''}"`
-            ].join(','))
-          ].join('\n');
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade'];
+                  
+                  const csvData = [
+                    headers.join(','),
+                    ...clients.map(card => [
+                      `"${card.name || ''}"`,
+                      `"${card.email || ''}"`,
+                      `"${card.phone || ''}"`,
+                      `"${card.category || ''}"`,
+                      `"${card.assignedTo || ''}"`,
+                      card.rating || 0,
+                      `"${columns[card.columnId]?.title || card.columnId || ''}"`,
+                      `"${(card.notes || []).map(note => note.text).join(' | ')}"`,
+                      `"${new Date(card.createdAt).toLocaleDateString('pt-BR')}"`,
+                      `"${new Date(card.lastUpdated).toLocaleDateString('pt-BR')}"`,
+                      `"${card.address || ''}"`,
+                      `"${card.activity || ''}"`
+                    ].join(','))
+                  ].join('\n');
 
-          // Criar e baixar arquivo CSV
+                  // Criar e baixar arquivo CSV
           const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -535,6 +541,10 @@ const getBackgroundColor = (columnId) => {
                 if (importedData.userId) {
                   setUserId(importedData.userId);
                 }
+                // Atualiza o título da página com o nome do arquivo
+                const fileName = file.name.replace('.json', '');
+                setPageTitle(fileName);
+
                 alert('Dados importados com sucesso!');
               }
             } catch (error) {
@@ -569,12 +579,12 @@ const getBackgroundColor = (columnId) => {
                 // Converter CSV para dados estruturados
                 const lines = csvData.split('\n');
                 const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-                const importedClients = [];
+                const importedCards = [];
 
                 for (let i = 1; i < lines.length; i++) {
                   if (lines[i].trim()) {
                     const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-                    const client = {
+                    const card = {
                       id: uid(),
                       name: values[0] || '',
                       email: values[1] || '',
@@ -586,15 +596,16 @@ const getBackgroundColor = (columnId) => {
                       columnId: 'primeiro-contato', // Coluna padrão
                       createdAt: new Date().toISOString(),
                       lastUpdated: new Date().toISOString(),
-                      address: values[10] || '' // Novo campo Endereço
+                      address: values[10] || '', // Novo campo Endereço
+                      activity: values[11] || '' // Novo campo Atividade
                     };
-                    importedClients.push(client);
+                    importedCards.push(card);
                   }
                 }
 
-                if (confirm(`Importar ${importedClients.length} clientes da planilha?`)) {
-                  setClients(prev => [...prev, ...importedClients]);
-                  alert(`${importedClients.length} clientes importados com sucesso!`);
+                if (confirm(`Importar ${importedCards.length} cards da planilha?`)) {
+                  setClients(prev => [...prev, ...importedCards]);
+                  alert(`${importedCards.length} cards importados com sucesso!`);
                 }
               } catch (error) {
                 alert('Erro ao processar dados da planilha: ' + error.message);
@@ -608,9 +619,9 @@ const getBackgroundColor = (columnId) => {
     return (
           <div className="max-w-full mx-auto p-4 sm:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-              <h1 className="text-3xl sm:text-4xl font-bold">Tarefas</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold">{pageTitle}</h1>
                     <div className="flex flex-wrap gap-2">
-                <button onClick={() => setShowAddClient(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Cliente</button>
+                <button onClick={() => setShowAddCard(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Card</button>
                 <button onClick={() => setShowAddCategory(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Categoria</button>
                 <button onClick={() => !boardState.columnsLocked && setIsAddingColumn(true)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-800 hover:shadow-lg'} font-semibold py-2 px-4 rounded-full shadow-md transition-all`}>+ Coluna</button>
                 <button onClick={() => setShowAddMemberModal(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Membro</button>
@@ -619,13 +630,13 @@ const getBackgroundColor = (columnId) => {
                 <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
                 <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
                 <button onClick={importFromGoogleSheets} className="bg-purple-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📥 Importar Sheets</button>
-                {lastDeletedClient && (
+                {lastDeletedCard && (
                   <button 
                     onClick={undoLastDeletion} 
                     className="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
-                    title={`Desfazer exclusão de "${lastDeletedClient.name}"`}
+                    title={`Desfazer exclusão de "${lastDeletedCard.name}"`}
                   >
-                    ↩ Desfazer Cliente
+                    ↩ Desfazer Card
                   </button>
                 )}
                 {lastDeletedColumn && (
@@ -646,11 +657,11 @@ const getBackgroundColor = (columnId) => {
                     onClick={() => setCompactCards(prev => !prev)}
                     className="bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
                   >
-                    {compactCards ? 'Expandir Cards' : 'Compactar Cards'}
+                    {compactCards ? 'Expandir' : 'Compactar'}
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <label htmlFor="filterCategory" className="font-semibold">Filtrar por Categoria:</label>
+                    <label htmlFor="filterCategory" className="font-semibold">Categoria:</label>
                     <select
                       id="filterCategory"
                       value={filterCategory}
@@ -664,7 +675,7 @@ const getBackgroundColor = (columnId) => {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="filterMember" className="font-semibold">Filtrar por Membro:</label>
+                    <label htmlFor="filterMember" className="font-semibold">Membro:</label>
                     <select
                       id="filterMember"
                       value={filterMember}
@@ -674,6 +685,20 @@ const getBackgroundColor = (columnId) => {
                       <option value="">Todos</option>
                       {teamMembers.map((member) => (
                         <option key={member} value={member}>{member}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="filterActivity" className="font-semibold">Atividade:</label>
+                    <select
+                      id="filterActivity"
+                      value={filterActivity}
+                      onChange={(e) => setFilterActivity(e.target.value)}
+                      className="p-2 border rounded-md"
+                    >
+                      <option value="">Todas</option>
+                      {activityOptions.map((activity) => (
+                        <option key={activity} value={activity}>{activity}</option>
                       ))}
                     </select>
                   </div>
@@ -699,42 +724,45 @@ const getBackgroundColor = (columnId) => {
                   style={{ display: 'none' }}
                 />
 
-                {(showAddClient || editingClientId) && (
-                    <ClientForm
-                client={editingClientId ? clients.find((c) => c.id === editingClientId) : uiState.newClient}
-                setClient={
-                  editingClientId
-                    ? (client) => setClients(clients.map((c) => (c.id === editingClientId ? client : c)))
-                    : (client) => setUiState((s) => ({ ...s, newClient: client }))
+                {(showAddCard || editingCardId) && (
+                    <CardForm
+                card={
+                  editingCardId ? clients.find((c) => c.id === editingCardId) : uiState.newClient
+                }
+                setCard={
+                  editingCardId
+                    ? (card) => setClients(clients.map((c) => (c.id === editingCardId ? card : c)))
+                    : (card) => setUiState((s) => ({ ...s, newClient: card }))
                 }
                 onSubmit={(e) => {
                             e.preventDefault();
-                  if (editingClientId) {
-                    const updated = clients.find((c) => c.id === editingClientId);
-                    if (updated) updateClient(updated);
-                                setEditingClientId(null);
+                  if (editingCardId) {
+                    const updated = clients.find((c) => c.id === editingCardId);
+                    if (updated) updateCard(updated);
+                                setEditingCardId(null);
                   } else {
                     if (!uiState.newClient.name) return;
                     // Nova validação para Categoria e Responsável
                     if (!uiState.newClient.category || !uiState.newClient.assignedTo) {
-                      alert('Por favor, selecione uma Categoria e um Responsável para o novo cliente.');
+                      alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
                       return;
                     }
-                    addClient(uiState.newClient);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '' } }));
-                    setShowAddClient(false);
+                    addCard(uiState.newClient);
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '' } }));
+                    setShowAddCard(false);
                   }
                 }}
                 onClose={() => {
-                  setShowAddClient(false);
-                  setEditingClientId(null);
+                  setShowAddCard(false);
+                  setEditingCardId(null);
                 }}
                 categories={categories}
                 teamMembers={teamMembers}
                 handleAddNote={handleAddNote}
-                deleteClient={deleteClient} // Passando a função de exclusão
+                deleteCard={deleteCard} // Passando a função de exclusão renomeada
                 setShowDeleteModal={setShowDeleteModal} // Passando o setter para o modal de confirmação
-                setClientToDelete={setClientToDelete} // Passando o setter para o cliente a ser excluído
+                setCardToDelete={setCardToDelete} // Passando o setter para o card a ser excluído renomeado
+                activityOptions={activityOptions} // Passando as opções de atividade
                     />
                 )}
                 
@@ -784,9 +812,9 @@ const getBackgroundColor = (columnId) => {
 
             {showDeleteModal && (
               <ConfirmModal
-                message={`Tem certeza que deseja excluir "${clientToDelete?.name}"?`}
+                message={`Tem certeza que deseja excluir "${cardToDelete?.name}"?`}
                 onConfirm={() => {
-                  if (clientToDelete) deleteClient(clientToDelete.id);
+                  if (cardToDelete) deleteCard(cardToDelete.id); // Usando deleteCard
                   setShowDeleteModal(false);
                 }}
                 onCancel={() => setShowDeleteModal(false)}
@@ -826,28 +854,29 @@ const getBackgroundColor = (columnId) => {
                         .filter((c) => c.columnId === column.id)
                         .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
                         .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                        .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase())) // Novo filtro por atividade
                         .filter(c => searchTerm === '' || 
                           (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
                         )
-                        .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os clientes pela propriedade 'order'
-                        .map((client) => (
-                          <ClientCard
-                            key={client.id}
-                            client={client}
-                            setEditingClientId={setEditingClientId}
+                        .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os cards pela propriedade 'order'
+                        .map((card) => (
+                          <Card
+                            key={card.id}
+                            card={card} // Renomeado de client para card
+                            setEditingCardId={setEditingCardId} // Renomeado
                             setShowDeleteModal={setShowDeleteModal}
-                            setClientToDelete={setClientToDelete}
-                            onDragStart={(e) => handleDragStart(e, client.id)}
+                            setCardToDelete={setCardToDelete} // Renomeado
+                            onDragStart={(e) => handleDragStart(e, card.id)}
                             draggedItem={draggedItem}
                             onDropFiles={(files) => {
                               const newNotes = Array.from(files).map((file) => ({ text: `Arquivo "${file.name}" adicionado.`, timestamp: new Date().toISOString() }));
-                              setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
+                              setClients((prev) => prev.map((c) => (c.id === card.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
                             }}
                             columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
-                            moveClientOrder={moveClientOrder}
-                            compactCards={compactCards}
+                            moveCardOrder={moveCardOrder} // Renomeado
+                                        compactCards={compactCards}
                                         />
                                     ))}
                                 </div>
@@ -876,36 +905,36 @@ const getBackgroundColor = (columnId) => {
     );
       }
 
-      function ClientForm({ client, setClient, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteClient, setShowDeleteModal, setClientToDelete }) {
+      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions }) {
     const [newNote, setNewNote] = useState('');
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-semibold">{client?.id ? 'Editar Cliente' : 'Adicionar Cliente'}</h2>
+                <h2 className="text-2xl font-semibold">{card?.id ? 'Editar Card' : 'Adicionar Card'}</h2>
                 <button onClick={onClose}>✕</button>
               </div>
                 <form onSubmit={onSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label>Nome</label>
-                    <input type="text" value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} className="w-full p-2 border rounded" required />
+                    <input type="text" value={card.name} onChange={(e) => setCard({ ...card, name: e.target.value })} className="w-full p-2 border rounded" required />
                   </div>
                   <div>
                     <label>E-mail</label>
-                    <input type="email" value={client.email || ''} onChange={(e) => setClient({ ...client, email: e.target.value })} className="w-full p-2 border rounded" />
+                    <input type="email" value={card.email || ''} onChange={(e) => setCard({ ...card, email: e.target.value })} className="w-full p-2 border rounded" />
                   </div>
                   <div>
                     <label>Telefone</label>
-                    <input type="tel" value={client.phone || ''} onChange={(e) => setClient({ ...client, phone: e.target.value })} className="w-full p-2 border rounded" />
+                    <input type="tel" value={card.phone || ''} onChange={(e) => setCard({ ...card, phone: e.target.value })} className="w-full p-2 border rounded" />
                   </div>
                   <div>
                     <label>Endereço</label>
-                    <input type="text" value={client.address || ''} onChange={(e) => setClient({ ...client, address: e.target.value })} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
+                    <input type="text" value={card.address || ''} onChange={(e) => setCard({ ...card, address: e.target.value })} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
                   </div>
                   <div>
                     <label>Categoria</label>
-                    <select value={client.category || ''} onChange={(e) => setClient({ ...client, category: e.target.value })} className="w-full p-2 border rounded">
+                    <select value={card.category || ''} onChange={(e) => setCard({ ...card, category: e.target.value })} className="w-full p-2 border rounded">
                       <option value="">Nenhuma</option>
                       {categories.map((c) => (
                         <option key={c} value={c}>{c}</option>
@@ -914,7 +943,7 @@ const getBackgroundColor = (columnId) => {
                   </div>
                   <div>
                     <label>Responsável</label>
-                    <select value={client.assignedTo || ''} onChange={(e) => setClient({ ...client, assignedTo: e.target.value })} className="w-full p-2 border rounded">
+                    <select value={card.assignedTo || ''} onChange={(e) => setCard({ ...card, assignedTo: e.target.value })} className="w-full p-2 border rounded">
                       <option value="">Nenhum</option>
                       {teamMembers.map((m) => (
                         <option key={m} value={m}>{m}</option>
@@ -922,10 +951,19 @@ const getBackgroundColor = (columnId) => {
                     </select>
                   </div>
                   <div>
+                    <label>Atividade</label>
+                    <select value={card.activity || ''} onChange={(e) => setCard({ ...card, activity: e.target.value })} className="w-full p-2 border rounded">
+                      <option value="">Nenhuma</option>
+                      {activityOptions.map((activity) => (
+                        <option key={activity} value={activity}>{activity}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
                     <label>Classificação</label>
                     <div className="flex">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <button key={i} type="button" onClick={() => setClient({ ...client, rating: i + 1 })} className={i < (client.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                        <button key={i} type="button" onClick={() => setCard({ ...card, rating: i + 1 })} className={i < (card.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
                           ★
                         </button>
                       ))}
@@ -935,7 +973,7 @@ const getBackgroundColor = (columnId) => {
                 <div className="mt-4">
                   <label>Anotações</label>
                   <div className="border rounded p-2 h-24 overflow-y-auto bg-gray-50">
-                    {(client.notes || []).map((n, i) => (
+                    {(card.notes || []).map((n, i) => (
                       <div key={i} className="text-sm mb-1">
                         <span className="text-xs text-gray-500">{new Date(n.timestamp).toLocaleString()}</span>: {n.text}
                     </div>
@@ -944,23 +982,23 @@ const getBackgroundColor = (columnId) => {
         </div>
                 <div className="flex mt-2">
                   <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
-                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(client, setClient, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(card, setCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
                   <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
-                  {client?.id && (
-                    <button type="button" onClick={() => { setClientToDelete(client); setShowDeleteModal(true); onClose(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Cliente</button>
+                  {card?.id && (
+                    <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); onClose(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
                   )}
-                </div>
-            </form>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
-);
+    );
       }
 
-      function ClientCard({ client, setEditingClientId, setShowDeleteModal, setClientToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveClientOrder, compactCards }) {
-        const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(client.lastUpdated || client.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [client.lastUpdated, client.createdAt]);
+      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards }) {
+        const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(card.lastUpdated || card.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [card.lastUpdated, card.createdAt]);
     const isInactive = diffDays > 7;
     return (
           <div
@@ -968,37 +1006,35 @@ const getBackgroundColor = (columnId) => {
             onDragStart={onDragStart}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); onDropFiles(Array.from(e.dataTransfer.files || [])); }}
-            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === client.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''}`}
-            style={{ width: '100%', padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px` }}
+            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''}`}
+            style={{ width: '100%', padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1 }}
           >
             <div className="flex justify-between items-start text-sm">
-                <h3 className="font-bold cursor-pointer hover:text-blue-600" onClick={() => setEditingClientId(client.id)}>{client.name}</h3>
+                <h3 className="font-bold cursor-pointer hover:text-blue-600" onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
                 <div className="flex flex-col gap-1 items-end">
                     <div className="flex gap-1 mt-1">
-                        <button onClick={() => moveClientOrder(client.id, 'up')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para cima">▲</button>
-                        <button onClick={() => moveClientOrder(client.id, 'down')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para baixo">▼</button>
+                        <button onClick={() => moveCardOrder(card.id, 'up')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para cima">▲</button>
+                        <button onClick={() => moveCardOrder(card.id, 'down')} className="text-gray-500 hover:text-blue-500 text-lg leading-none" title="Mover para baixo">▼</button>
                     </div>
                 </div>
             </div>
-            {!compactCards && client.category && <div className="flex text-xs text-gray-600 mt-1">{client.category}</div>}
-            {!compactCards && client.rating > 0 && (
-              <div className="flex my-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <span key={i} className={i < (client.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-                ))}
+            {!compactCards && (
+              <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
+                {card.activity === 'Interna' && <span className="mr-1" title="Atividade: Interna">🏠</span>}
+                {card.activity === 'Externa' && <span className="mr-1" title="Atividade: Externa">🚗</span>}
+                {card.assignedTo ? <span className="mr-1" title={`Responsável: ${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
+                {card.phone ? <span className="mr-1" title={`Telefone: ${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
+                {card.email ? <span className="mr-1" title={`E-mail: ${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
+                {card.address ? <span className="mr-1" title={`Endereço: ${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
               </div>
             )}
-            {!compactCards && client.assignedTo && (
-                <div className="flex items-center text-xs text-gray-600 mt-1">
-                <span className="mr-1">👤</span>
-                    <span>{client.assignedTo}</span>
-                </div>
-            )}
-            {!compactCards && client.address && (
-                <div className="flex items-center text-xs text-gray-600 mt-1">
-                <span className="mr-1">📍</span>
-                    <span>{client.address}</span>
-                </div>
+            {!compactCards && card.category && <div className="flex text-xs text-gray-600 mt-1">{card.category}</div>}
+            {!compactCards && card.rating > 0 && (
+              <div className="flex my-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className={i < (card.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                ))}
+              </div>
             )}
             {isInactive && <div className="mt-1 text-xs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
         </div>
@@ -1010,7 +1046,7 @@ const getBackgroundColor = (columnId) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
               <h3 className="text-xl font-semibold mb-4">Confirmação</h3>
-              <p className="mb-4">{message}</p>
+              <p className="mb-4">Tem certeza que deseja excluir "{cardToDelete?.name}"?</p>
               <div className="flex justify-end gap-2">
                 <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                 <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded">Excluir</button>
@@ -1075,11 +1111,11 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
-                </div>
-              </form>
-            </div>
         </div>
-    );
+              </form>
+        </div>
+    </div>
+);
       }
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
