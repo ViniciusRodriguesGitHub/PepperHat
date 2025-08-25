@@ -129,12 +129,14 @@ const getBackgroundColor = (columnId) => {
         // Estado para filtros
         const [filterCategory, setFilterCategory] = useState('');
         const [filterMember, setFilterMember] = useState('');
+        const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de busca
 
         // Estado para desfazer exclusões
         const [deletedClients, setDeletedClients] = useState(() => loadState()?.deletedClients || []);
         const [lastDeletedClient, setLastDeletedClient] = useState(null);
         const [deletedColumns, setDeletedColumns] = useState(() => loadState()?.deletedColumns || []);
         const [lastDeletedColumn, setLastDeletedColumn] = useState(null);
+        const [compactCards, setCompactCards] = useState(false); // Novo estado para compactar os cards
 
         useEffect(() => {
           saveState({ boardState, clients, userId });
@@ -638,8 +640,15 @@ const getBackgroundColor = (columnId) => {
                     </div>
                 </header>
 
-                {/* Filtros */}
+                {/* Novo botão para compactar cards */}
                 <div className="flex flex-wrap gap-4 mb-4 items-center">
+                  <button 
+                    onClick={() => setCompactCards(prev => !prev)}
+                    className="bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                  >
+                    {compactCards ? 'Expandir Cards' : 'Compactar Cards'}
+                  </button>
+
                   <div className="flex items-center gap-2">
                     <label htmlFor="filterCategory" className="font-semibold">Filtrar por Categoria:</label>
                     <select
@@ -667,6 +676,17 @@ const getBackgroundColor = (columnId) => {
                         <option key={member} value={member}>{member}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="searchTerm" className="font-semibold">Buscar:</label>
+                    <input
+                      id="searchTerm"
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Buscar clientes..."
+                      className="p-2 border rounded-md w-64"
+                    />
                   </div>
                 </div>
 
@@ -697,6 +717,11 @@ const getBackgroundColor = (columnId) => {
                                 setEditingClientId(null);
                   } else {
                     if (!uiState.newClient.name) return;
+                    // Nova validação para Categoria e Responsável
+                    if (!uiState.newClient.category || !uiState.newClient.assignedTo) {
+                      alert('Por favor, selecione uma Categoria e um Responsável para o novo cliente.');
+                      return;
+                    }
                     addClient(uiState.newClient);
                     setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '' } }));
                     setShowAddClient(false);
@@ -800,6 +825,11 @@ const getBackgroundColor = (columnId) => {
                         .filter((c) => c.columnId === column.id)
                         .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
                         .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                        .filter(c => searchTerm === '' || 
+                          (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+                        )
                         .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os clientes pela propriedade 'order'
                         .map((client) => (
                           <ClientCard
@@ -816,6 +846,7 @@ const getBackgroundColor = (columnId) => {
                             }}
                             columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
                             moveClientOrder={moveClientOrder}
+                            compactCards={compactCards}
                                         />
                                     ))}
                                 </div>
@@ -924,7 +955,7 @@ const getBackgroundColor = (columnId) => {
 );
       }
 
-      function ClientCard({ client, setEditingClientId, setShowDeleteModal, setClientToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveClientOrder }) {
+      function ClientCard({ client, setEditingClientId, setShowDeleteModal, setClientToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveClientOrder, compactCards }) {
         const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(client.lastUpdated || client.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [client.lastUpdated, client.createdAt]);
     const isInactive = diffDays > 7;
     return (
@@ -949,19 +980,21 @@ const getBackgroundColor = (columnId) => {
                     </div>
                 </div>
             </div>
-            <div className="flex text-xs text-gray-600 mt-1">{client.category}</div>
-            <div className="flex my-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <span key={i} className={i < (client.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-              ))}
-            </div>
-            {client.assignedTo && (
+            {!compactCards && client.category && <div className="flex text-xs text-gray-600 mt-1">{client.category}</div>}
+            {!compactCards && client.rating > 0 && (
+              <div className="flex my-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className={i < (client.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                ))}
+              </div>
+            )}
+            {!compactCards && client.assignedTo && (
                 <div className="flex items-center text-xs text-gray-600 mt-1">
                 <span className="mr-1">👤</span>
                     <span>{client.assignedTo}</span>
                 </div>
             )}
-            {client.address && (
+            {!compactCards && client.address && (
                 <div className="flex items-center text-xs text-gray-600 mt-1">
                 <span className="mr-1">📍</span>
                     <span>{client.address}</span>

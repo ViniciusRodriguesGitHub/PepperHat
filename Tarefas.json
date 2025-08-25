@@ -1,0 +1,349 @@
+{
+  "boardState": {
+    "columns": {
+      "arquivados": {
+        "id": "arquivados",
+        "title": "Arquivados"
+      },
+      "descartados": {
+        "id": "descartados",
+        "title": "Descartados"
+      },
+      "iniciar": {
+        "id": "iniciar",
+        "title": "Iniciar",
+        "color": "#F0EAD6"
+      },
+      "fazendo": {
+        "id": "fazendo",
+        "title": "Fazendo",
+        "color": "#FFD7A3"
+      },
+      "feito": {
+        "id": "feito",
+        "title": "Feito",
+        "color": "#BAFFC9"
+      },
+      "tarefas": {
+        "id": "tarefas",
+        "title": "Tarefas",
+        "color": "#BAE1FF"
+      }
+    },
+    "columnOrder": [
+      "tarefas",
+      "iniciar",
+      "fazendo",
+      "feito",
+      "arquivados",
+      "descartados"
+    ],
+    "categories": [
+      "Pepper Hat",
+      "Compasse",
+      "Pessoal"
+    ],
+    "teamMembers": [
+      "Diana",
+      "Vinícius",
+      "Diana&Vinícius"
+    ],
+    "columnsLocked": true,
+    "hiddenColumns": {
+      "arquivados": true,
+      "descartados": false
+    },
+    "columnWidths": {
+      "primeiro-contato": 220,
+      "contato-pessoal": 220,
+      "fez-orcamento": 220,
+      "contratou": 220,
+      "asdf": 220,
+      "arquivados": 220,
+      "descartados": 220,
+      "deu-retorno": 220,
+      "negociando": 220,
+      "finalizado": 220,
+      "iniciar": 220,
+      "fazendo": 220,
+      "feito": 220,
+      "tarefas": 220
+    }
+  },
+  "clients": [
+    {
+      "name": "Cidadania",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Preparar documentos",
+          "timestamp": "2025-08-21T17:09:04.360Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "8eaxhdqzn3amelnp3sa",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:09:14.987Z",
+      "lastUpdated": "2025-08-25T13:54:13.060Z"
+    },
+    {
+      "name": "Buscar Mobi",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Está no Mecanico, aguardando aprovação da compasse",
+          "timestamp": "2025-08-21T17:10:34.738Z"
+        },
+        {
+          "text": "Buscar o carro amanhã",
+          "timestamp": "2025-08-21T18:26:54.477Z"
+        },
+        {
+          "text": "Serviço feito e finalizado",
+          "timestamp": "2025-08-25T13:53:54.740Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Compasse",
+      "assignedTo": "Diana",
+      "id": "24s0zfbravfmelnr18b",
+      "columnId": "iniciar",
+      "createdAt": "2025-08-21T17:10:44.988Z",
+      "lastUpdated": "2025-08-25T13:54:19.555Z"
+    },
+    {
+      "name": "Escanear Exame Nícolas",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "5xo175in3x7melnwnvs",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:15:07.624Z",
+      "lastUpdated": "2025-08-21T17:15:07.624Z"
+    },
+    {
+      "name": "Agendar Exame Nícolas",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "o0tcu5lzwtdmelnxhru",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:15:46.363Z",
+      "lastUpdated": "2025-08-21T17:15:46.363Z"
+    },
+    {
+      "name": "Orçamento Vanessa Martin",
+      "email": "",
+      "phone": "15981794963",
+      "notes": [],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "rqvxk0gtumomelo36b4",
+      "columnId": "arquivados",
+      "createdAt": "2025-08-21T17:20:11.440Z",
+      "lastUpdated": "2025-08-25T13:53:22.499Z"
+    },
+    {
+      "name": "Aulas Mentoria",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 4,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "xrt6ayxytoqmelocxqt",
+      "columnId": "fazendo",
+      "createdAt": "2025-08-21T17:27:46.901Z",
+      "lastUpdated": "2025-08-21T17:27:48.613Z"
+    },
+    {
+      "name": "Separar material de produção",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Separar macacão, bota, echarpes",
+          "timestamp": "2025-08-21T18:22:47.130Z"
+        },
+        {
+          "text": "Preparar as apresentações",
+          "timestamp": "2025-08-21T18:23:00.220Z"
+        },
+        {
+          "text": "Entregar aparelhagem Renato (cajon e percursão Di e Vi)",
+          "timestamp": "2025-08-21T18:23:41.206Z"
+        },
+        {
+          "text": "Entregar aparelhagem de som Cesar",
+          "timestamp": "2025-08-21T18:26:07.945Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "j4p5wwliwq7melqg1kp",
+      "columnId": "descartados",
+      "createdAt": "2025-08-21T18:26:11.066Z",
+      "lastUpdated": "2025-08-25T13:53:30.741Z"
+    },
+    {
+      "name": "Microsoft",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Passar para o drive familiar",
+          "timestamp": "2025-08-21T18:46:11.231Z"
+        }
+      ],
+      "rating": 0,
+      "category": "Pessoal",
+      "assignedTo": "Diana",
+      "id": "e287gb6sgwmelr5td2",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T18:46:13.479Z",
+      "lastUpdated": "2025-08-21T18:46:13.479Z"
+    },
+    {
+      "name": "Montar repertório show dia 06/09",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Montar o repertório Pepper Hat pra dois blocos, será formato banda",
+          "timestamp": "2025-08-22T13:40:17.130Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pepper Hat",
+      "assignedTo": "Vinícius",
+      "id": "cb10ixl189memvobit",
+      "columnId": "iniciar",
+      "createdAt": "2025-08-22T13:40:21.461Z",
+      "lastUpdated": "2025-08-22T14:07:41.212Z",
+      "order": 1
+    },
+    {
+      "name": "mandar link das versões",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Mandar link das versões do show de amanhã ao Julinho",
+          "timestamp": "2025-08-22T14:07:33.565Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Vinícius",
+      "id": "a8k19jto47kmemwmor2",
+      "columnId": "feito",
+      "createdAt": "2025-08-22T14:07:04.911Z",
+      "lastUpdated": "2025-08-22T18:21:03.750Z",
+      "order": 2
+    },
+    {
+      "name": "Miriam Modas",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Agendar pra ir ver algumas roupas pra show",
+          "timestamp": "2025-08-22T18:16:09.599Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana",
+      "id": "l8oign2z4r8men5j2w7",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-22T18:16:13.160Z",
+      "lastUpdated": "2025-08-22T18:16:13.160Z",
+      "order": 1
+    },
+    {
+      "name": "Ir o Shopping",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Comprar perfume",
+          "timestamp": "2025-08-25T13:51:14.265Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana",
+      "id": "jx3s1wp5dtomer6e2ij",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T13:51:23.708Z",
+      "lastUpdated": "2025-08-25T13:51:23.708Z",
+      "order": 2
+    },
+    {
+      "name": "Reunião Compasse",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "Compasse",
+      "assignedTo": "Diana",
+      "id": "9zqbek62brmer6flbb",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T13:52:34.727Z",
+      "lastUpdated": "2025-08-25T13:52:34.727Z",
+      "order": 3
+    },
+    {
+      "name": "Agendar Endócrino",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Agendar pelo convênio",
+          "timestamp": "2025-08-25T13:56:01.544Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "ieumym407rmmer6jn6s",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T13:55:43.780Z",
+      "lastUpdated": "2025-08-25T13:55:43.780Z",
+      "order": 4
+    },
+    {
+      "name": "Bradesco",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ir ao banco resolver pendência urgente",
+          "timestamp": "2025-08-25T13:57:56.305Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "r8ewcmtcmxmer6mk8s",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T13:57:59.932Z",
+      "lastUpdated": "2025-08-25T13:57:59.932Z",
+      "order": 5
+    }
+  ],
+  "userId": "01iw83g6hiq3mek411sl"
+}
