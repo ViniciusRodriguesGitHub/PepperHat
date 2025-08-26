@@ -15,6 +15,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       html, body { height: 100%; }
+      .text-xxs { font-size: 0.65rem; /* ~10px */ }
     </style>
   </head>
   <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800">
@@ -127,6 +128,7 @@ const getBackgroundColor = (columnId) => {
     const [isAddingColumn, setIsAddingColumn] = useState(false);
     const [draggedItem, setDraggedItem] = useState(null);
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+    const [showAdminMenu, setShowAdminMenu] = useState(false); // Novo estado para o menu de administração
 
         // Estado para filtros
         const [filterCategory, setFilterCategory] = useState('');
@@ -206,13 +208,49 @@ const getBackgroundColor = (columnId) => {
         function handleDragStart(e, cardId) {
         setDraggedItem(cardId);
           e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', cardId); // Adicionado para compatibilidade e para passar o ID
         }
     const handleDragOver = (e) => e.preventDefault();
         function handleDrop(e, targetColumnId) {
         e.preventDefault();
-        if (!draggedItem) return;
-          setClients((prev) => prev.map((c) => (c.id === draggedItem ? { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() } : c)));
+        const droppedCardId = e.dataTransfer.getData('text/plain'); // Obter o ID do card arrastado
+        if (!droppedCardId) return;
+          setClients((prev) => prev.map((c) => (c.id === droppedCardId ? { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() } : c)));
           setDraggedItem(null);
+        }
+
+        // Nova função para reordenar cards dentro da mesma coluna
+        function reorderCardInColumn(draggedCardId, targetCardId) {
+          setClients(prevClients => {
+            const draggedCard = prevClients.find(c => c.id === draggedCardId);
+            const targetCard = prevClients.find(c => c.id === targetCardId);
+
+            if (!draggedCard || !targetCard || draggedCard.columnId !== targetCard.columnId) {
+              return prevClients; // Garante que estão na mesma coluna
+            }
+
+            const columnCards = prevClients.filter(c => c.columnId === draggedCard.columnId)
+                                         .sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            const draggedIndex = columnCards.findIndex(c => c.id === draggedCardId);
+            const targetIndex = columnCards.findIndex(c => c.id === targetCardId);
+
+            if (draggedIndex === -1 || targetIndex === -1) return prevClients;
+
+            const reordered = [...columnCards];
+            const [removed] = reordered.splice(draggedIndex, 1);
+            reordered.splice(targetIndex, 0, removed);
+
+            // Reatribuir a propriedade 'order' sequencialmente
+            const updatedColumnCards = reordered.map((card, index) => ({
+              ...card,
+              order: index + 1,
+              lastUpdated: new Date().toISOString(),
+            }));
+
+            const otherCards = prevClients.filter(c => c.columnId !== draggedCard.columnId);
+            return [...otherCards, ...updatedColumnCards];
+          });
         }
 
         function addCard(card) { // Renomeado de addClient
@@ -437,7 +475,7 @@ const getBackgroundColor = (columnId) => {
         };
 
         const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '' },
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '' },
           newCategory: '',
           newColumnName: '',
           newTeamMemberName: '',
@@ -482,7 +520,7 @@ const getBackgroundColor = (columnId) => {
 
         function exportToGoogleSheets() {
           // Criar dados formatados para CSV (mais compatível)
-          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade'];
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora'];
                   
                   const csvData = [
                     headers.join(','),
@@ -498,7 +536,9 @@ const getBackgroundColor = (columnId) => {
                       `"${new Date(card.createdAt).toLocaleDateString('pt-BR')}"`,
                       `"${new Date(card.lastUpdated).toLocaleDateString('pt-BR')}"`,
                       `"${card.address || ''}"`,
-                      `"${card.activity || ''}"`
+                      `"${card.activity || ''}"`,
+                      `"${card.deadlineDate || ''}"`,
+                      `"${card.deadlineTime || ''}"`
                     ].join(','))
                   ].join('\n');
 
@@ -597,7 +637,9 @@ const getBackgroundColor = (columnId) => {
                       createdAt: new Date().toISOString(),
                       lastUpdated: new Date().toISOString(),
                       address: values[10] || '', // Novo campo Endereço
-                      activity: values[11] || '' // Novo campo Atividade
+                      activity: values[11] || '', // Novo campo Atividade
+                      deadlineDate: values[12] || '', // Novo campo Prazo - Data
+                      deadlineTime: values[13] || '' // Novo campo Prazo - Hora
                     };
                     importedCards.push(card);
                   }
@@ -622,10 +664,23 @@ const getBackgroundColor = (columnId) => {
               <h1 className="text-3xl sm:text-4xl font-bold">{pageTitle}</h1>
                     <div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowAddCard(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Card</button>
-                <button onClick={() => setShowAddCategory(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Categoria</button>
-                <button onClick={() => !boardState.columnsLocked && setIsAddingColumn(true)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-800 hover:shadow-lg'} font-semibold py-2 px-4 rounded-full shadow-md transition-all`}>+ Coluna</button>
-                <button onClick={() => setShowAddMemberModal(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Membro</button>
-                <button onClick={() => setBoardState((prev) => ({ ...prev, columnsLocked: !prev.columnsLocked }))} className={`${boardState.columnsLocked ? 'bg-red-500 text-white' : 'bg-white text-gray-800 hover:shadow-lg'} font-semibold py-2 px-4 rounded-full shadow-md transition-all`}>{boardState.columnsLocked ? 'Destravar colunas' : 'Travar colunas'}</button>
+                {/* Dropdown para ações administrativas */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(prev => !prev)}
+                    className="bg-gray-700 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                  >
+                    Opções
+                  </button>
+                  {showAdminMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                      <button onClick={() => { setShowAddCategory(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Categoria</button>
+                      <button onClick={() => { !boardState.columnsLocked && setIsAddingColumn(true); setShowAdminMenu(false); }} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-400 cursor-not-allowed' : 'text-gray-800 hover:bg-gray-100'} block w-full text-left px-4 py-2`}>+ Coluna</button>
+                      <button onClick={() => { setShowAddMemberModal(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Membro</button>
+                      <button onClick={() => { setBoardState((prev) => ({ ...prev, columnsLocked: !prev.columnsLocked })); setShowAdminMenu(false); }} className={`block w-full text-left px-4 py-2 ${boardState.columnsLocked ? 'text-red-500 hover:bg-red-50' : 'text-gray-800 hover:bg-gray-100'}`}>{boardState.columnsLocked ? 'Destravar colunas' : 'Travar colunas'}</button>
+                    </div>
+                  )}
+                </div>
                 <button onClick={saveToLocalFile} className="bg-green-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">💾 Salvar</button>
                 <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
                 <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
@@ -748,7 +803,7 @@ const getBackgroundColor = (columnId) => {
                       return;
                     }
                     addCard(uiState.newClient);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '' } }));
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '' } }));
                     setShowAddCard(false);
                   }
                 }}
@@ -877,6 +932,7 @@ const getBackgroundColor = (columnId) => {
                             columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
                             moveCardOrder={moveCardOrder} // Renomeado
                                         compactCards={compactCards}
+                                        reorderCardInColumn={reorderCardInColumn} // Passando a nova função
                                         />
                                     ))}
                                 </div>
@@ -919,15 +975,15 @@ const getBackgroundColor = (columnId) => {
                   <div>
                     <label>Nome</label>
                     <input type="text" value={card.name} onChange={(e) => setCard({ ...card, name: e.target.value })} className="w-full p-2 border rounded" required />
-                  </div>
+                    </div>
                   <div>
                     <label>E-mail</label>
                     <input type="email" value={card.email || ''} onChange={(e) => setCard({ ...card, email: e.target.value })} className="w-full p-2 border rounded" />
-                  </div>
+            </div>
                   <div>
                     <label>Telefone</label>
                     <input type="tel" value={card.phone || ''} onChange={(e) => setCard({ ...card, phone: e.target.value })} className="w-full p-2 border rounded" />
-                  </div>
+        </div>
                   <div>
                     <label>Endereço</label>
                     <input type="text" value={card.address || ''} onChange={(e) => setCard({ ...card, address: e.target.value })} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
@@ -969,16 +1025,41 @@ const getBackgroundColor = (columnId) => {
                       ))}
                     </div>
                   </div>
+                  <div>
+                    <label>Prazo - Data</label>
+                <input
+                      type="date" 
+                      value={card.deadlineDate || ''} 
+                      onChange={(e) => setCard({ ...card, deadlineDate: e.target.value })} 
+                      className="w-full p-2 border rounded"
+                    />
                 </div>
+                  <div>
+                    <label>Prazo - Hora</label>
+                    <select 
+                      value={card.deadlineTime || ''} 
+                      onChange={(e) => setCard({ ...card, deadlineTime: e.target.value })} 
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Nenhuma</option>
+                      {Array.from({ length: 24 * 2 }).map((_, i) => {
+                        const hour = Math.floor(i / 2);
+                        const minute = (i % 2) * 30;
+                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                        return <option key={time} value={time}>{time}</option>;
+                      })}
+                    </select>
+        </div>
+    </div>
                 <div className="mt-4">
                   <label>Anotações</label>
                   <div className="border rounded p-2 h-24 overflow-y-auto bg-gray-50">
                     {(card.notes || []).map((n, i) => (
                       <div key={i} className="text-sm mb-1">
                         <span className="text-xs text-gray-500">{new Date(n.timestamp).toLocaleString()}</span>: {n.text}
-                    </div>
+        </div>
                     ))}
-            </div>
+    </div>
         </div>
                 <div className="flex mt-2">
                   <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
@@ -992,22 +1073,40 @@ const getBackgroundColor = (columnId) => {
                   )}
                     </div>
                 </form>
-            </div>
         </div>
-    );
+    </div>
+);
       }
 
-      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards }) {
+      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards, reorderCardInColumn }) {
         const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(card.lastUpdated || card.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [card.lastUpdated, card.createdAt]);
     const isInactive = diffDays > 7;
+    const [isDragOver, setIsDragOver] = useState(false); // Novo estado para controlar o hover de drag
     return (
           <div
             draggable
             onDragStart={onDragStart}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); onDropFiles(Array.from(e.dataTransfer.files || [])); }}
-            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''}`}
-            style={{ width: '100%', padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1 }}
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragOver(false);
+              const droppedCardId = e.dataTransfer.getData('text/plain');
+              if (droppedCardId !== card.id && draggedItem === droppedCardId) { // Adicionado check para draggedItem
+                reorderCardInColumn(droppedCardId, card.id); // Chamar a nova função de reordenação
+              } else if (draggedItem !== droppedCardId) { // Se for para outra coluna ou solto em um card diferente na mesma coluna
+                onDropFiles(Array.from(e.dataTransfer.files || [])); // Mantém a função de drop de arquivos
+              }
+            }}
+            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''} ${isDragOver ? 'border-2 border-blue-500' : ''}`}
+            style={{ 
+              width: '100%', 
+              padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, 
+              opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1,
+              backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white'
+            }}
+            title={(card.notes || []).map(note => note.text).join('\n')}
           >
             <div className="flex justify-between items-start text-sm">
                 <div className="flex items-center gap-1">
@@ -1016,11 +1115,39 @@ const getBackgroundColor = (columnId) => {
                   <h3 className="font-bold cursor-pointer hover:text-blue-600 text-xs" onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
                 </div>
                 <div className="flex flex-col gap-1 items-end">
-                    <div className="flex gap-1 mt-1">
-                        <button onClick={() => moveCardOrder(card.id, 'up')} className="text-gray-500 hover:text-blue-500 text-sm leading-tight" title="Mover para cima">▲</button>
-                        <button onClick={() => moveCardOrder(card.id, 'down')} className="text-gray-500 hover:text-blue-500 text-sm leading-tight" title="Mover para baixo">▼</button>
-                    </div>
-                </div>
+                    {card.deadlineDate && (
+                      <div className="text-xxs text-right">
+                        {(() => {
+                          const deadline = new Date(card.deadlineDate + (card.deadlineTime ? `T${card.deadlineTime}` : 'T00:00:00'));
+                          const now = new Date();
+                          const diffTime = deadline.getTime() - now.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                          if (diffTime < 0) {
+                            // Passou do prazo
+                            return <span className="text-red-600">{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>;
+                          } else if (diffDays > 7) {
+                            // Mais de 7 dias
+                            return <span>{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ')}</span>;
+                          } else if (diffDays < 7 && diffDays > 1) {
+                            // Menos de 7 dias
+                            return <span>{diffDays}d</span>;
+                          } else if (diffDays === 1) {
+                            // Menos de 1 dia, mas ainda não passou
+                            const totalSecondsRemaining = Math.floor(diffTime / 1000);
+                            const secondsRemaining = totalSecondsRemaining % 60;
+                            const totalMinutesRemaining = Math.floor(totalSecondsRemaining / 60);
+                            const minutesRemaining = totalMinutesRemaining % 60;
+                            const hoursRemaining = Math.floor(totalMinutesRemaining / 60);
+
+                            const formattedTime = `${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsRemaining).padStart(2, '0')}`;
+                            return <span>{formattedTime}</span>;
+                          }
+                          return null; // Caso não haja prazo ou condição não atendida
+                        })()}
+            </div>
+                    )}
+            </div>
             </div>
             {!compactCards && (card.rating > 0 || card.category) && (
               <div className="flex items-center text-xs text-gray-600 mt-1 gap-2">
@@ -1030,13 +1157,14 @@ const getBackgroundColor = (columnId) => {
             )}
             {!compactCards && (
               <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
-                {card.assignedTo ? <span className="mr-1" title={`Responsável: ${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
-                {card.phone ? <span className="mr-1" title={`Telefone: ${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
-                {card.email ? <span className="mr-1" title={`E-mail: ${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
-                {card.address ? <span className="mr-1" title={`Endereço: ${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
-              </div>
+                {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
+                {card.phone ? <span className="mr-1" title={`${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
+                {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
+                {card.address ? <span className="mr-1" title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
+                </div>
             )}
             {isInactive && <div className="mt-1 text-xs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
+
         </div>
     );
       }
@@ -1113,9 +1241,9 @@ const getBackgroundColor = (columnId) => {
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
         </div>
               </form>
+            </div>
         </div>
-    </div>
-);
+    );
       }
 
       const root = ReactDOM.createRoot(document.getElementById('root'));

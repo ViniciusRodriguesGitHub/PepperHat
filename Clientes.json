@@ -44,6 +44,7 @@
       "Sesc"
     ],
     "teamMembers": [],
+    "activityOptions": ["Interna", "Externa"],
     "columnsLocked": false,
     "hiddenColumns": {
       "arquivados": false,
@@ -76,7 +77,8 @@
       "columnId": "contatar",
       "createdAt": "2025-08-25T12:55:39.675Z",
       "lastUpdated": "2025-08-25T12:55:39.675Z",
-      "order": 1
+      "order": 1,
+      "activity": ""
     }
   ],
   "userId": "1yhi3nurk8qmer3yzhf"

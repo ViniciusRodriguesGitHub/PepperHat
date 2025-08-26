@@ -48,6 +48,7 @@
       "Vinícius",
       "Diana&Vinícius"
     ],
+    "activityOptions": ["Interna", "Externa"],
     "columnsLocked": false,
     "hiddenColumns": {
       "arquivados": true,
@@ -85,7 +86,10 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-21T20:30:57.835Z",
       "lastUpdated": "2025-08-25T15:09:29.806Z",
-      "order": 1
+      "order": 1,
+      "activity": "",
+      "deadlineDate": "",
+      "deadlineTime": ""
     },
     {
       "name": "L.A Ferretti",
@@ -105,7 +109,10 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-25T15:06:33.713Z",
       "lastUpdated": "2025-08-25T15:06:33.713Z",
-      "order": 1
+      "order": 1,
+      "activity": "",
+      "deadlineDate": "",
+      "deadlineTime": ""
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"
