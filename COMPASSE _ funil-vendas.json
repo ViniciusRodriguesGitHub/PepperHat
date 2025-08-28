@@ -89,7 +89,8 @@
       "order": 1,
       "activity": "",
       "deadlineDate": "",
-      "deadlineTime": ""
+      "deadlineTime": "",
+      "duration": ""
     },
     {
       "name": "L.A Ferretti",
@@ -112,7 +113,8 @@
       "order": 1,
       "activity": "",
       "deadlineDate": "",
-      "deadlineTime": ""
+      "deadlineTime": "",
+      "duration": ""
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

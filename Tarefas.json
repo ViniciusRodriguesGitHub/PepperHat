@@ -52,6 +52,12 @@
       "Interna",
       "Externa"
     ],
+    "durationOptions": [
+      "Minutos",
+      "Horas",
+      "Dia",
+      "Dias"
+    ],
     "columnsLocked": true,
     "hiddenColumns": {
       "arquivados": true,
@@ -86,9 +92,9 @@
       "address": "Batatais",
       "activity": "Interna",
       "id": "tg1iv49shymesig9hn",
-      "columnId": "tarefas",
+      "columnId": "feito",
       "createdAt": "2025-08-26T12:16:47.627Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
+      "lastUpdated": "2025-08-27T12:42:59.789Z",
       "order": 1
     },
     {
@@ -110,7 +116,8 @@
       "columnId": "tarefas",
       "createdAt": "2025-08-26T12:07:57.281Z",
       "lastUpdated": "2025-08-26T12:16:59.209Z",
-      "order": 2
+      "order": 2,
+      "duration": "Minutos"
     },
     {
       "name": "Cidadania",
@@ -130,7 +137,10 @@
       "createdAt": "2025-08-21T17:09:14.987Z",
       "lastUpdated": "2025-08-26T12:16:59.209Z",
       "activity": "Externa",
-      "order": 3
+      "order": 3,
+      "deadlineDate": "2025-08-29",
+      "deadlineTime": "08:30",
+      "duration": "Minutos"
     },
     {
       "name": "Agendar Exame Nícolas",
@@ -145,7 +155,8 @@
       "createdAt": "2025-08-21T17:15:46.363Z",
       "lastUpdated": "2025-08-26T12:16:59.209Z",
       "activity": "Interna",
-      "order": 4
+      "order": 4,
+      "duration": "Minutos"
     },
     {
       "name": "Microsoft",
@@ -185,7 +196,10 @@
       "createdAt": "2025-08-22T18:16:13.160Z",
       "lastUpdated": "2025-08-26T12:16:59.209Z",
       "order": 6,
-      "activity": "Externa"
+      "activity": "Externa",
+      "deadlineDate": "2025-08-28",
+      "deadlineTime": "17:00",
+      "duration": "Horas"
     },
     {
       "name": "Agendar Endócrino",
@@ -224,9 +238,12 @@
       "id": "r8ewcmtcmxmer6mk8s",
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:57:59.932Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
+      "lastUpdated": "2025-08-27T13:56:53.441Z",
       "order": 8,
-      "activity": "Externa"
+      "activity": "Externa",
+      "deadlineDate": "2025-08-28",
+      "deadlineTime": "10:00",
+      "duration": "Dia"
     },
     {
       "name": "Produção de Show",
@@ -255,7 +272,10 @@
       "createdAt": "2025-08-25T14:03:47.899Z",
       "lastUpdated": "2025-08-26T12:16:59.209Z",
       "order": 9,
-      "activity": "Interna"
+      "activity": "Interna",
+      "deadlineDate": "2025-09-02",
+      "deadlineTime": "14:00",
+      "duration": "Dias"
     },
     {
       "name": "Costureira",
@@ -272,11 +292,13 @@
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "yq28nrk6pnmer6z32m",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "createdAt": "2025-08-25T14:07:44.206Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
+      "lastUpdated": "2025-08-28T18:59:20.950Z",
       "order": 10,
-      "activity": "Externa"
+      "activity": "Externa",
+      "deadlineDate": "2025-08-27",
+      "deadlineTime": "09:00"
     },
     {
       "name": "Contatar Vanessa Martin",
@@ -300,7 +322,8 @@
       "createdAt": "2025-08-21T17:20:11.440Z",
       "lastUpdated": "2025-08-26T12:43:48.124Z",
       "activity": "Interna",
-      "order": 2
+      "order": 2,
+      "duration": "Minutos"
     },
     {
       "name": "Montar repertório show dia 06/09",
@@ -320,33 +343,9 @@
       "createdAt": "2025-08-22T13:40:21.461Z",
       "lastUpdated": "2025-08-26T12:43:48.124Z",
       "order": 3,
-      "activity": "Interna"
-    },
-    {
-      "name": "Reunião Compasse",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Reunião início 15hs",
-          "timestamp": "2025-08-26T12:45:00.813Z"
-        },
-        {
-          "text": "Enviar link ás 14:30hs",
-          "timestamp": "2025-08-26T12:45:12.007Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Compasse",
-      "assignedTo": "Diana",
-      "id": "9zqbek62brmer6flbb",
-      "columnId": "iniciar",
-      "createdAt": "2025-08-25T13:52:34.727Z",
-      "lastUpdated": "2025-08-26T12:43:48.124Z",
-      "order": 4,
       "activity": "Interna",
-      "deadlineDate": "2025-08-26",
-      "deadlineTime": "15:00"
+      "duration": "Horas",
+      "deadlineDate": "2025-09-06"
     },
     {
       "name": "Atualizar o orçamento do Woods restaurante",
@@ -366,9 +365,9 @@
       "deadlineDate": "2025-08-26",
       "deadlineTime": "11:00",
       "id": "5cpeggvxqdemesjw5v7",
-      "columnId": "tarefas",
+      "columnId": "feito",
       "createdAt": "2025-08-26T12:57:09.044Z",
-      "lastUpdated": "2025-08-26T12:57:09.044Z",
+      "lastUpdated": "2025-08-27T12:39:27.853Z",
       "order": 11
     },
     {
@@ -406,7 +405,8 @@
       "createdAt": "2025-08-25T14:14:58.033Z",
       "lastUpdated": "2025-08-26T12:58:13.875Z",
       "order": 1,
-      "activity": "Interna"
+      "activity": "Interna",
+      "duration": "Dias"
     },
     {
       "name": "Escanear Exame Nícolas",
@@ -417,9 +417,9 @@
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "id": "5xo175in3x7melnwnvs",
-      "columnId": "fazendo",
+      "columnId": "arquivados",
       "createdAt": "2025-08-21T17:15:07.624Z",
-      "lastUpdated": "2025-08-26T12:58:13.875Z",
+      "lastUpdated": "2025-08-28T19:31:38.269Z",
       "activity": "Interna",
       "order": 2
     },
@@ -436,7 +436,8 @@
       "createdAt": "2025-08-21T17:27:46.901Z",
       "lastUpdated": "2025-08-26T12:58:13.875Z",
       "activity": "Interna",
-      "order": 3
+      "order": 3,
+      "duration": "Dias"
     },
     {
       "name": "Falar com Beto",
@@ -465,7 +466,8 @@
       "createdAt": "2025-08-25T14:00:08.392Z",
       "lastUpdated": "2025-08-26T12:58:13.875Z",
       "order": 4,
-      "activity": "Interna"
+      "activity": "Interna",
+      "duration": "Horas"
     },
     {
       "name": "Marcar Mecânico",
@@ -486,7 +488,8 @@
       "createdAt": "2025-08-25T14:50:05.414Z",
       "lastUpdated": "2025-08-26T12:58:13.875Z",
       "order": 5,
-      "activity": "Interna"
+      "activity": "Interna",
+      "duration": "Minutos"
     },
     {
       "name": "Atualizar sistema Tarefas",
@@ -519,7 +522,71 @@
       "createdAt": "2025-08-25T14:58:39.795Z",
       "lastUpdated": "2025-08-26T12:58:13.875Z",
       "order": 6,
-      "activity": "Interna"
+      "activity": "Interna",
+      "duration": "Horas"
+    },
+    {
+      "name": "Energia Elétrica restituição",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ligar para CPFL pra solicitar",
+          "timestamp": "2025-08-26T19:36:59.199Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-03",
+      "deadlineTime": "16:00",
+      "id": "61ki293mgcqmesy6dp1",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-26T19:37:00.374Z",
+      "lastUpdated": "2025-08-26T19:37:00.374Z",
+      "order": 11
+    },
+    {
+      "name": "Fazer orçamento Carol",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Carol pediu orçamento pra setembro com preferencia de sábado",
+          "timestamp": "2025-08-28T19:01:16.545Z"
+        },
+        {
+          "text": "temos sábado dia 27 disponível apenas",
+          "timestamp": "2025-08-28T19:01:33.534Z"
+        },
+        {
+          "text": "mas ela solicitou de sexta pq eu disse q conseguia ser mais maleável ref a valores, oferecer sexta com desconto de 200 ou 300 reais",
+          "timestamp": "2025-08-28T19:02:14.404Z"
+        },
+        {
+          "text": "Ela quer o PEPPER HAT DUO",
+          "timestamp": "2025-08-28T19:02:24.175Z"
+        },
+        {
+          "text": "ELa ainda não escolheu a data por isso oferecer dia 27 q é o único mas as sexta colocar como sexta e definimos as que temos disponível",
+          "timestamp": "2025-08-28T19:03:01.611Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-08-27",
+      "deadlineTime": "17:00",
+      "duration": "Minutos",
+      "id": "4wlx953ovcbmevrrmj5",
+      "columnId": "iniciar",
+      "createdAt": "2025-08-28T19:00:52.817Z",
+      "lastUpdated": "2025-08-28T19:03:09.436Z",
+      "order": 12
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

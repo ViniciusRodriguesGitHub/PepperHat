@@ -16,6 +16,21 @@
     <style>
       html, body { height: 100%; }
       .text-xxs { font-size: 0.65rem; /* ~10px */ }
+      .pulsing-alert {
+          animation: pulse 1.5s infinite;
+      }
+      
+      @keyframes pulse {
+          0% {
+              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+          }
+          70% {
+              box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+          }
+          100% {
+              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+          }
+      }
     </style>
   </head>
   <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800">
@@ -83,6 +98,7 @@ const getBackgroundColor = (columnId) => {
         categories: ['Casamento', 'Corporativo', 'Bar', 'Teatro'],
         teamMembers: [],
         activityOptions: ['Interna', 'Externa'], // Novas opções de atividade
+        durationOptions: ['Minutos', 'Horas', 'Dia', 'Dias'], // Novas opções de duração
         columnsLocked: true,
       };
 
@@ -109,17 +125,9 @@ const getBackgroundColor = (columnId) => {
       }
 
       function App() {
-        const [boardState, setBoardState] = useState(() => {
-          const saved = loadState()?.boardState;
-          return {
-            ...defaultBoardState, // Sempre começar com o estado padrão
-            ...(saved || {}),
-            columnsLocked: saved?.columnsLocked ?? true,
-            hiddenColumns: saved?.hiddenColumns ?? { arquivados: false, descartados: false },
-          };
-        });
-        const [clients, setClients] = useState(() => loadState()?.clients || []);
-        const [userId, setUserId] = useState(() => loadState()?.userId || uid());
+        const [boardState, setBoardState] = useState(defaultBoardState);
+        const [clients, setClients] = useState([]);
+        const [userId, setUserId] = useState(uid());
         const [showAddCard, setShowAddCard] = useState(false);
     const [editingCardId, setEditingCardId] = useState(null);
     const [showAddCategory, setShowAddCategory] = useState(false);
@@ -137,30 +145,74 @@ const getBackgroundColor = (columnId) => {
         const [filterActivity, setFilterActivity] = useState(''); // Novo estado para o filtro de atividade
 
         // Estado para desfazer exclusões
-        const [deletedCards, setDeletedCards] = useState(() => loadState()?.deletedClients || []); // Renomeado de deletedClients
+        const [deletedCards, setDeletedCards] = useState([]);
         const [lastDeletedCard, setLastDeletedCard] = useState(null); // Renomeado de lastDeletedClient
-        const [deletedColumns, setDeletedColumns] = useState(() => loadState()?.deletedColumns || []);
+        const [deletedColumns, setDeletedColumns] = useState([]);
         const [lastDeletedColumn, setLastDeletedColumn] = useState(null);
-        const [compactCards, setCompactCards] = useState(false); // Novo estado para compactar os cards
+        const [compactCards, setCompactCards] = useState(true); // Novo estado para compactar os cards (inicia como true)
         const [pageTitle, setPageTitle] = useState('Tarefas'); // Novo estado para o título da página
+        const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Novo estado para controle de alterações não salvas
+        const [saveButtonColor, setSaveButtonColor] = useState('bg-green-500'); // Cor inicial do botão salvar
+        const [currentView, setCurrentView] = useState('kanban'); // Novo estado para controlar a visualização: 'kanban', 'calendar', 'list'
+        const [selectedDate, setSelectedDate] = useState(new Date()); // Novo estado para a data selecionada no calendário
+
+        // Cores para o botão salvar quando houver alterações não salvas
+        const flashingColors = [
+          'bg-green-500', 'bg-yellow-500', 'bg-blue-500', 'bg-purple-500'
+        ];
 
         useEffect(() => {
-          saveState({ boardState, clients, userId });
-        }, [boardState, clients, userId]);
+          let interval;
+          if (hasUnsavedChanges) {
+            let colorIndex = 0;
+            interval = setInterval(() => {
+              setSaveButtonColor(flashingColors[colorIndex]);
+              colorIndex = (colorIndex + 1) % flashingColors.length;
+            }, 750); // Troca de cor a cada 750ms
+          } else {
+            setSaveButtonColor('bg-green-500'); // Volta para a cor padrão quando salvo
+          }
+          return () => clearInterval(interval);
+        }, [hasUnsavedChanges]);
 
         useEffect(() => {
-          saveState({ boardState, clients, userId, deletedClients: deletedCards }); // Atualizado para deletedCards
-        }, [boardState, clients, userId, deletedCards]);
+          // Ao carregar a página, não carregamos do localStorage. Deixamos o estado inicial padrão.
+          // Apenas persistimos ao salvar explicitamente ou ao fechar a página (opcional, fora do escopo atual)
+        }, []);
 
+        // Efeito para alertar sobre alterações não salvas ao tentar sair da página
         useEffect(() => {
-          saveState({ boardState, clients, userId, deletedClients: deletedCards, deletedColumns }); // Atualizado para deletedCards
-        }, [boardState, clients, userId, deletedCards, deletedColumns]);
+          const handleBeforeUnload = (event) => {
+            if (hasUnsavedChanges) {
+              // A mensagem personalizada é ignorada pela maioria dos navegadores modernos por segurança.
+              // Eles exibirão uma mensagem padrão.
+              event.returnValue = ''; 
+            }
+          };
+          
+          window.addEventListener('beforeunload', handleBeforeUnload);
+          
+          return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+          };
+        }, [hasUnsavedChanges]);
+
+        // Remover os antigos useEffects de persistência, pois não carregaremos na inicialização.
+        // Agora, a persistência ocorrerá apenas quando o botão 'Salvar' for clicado.
+
+        // A persistência de dados só deve acontecer quando o usuário clicar em salvar, ou no beforeunload (opcional)
+        // Portanto, removemos os useEffects que salvariam automaticamente.
+        // O estado de 'deletedCards' e 'deletedColumns' também será reiniciado a cada carregamento.
+
+        // Se você ainda quiser salvar o 'userId' para futuras sessões (não reiniciar), mantenha o useEffect abaixo:
+        // useEffect(() => { localStorage.setItem('kanban-user-id', userId); }, [userId]);
 
         const columnOrder = boardState.columnOrder || [];
         const columns = boardState.columns || {};
         const categories = Array.isArray(boardState.categories) ? boardState.categories : [];
         const teamMembers = Array.isArray(boardState.teamMembers) ? boardState.teamMembers : [];
         const activityOptions = Array.isArray(boardState.activityOptions) ? boardState.activityOptions : []; // Novo estado para as opções de atividade
+        const durationOptions = Array.isArray(boardState.durationOptions) ? boardState.durationOptions : []; // Novo estado para as opções de duração
 
         const [columnsWidths, setColumnsWidths] = useState({});
         const resizingRef = useRef({ isResizing: false, columnId: null, startX: 0, startWidth: 0 });
@@ -193,6 +245,7 @@ const getBackgroundColor = (columnId) => {
               ...prev,
               columnWidths: { ...(prev.columnWidths || {}), [r.columnId]: newWidth },
             }));
+            setHasUnsavedChanges(true);
           }
           function onMouseUp() {
             resizingRef.current = { isResizing: false, columnId: null, startX: 0, startWidth: 0 };
@@ -216,6 +269,7 @@ const getBackgroundColor = (columnId) => {
         const droppedCardId = e.dataTransfer.getData('text/plain'); // Obter o ID do card arrastado
         if (!droppedCardId) return;
           setClients((prev) => prev.map((c) => (c.id === droppedCardId ? { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() } : c)));
+          setHasUnsavedChanges(true);
           setDraggedItem(null);
         }
 
@@ -251,6 +305,7 @@ const getBackgroundColor = (columnId) => {
             const otherCards = prevClients.filter(c => c.columnId !== draggedCard.columnId);
             return [...otherCards, ...updatedColumnCards];
           });
+          setHasUnsavedChanges(true);
         }
 
         function addCard(card) { // Renomeado de addClient
@@ -274,10 +329,12 @@ const getBackgroundColor = (columnId) => {
               },
             ];
           });
+          setHasUnsavedChanges(true);
         }
 
         function updateCard(updated) { // Renomeado de updateClient
           setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+          setHasUnsavedChanges(true);
         }
 
         function moveCardOrder(cardId, direction) { // Renomeado de moveClientOrder
@@ -318,6 +375,7 @@ const getBackgroundColor = (columnId) => {
             const otherCards = prevClients.filter(c => c.columnId !== cardToMove.columnId); // Renomeado de otherClients
             return [...otherCards, ...updatedCardsInColumn];
           });
+          setHasUnsavedChanges(true);
         }
 
         function deleteCard(cardId) { // Renomeado de deleteClient
@@ -329,6 +387,7 @@ const getBackgroundColor = (columnId) => {
           setDeletedCards(prev => [...prev, { ...cardToDelete, deletedAt: new Date().toISOString() }]);
           
           setClients(prev => prev.filter(c => c.id !== cardId));
+          setHasUnsavedChanges(true);
         }
 
         function undoLastDeletion() {
@@ -336,6 +395,7 @@ const getBackgroundColor = (columnId) => {
           
           // Restaurar o card
           setClients(prev => [...prev, { ...lastDeletedCard, lastUpdated: new Date().toISOString() }]);
+          setHasUnsavedChanges(true);
           
           // Limpar o último deletado
           setLastDeletedCard(null);
@@ -362,6 +422,7 @@ const getBackgroundColor = (columnId) => {
               return [...prev, ...cardsToRestore.map(c => ({ ...c, lastUpdated: new Date().toISOString() }))];
             });
           }
+          setHasUnsavedChanges(true);
           
           // Limpar o último deletado
           setLastDeletedColumn(null);
@@ -371,10 +432,12 @@ const getBackgroundColor = (columnId) => {
           const name = (newCat || '').trim();
           if (!name) return;
           setBoardState((prev) => ({ ...prev, categories: [...(prev.categories || []), name] }));
+          setHasUnsavedChanges(true);
         }
 
         function deleteCategory(cat) {
           setBoardState((prev) => ({ ...prev, categories: (prev.categories || []).filter((c) => c !== cat) }));
+          setHasUnsavedChanges(true);
         }
 
         function changeColumnColor(columnId) {
@@ -393,6 +456,7 @@ const getBackgroundColor = (columnId) => {
               }
             };
           });
+          setHasUnsavedChanges(true);
         }
 
         function addColumn(name) {
@@ -409,6 +473,7 @@ const getBackgroundColor = (columnId) => {
               columnOrder: [...base, newId, ...tailFixed],
             };
           });
+          setHasUnsavedChanges(true);
         }
 
         function deleteColumn(columnId) {
@@ -439,6 +504,7 @@ const getBackgroundColor = (columnId) => {
             const base = prev.columnOrder.filter((id) => id !== columnId && !tailFixed.includes(id));
             return { ...prev, columns: newCols, columnOrder: [...base, ...tailFixed] };
           });
+          setHasUnsavedChanges(true);
         }
 
         function moveColumn(columnId, direction) {
@@ -457,6 +523,7 @@ const getBackgroundColor = (columnId) => {
             swapped[targetIdx] = temp;
             return { ...prev, columnOrder: [...swapped, ...tailFixed] };
           });
+          setHasUnsavedChanges(true);
         }
 
         const canMoveLeft = (columnId) => {
@@ -475,7 +542,7 @@ const getBackgroundColor = (columnId) => {
         };
 
         const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '' },
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '' },
           newCategory: '',
           newColumnName: '',
           newTeamMemberName: '',
@@ -488,6 +555,7 @@ const getBackgroundColor = (columnId) => {
             { text, timestamp: new Date().toISOString() },
           ];
           setTempCard({ ...tempCard, notes: updated });
+          setHasUnsavedChanges(true);
         }
 
         function addTeamMember(name) {
@@ -497,6 +565,7 @@ const getBackgroundColor = (columnId) => {
             ...prev,
             teamMembers: [...(Array.isArray(prev.teamMembers) ? prev.teamMembers : []), trimmed],
           }));
+          setHasUnsavedChanges(true);
         }
 
         function saveToLocalFile() {
@@ -516,11 +585,12 @@ const getBackgroundColor = (columnId) => {
           }
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+          setHasUnsavedChanges(false); // Marcar como salvo após sucesso
         }
 
         function exportToGoogleSheets() {
           // Criar dados formatados para CSV (mais compatível)
-          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora'];
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora', 'Duração'];
                   
                   const csvData = [
                     headers.join(','),
@@ -538,7 +608,8 @@ const getBackgroundColor = (columnId) => {
                       `"${card.address || ''}"`,
                       `"${card.activity || ''}"`,
                       `"${card.deadlineDate || ''}"`,
-                      `"${card.deadlineTime || ''}"`
+                      `"${card.deadlineTime || ''}"`,
+                      `"${card.duration || ''}"`
                     ].join(','))
                   ].join('\n');
 
@@ -639,7 +710,8 @@ const getBackgroundColor = (columnId) => {
                       address: values[10] || '', // Novo campo Endereço
                       activity: values[11] || '', // Novo campo Atividade
                       deadlineDate: values[12] || '', // Novo campo Prazo - Data
-                      deadlineTime: values[13] || '' // Novo campo Prazo - Hora
+                      deadlineTime: values[13] || '', // Novo campo Prazo - Hora
+                      duration: values[14] || '' // Novo campo Duração
                     };
                     importedCards.push(card);
                   }
@@ -681,7 +753,7 @@ const getBackgroundColor = (columnId) => {
                     </div>
                   )}
                 </div>
-                <button onClick={saveToLocalFile} className="bg-green-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">💾 Salvar</button>
+                <button onClick={saveToLocalFile} className={`${saveButtonColor} text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all ${hasUnsavedChanges ? 'pulsing-alert' : ''}`}>💾 Salvar</button>
                 <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
                 <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
                 <button onClick={importFromGoogleSheets} className="bg-purple-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📥 Importar Sheets</button>
@@ -705,6 +777,22 @@ const getBackgroundColor = (columnId) => {
                 )}
                     </div>
                 </header>
+
+                {/* Botões de alternância de visualização */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    onClick={() => setCurrentView('kanban')}
+                    className={`px-4 py-2 rounded-full font-semibold ${currentView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >Kanban</button>
+                  <button
+                    onClick={() => setCurrentView('calendar')}
+                    className={`px-4 py-2 rounded-full font-semibold ${currentView === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >Calendário</button>
+                  <button
+                    onClick={() => setCurrentView('list')}
+                    className={`px-4 py-2 rounded-full font-semibold ${currentView === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >Lista de Tarefas</button>
+                </div>
 
                 {/* Novo botão para compactar cards */}
                 <div className="flex flex-wrap gap-4 mb-4 items-center">
@@ -803,7 +891,7 @@ const getBackgroundColor = (columnId) => {
                       return;
                     }
                     addCard(uiState.newClient);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '' } }));
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '' } }));
                     setShowAddCard(false);
                   }
                 }}
@@ -818,6 +906,7 @@ const getBackgroundColor = (columnId) => {
                 setShowDeleteModal={setShowDeleteModal} // Passando o setter para o modal de confirmação
                 setCardToDelete={setCardToDelete} // Passando o setter para o card a ser excluído renomeado
                 activityOptions={activityOptions} // Passando as opções de atividade
+                durationOptions={durationOptions} // Passando as opções de duração
                     />
                 )}
                 
@@ -876,92 +965,279 @@ const getBackgroundColor = (columnId) => {
               />
             )}
 
-            <div className="flex overflow-x-auto gap-4 p-4 rounded-xl shadow-lg bg-gray-50 bg-opacity-80 min-h-[70vh]">
-              {(boardState.columnOrder || []).map((columnId) => {
-                        const column = columns[columnId];
-                if (!column) return null;
-                        return (
-                  <div
-                    key={column.id}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, column.id)}
-                    className="relative flex flex-col flex-shrink-0 rounded-lg p-4 shadow-inner transition-all min-h-[60vh]"
-                    style={{ backgroundColor: column.color || getBackgroundColor(column.id), width: `${(boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280).toFixed(2)}px` }}
-                  >
-                    <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
-                      <span>{column.title}</span>
-                      <div className="flex items-center gap-2 text-sm">
-                        {!['arquivados', 'descartados'].includes(column.id) && (
-                          <>
-                            <button onClick={() => moveColumn(column.id, 'left')} disabled={boardState.columnsLocked || !canMoveLeft(column.id)} className={`${boardState.columnsLocked || !canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
-                            <button onClick={() => moveColumn(column.id, 'right')} disabled={boardState.columnsLocked || !canMoveRight(column.id)} className={`${boardState.columnsLocked || !canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
-                            <button onClick={() => changeColumnColor(column.id)} className="text-gray-500 hover:text-purple-500" title="Mudar cor">🎨</button>
-                          </>
-                        )}
-                        {/* Removida opção de ocultar Arquivados/Descartados */}
-                        {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && (
-                          <button onClick={() => deleteColumn(column.id)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-red-500'}`} title="Excluir coluna">🗑</button>
-                        )}
-                      </div>
-                                </h2>
-                                <div className="flex-grow min-h-[100px]">
-                      {clients
-                        .filter((c) => c.columnId === column.id)
-                        .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
-                        .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
-                        .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase())) // Novo filtro por atividade
-                        .filter(c => searchTerm === '' || 
-                          (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
-                        )
-                        .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os cards pela propriedade 'order'
-                        .map((card) => (
-                          <Card
-                            key={card.id}
-                            card={card} // Renomeado de client para card
-                            setEditingCardId={setEditingCardId} // Renomeado
-                            setShowDeleteModal={setShowDeleteModal}
-                            setCardToDelete={setCardToDelete} // Renomeado
-                            onDragStart={(e) => handleDragStart(e, card.id)}
-                            draggedItem={draggedItem}
-                            onDropFiles={(files) => {
-                              const newNotes = Array.from(files).map((file) => ({ text: `Arquivo "${file.name}" adicionado.`, timestamp: new Date().toISOString() }));
-                              setClients((prev) => prev.map((c) => (c.id === card.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
-                            }}
-                            columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
-                            moveCardOrder={moveCardOrder} // Renomeado
-                                        compactCards={compactCards}
-                                        reorderCardInColumn={reorderCardInColumn} // Passando a nova função
-                                        />
-                                    ))}
-                                </div>
-                    {/* Resizer handle */}
+            {currentView === 'kanban' && (
+              <div className="flex overflow-x-auto gap-4 p-4 rounded-xl shadow-lg bg-gray-50 bg-opacity-80 min-h-[70vh]">
+                {(boardState.columnOrder || []).map((columnId) => {
+                          const column = columns[columnId];
+                  if (!column) return null;
+                          return (
                     <div
-                      onMouseDown={(e) => {
-                        const currentWidth = boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280;
-                        resizingRef.current = { isResizing: true, columnId: column.id, startX: e.clientX, startWidth: currentWidth };
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      className="absolute top-0 right-0 h-full w-2 cursor-col-resize select-none"
-                      style={{ transform: 'translateX(50%)' }}
-                      title="Arraste para redimensionar"
-                    />
-                            </div>
-                        );
-                    })}
-                </div>
+                      key={column.id}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, column.id)}
+                      className="relative flex flex-col flex-shrink-0 rounded-lg p-4 shadow-inner transition-all min-h-[60vh]"
+                      style={{ backgroundColor: column.color || getBackgroundColor(column.id), width: `${(boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280).toFixed(2)}px` }}
+                    >
+                      <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
+                        <span>{column.title}</span>
+                        <div className="flex items-center gap-2 text-sm">
+                          {!['arquivados', 'descartados'].includes(column.id) && (
+                            <>
+                              <button onClick={() => moveColumn(column.id, 'left')} disabled={boardState.columnsLocked || !canMoveLeft(column.id)} className={`${boardState.columnsLocked || !canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
+                              <button onClick={() => moveColumn(column.id, 'right')} disabled={boardState.columnsLocked || !canMoveRight(column.id)} className={`${boardState.columnsLocked || !canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
+                              <button onClick={() => changeColumnColor(column.id)} className="text-gray-500 hover:text-purple-500" title="Mudar cor">🎨</button>
+                            </>
+                          )}
+                          {/* Removida opção de ocultar Arquivados/Descartados */}
+                          {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && (
+                            <button onClick={() => deleteColumn(column.id)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-red-500'}`} title="Excluir coluna">🗑</button>
+                          )}
+                        </div>
+                                    </h2>
+                                    <div className="flex-grow min-h-[100px]">
+                        {clients
+                          .filter((c) => c.columnId === column.id)
+                          .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+                          .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                          .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase())) // Novo filtro por atividade
+                          .filter(c => searchTerm === '' || 
+                            (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+                          )
+                          .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os cards pela propriedade 'order'
+                          .map((card) => (
+                            <Card
+                              key={card.id}
+                              card={card} // Renomeado de client para card
+                              setEditingCardId={setEditingCardId} // Renomeado
+                              setShowDeleteModal={setShowDeleteModal}
+                              setCardToDelete={setCardToDelete} // Renomeado
+                              onDragStart={(e) => handleDragStart(e, card.id)}
+                              draggedItem={draggedItem}
+                              onDropFiles={(files) => {
+                                const newNotes = Array.from(files).map((file) => ({ text: `Arquivo "${file.name}" adicionado.`, timestamp: new Date().toISOString() }));
+                                setClients((prev) => prev.map((c) => (c.id === card.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
+                              }}
+                              columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
+                              moveCardOrder={moveCardOrder} // Renomeado
+                                          compactCards={compactCards}
+                                          reorderCardInColumn={reorderCardInColumn} // Passando a nova função
+                                          />
+                                      ))}
+                                  </div>
+                      {/* Resizer handle */}
+                      <div
+                        onMouseDown={(e) => {
+                          const currentWidth = boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280;
+                          resizingRef.current = { isResizing: true, columnId: column.id, startX: e.clientX, startWidth: currentWidth };
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize select-none"
+                        style={{ transform: 'translateX(50%)' }}
+                        title="Arraste para redimensionar"
+                      />
+                              </div>
+                          );
+                      })}
+                  </div>
+            )}
+            
+            {/* Renderização do Calendário/Lista de Tarefas */}
+            {(currentView === 'calendar' || currentView === 'list') && (
+              <CalendarDisplay 
+                clients={clients} 
+                view={currentView} 
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                setEditingCardId={setEditingCardId}
+                setShowDeleteModal={setShowDeleteModal}
+                setCardToDelete={setCardToDelete}
+                compactCards={compactCards}
+                filterCategory={filterCategory}
+                filterMember={filterMember}
+                filterActivity={filterActivity}
+                searchTerm={searchTerm}
+              />
+            )}
 
-            <div className="mt-8 p-4 bg-white rounded-lg shadow-md max-w-7xl mx-auto text-center">
-              <h2 className="text-lg font-bold mb-1">ID de Usuário (para colaboração futura)</h2>
-              <p className="text-sm break-all font-mono">{userId}</p>
-            </div>
         </div>
     );
       }
 
-      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions }) {
+      function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, setShowDeleteModal, setCardToDelete, compactCards, filterCategory, filterMember, filterActivity, searchTerm }) {
+        // Funções auxiliares para o calendário
+        const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+        const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+        const daysInMonth = endOfMonth.getDate();
+        const firstDayOfWeek = startOfMonth.getDay(); // 0 para Domingo, 1 para Segunda, etc.
+
+        const days = [];
+        for (let i = 0; i < firstDayOfWeek; i++) {
+          days.push(null); // Dias vazios antes do início do mês
+        }
+        for (let i = 1; i <= daysInMonth; i++) {
+          days.push(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i));
+        }
+
+        const getCardsForDate = (date) => {
+          return clients.filter(card => {
+            if (!card.deadlineDate) return false;
+            const cardDate = new Date(card.deadlineDate);
+            return cardDate.toDateString() === date.toDateString();
+          })
+          .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+          .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+          .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
+          .filter(c => searchTerm === '' || 
+            (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+          )
+          .sort((a, b) => {
+            const timeA = a.deadlineTime || "00:00";
+            const timeB = b.deadlineTime || "00:00";
+            return timeA.localeCompare(timeB);
+          });
+        };
+
+        const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+        return (
+          <div className="calendar-display p-4 bg-white rounded-xl shadow-lg min-h-[70vh]">
+            <h2 className="text-2xl font-bold mb-4">
+              {view === 'calendar' ? 'Calendário de Tarefas' : 'Lista de Tarefas'}
+            </h2>
+            <div className="flex justify-between items-center mb-4">
+              <button onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))} className="px-3 py-1 bg-gray-200 rounded">Anterior</button>
+              <h3 className="text-xl font-semibold">{selectedDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+              <button onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))} className="px-3 py-1 bg-gray-200 rounded">Próximo</button>
+            </div>
+
+            {view === 'calendar' ? (
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {daysOfWeek.map(day => (
+                  <div key={day} className="font-semibold text-gray-700">{day}</div>
+                ))}
+                {days.map((day, index) => (
+                  <div
+                    key={index}
+                    className={`border p-1 h-24 overflow-y-auto relative ${day ? 'bg-gray-50' : 'bg-gray-100'} ${day && day.toDateString() === new Date().toDateString() ? 'border-blue-500 border-2' : ''}`}
+                  >
+                    {day && (
+                      <span className="font-bold text-sm">{day.getDate()}</span>
+                    )}
+                    {day && getCardsForDate(day).map(card => (
+                      <div
+                        key={card.id}
+                        onClick={() => setEditingCardId(card.id)}
+                        className="text-xxs bg-blue-200 text-blue-800 rounded px-1 mt-0.5 cursor-pointer hover:bg-blue-300"
+                      >
+                        {card.name} ({card.deadlineTime || "00:00"})
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="task-list space-y-4">
+                {(() => {
+                  const now = new Date();
+                  now.setHours(0, 0, 0, 0); // Para comparar apenas as datas
+
+                  const endOfWeek = new Date(now);
+                  endOfWeek.setDate(now.getDate() + 7);
+
+                  const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+                  
+                  const filteredAndSortedCards = clients
+                    .filter(card => card.deadlineDate)
+                    .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+                    .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                    .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
+                    .filter(c => searchTerm === '' || 
+                      (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+                    )
+                    .sort((a, b) => {
+                      const dateA = new Date(a.deadlineDate + (a.deadlineTime ? `T${a.deadlineTime}` : "T00:00"));
+                      const dateB = new Date(b.deadlineDate + (b.deadlineTime ? `T${b.deadlineTime}` : "T00:00"));
+                      return dateA.getTime() - dateB.getTime();
+                    });
+
+                  const thisWeekCards = [];
+                  const nextMonthCards = [];
+                  const laterCards = [];
+
+                  filteredAndSortedCards.forEach(card => {
+                    const deadline = new Date(card.deadlineDate);
+                    deadline.setHours(0, 0, 0, 0);
+
+                    if (deadline >= now && deadline <= endOfWeek) {
+                      thisWeekCards.push(card);
+                    } else if (deadline > endOfWeek && deadline <= endOfNextMonth) {
+                      nextMonthCards.push(card);
+                    } else if (deadline > endOfNextMonth) {
+                      laterCards.push(card);
+                    }
+                  });
+
+                  const renderCardListItem = (card) => (
+                    <div
+                      key={card.id}
+                      onClick={() => setEditingCardId(card.id)}
+                      className="p-3 border rounded-md bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                    >
+                      <p className="font-semibold">{card.name}</p>
+                      <p className="text-sm text-gray-600">
+                        Prazo: {new Date(card.deadlineDate).toLocaleDateString('pt-BR')}
+                        {card.deadlineTime && ` às ${card.deadlineTime}`}
+                      </p>
+                      {card.category && <span className="text-xs text-gray-500">Categoria: {card.category}</span>}
+                    </div>
+                  );
+
+                  return (
+                    <>
+                      {thisWeekCards.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-bold mb-2">Esta Semana</h4>
+                          <div className="space-y-2 mb-4">
+                            {thisWeekCards.map(renderCardListItem)}
+                          </div>
+                        </div>
+                      )}
+                      {nextMonthCards.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-bold mb-2">Próximo Mês</h4>
+                          <div className="space-y-2 mb-4">
+                            {nextMonthCards.map(renderCardListItem)}
+                          </div>
+                        </div>
+                      )}
+                      {laterCards.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-bold mb-2">Mais Tarde</h4>
+                          <div className="space-y-2 mb-4">
+                            {laterCards.map(renderCardListItem)}
+                          </div>
+                        </div>
+                      )}
+                      {filteredAndSortedCards.length === 0 && (
+                        <p className="text-gray-500">Nenhuma tarefa encontrada com os filtros e prazos atuais.</p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions }) {
     const [newNote, setNewNote] = useState('');
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1016,14 +1292,13 @@ const getBackgroundColor = (columnId) => {
                     </select>
                   </div>
                   <div>
-                    <label>Classificação</label>
-                    <div className="flex">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <button key={i} type="button" onClick={() => setCard({ ...card, rating: i + 1 })} className={i < (card.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
-                          ★
-                        </button>
-                      ))}
-                    </div>
+                    <label>Duração</label>
+                    <select value={card.duration || ''} onChange={(e) => setCard({ ...card, duration: e.target.value })} className="w-full p-2 border rounded">
+    <option value="">Nenhuma</option>
+    {durationOptions.map((option) => (
+      <option key={option} value={option}>{option}</option>
+    ))}
+    </select>
                   </div>
                   <div>
                     <label>Prazo - Data</label>
@@ -1049,6 +1324,16 @@ const getBackgroundColor = (columnId) => {
                         return <option key={time} value={time}>{time}</option>;
                       })}
                     </select>
+        </div>
+                  <div>
+                    <label>Classificação</label>
+                    <div className="flex">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <button key={i} type="button" onClick={() => setCard({ ...card, rating: i + 1 })} className={i < (card.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                          ★
+                        </button>
+                      ))}
+    </div>
         </div>
     </div>
                 <div className="mt-4">
@@ -1082,6 +1367,7 @@ const getBackgroundColor = (columnId) => {
         const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(card.lastUpdated || card.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [card.lastUpdated, card.createdAt]);
     const isInactive = diffDays > 7;
     const [isDragOver, setIsDragOver] = useState(false); // Novo estado para controlar o hover de drag
+    const [isHovered, setIsHovered] = useState(false); // Novo estado para controlar o hover do mouse
     return (
           <div
             draggable
@@ -1099,7 +1385,14 @@ const getBackgroundColor = (columnId) => {
                 onDropFiles(Array.from(e.dataTransfer.files || [])); // Mantém a função de drop de arquivos
               }
             }}
-            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''} ${isDragOver ? 'border-2 border-blue-500' : ''}`}
+            onMouseEnter={() => setIsHovered(true)} // Adiciona manipulador de evento de mouseEnter
+            onMouseLeave={() => setIsHovered(false)} // Adiciona manipulador de evento de mouseLeave
+            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''} ${isDragOver ? 'border-2 border-blue-500' : ''} ${
+              card.duration === 'Minutos' ? 'border-l-4 border-yellow-500' : 
+              card.duration === 'Horas' ? 'border-l-4 border-green-500' : 
+              card.duration === 'Dia' ? 'border-l-4 border-blue-500' : 
+              card.duration === 'Dias' ? 'border-l-4 border-black' : ''
+            }`}
             style={{ 
               width: '100%', 
               padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, 
@@ -1130,7 +1423,7 @@ const getBackgroundColor = (columnId) => {
                             // Mais de 7 dias
                             return <span>{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ')}</span>;
                           } else if (diffDays < 7 && diffDays > 1) {
-                            // Menos de 7 dias
+                            // Menos de 7 dias e mais de 1 dia
                             return <span>{diffDays}d</span>;
                           } else if (diffDays === 1) {
                             // Menos de 1 dia, mas ainda não passou
@@ -1149,13 +1442,13 @@ const getBackgroundColor = (columnId) => {
                     )}
             </div>
             </div>
-            {!compactCards && (card.rating > 0 || card.category) && (
+            {(!compactCards || isHovered) && (card.rating > 0 || card.category) && (
               <div className="flex items-center text-xs text-gray-600 mt-1 gap-2">
 
                 {card.category && <span>{card.category}</span>}
               </div>
             )}
-            {!compactCards && (
+            {(!compactCards || isHovered) && (
               <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
                 {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
                 {card.phone ? <span className="mr-1" title={`${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
