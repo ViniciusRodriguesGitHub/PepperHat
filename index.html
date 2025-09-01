@@ -31,6 +31,14 @@
               box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
           }
       }
+      .pulsing-green {
+        animation: pulse-green 1s infinite cubic-bezier(0.66, 0, 0.33, 1);
+      }
+
+      @keyframes pulse-green {
+        0%, 100% { background-color: var(--card-bg-color, white); }
+        50% { background-color: var(--pulse-green-color, #d4edda); } /* Use CSS variable for pulsing green */
+      }
     </style>
   </head>
   <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800">
@@ -155,6 +163,7 @@ const getBackgroundColor = (columnId) => {
         const [saveButtonColor, setSaveButtonColor] = useState('bg-green-500'); // Cor inicial do botão salvar
         const [currentView, setCurrentView] = useState('kanban'); // Novo estado para controlar a visualização: 'kanban', 'calendar', 'list'
         const [selectedDate, setSelectedDate] = useState(new Date()); // Novo estado para a data selecionada no calendário
+        const [disablePulsing, setDisablePulsing] = useState(false); // Novo estado para desativar pulsação
 
         // Cores para o botão salvar quando houver alterações não salvas
         const flashingColors = [
@@ -268,7 +277,24 @@ const getBackgroundColor = (columnId) => {
         e.preventDefault();
         const droppedCardId = e.dataTransfer.getData('text/plain'); // Obter o ID do card arrastado
         if (!droppedCardId) return;
-          setClients((prev) => prev.map((c) => (c.id === droppedCardId ? { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() } : c)));
+
+        setClients((prev) => {
+            const updatedClients = prev.map((c) => {
+              if (c.id === droppedCardId) {
+                // Get old column title
+                const oldColumn = columns[c.columnId];
+                const newColumn = columns[targetColumnId];
+                if (c.columnId !== targetColumnId) { // Only add note if column actually changed
+                  const noteText = `de '${oldColumn?.title || c.columnId}' para '${newColumn?.title || targetColumnId}'.`;
+                  const newNotes = [...(c.notes || []), { text: noteText, timestamp: new Date().toISOString() }];
+                  return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), notes: newNotes };
+                }
+                return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() };
+              }
+              return c;
+            });
+            return updatedClients;
+          });
           setHasUnsavedChanges(true);
           setDraggedItem(null);
         }
@@ -333,7 +359,7 @@ const getBackgroundColor = (columnId) => {
         }
 
         function updateCard(updated) { // Renomeado de updateClient
-          setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+          setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, lastUpdated: new Date().toISOString() } : c)));
           setHasUnsavedChanges(true);
         }
 
@@ -802,6 +828,12 @@ const getBackgroundColor = (columnId) => {
                   >
                     {compactCards ? 'Expandir' : 'Compactar'}
                   </button>
+                  <button
+                    onClick={() => setDisablePulsing(prev => !prev)}
+                    className="bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                  >
+                    {disablePulsing ? 'Pulsar Atualizações' : 'Desativar Pulsação'}
+                  </button>
 
                   <div className="flex items-center gap-2">
                     <label htmlFor="filterCategory" className="font-semibold">Categoria:</label>
@@ -1023,6 +1055,7 @@ const getBackgroundColor = (columnId) => {
                               moveCardOrder={moveCardOrder} // Renomeado
                                           compactCards={compactCards}
                                           reorderCardInColumn={reorderCardInColumn} // Passando a nova função
+                                          disablePulsing={disablePulsing} // Passando o novo estado
                                           />
                                       ))}
                                   </div>
@@ -1084,8 +1117,14 @@ const getBackgroundColor = (columnId) => {
         const getCardsForDate = (date) => {
           return clients.filter(card => {
             if (!card.deadlineDate) return false;
-            const cardDate = new Date(card.deadlineDate);
-            return cardDate.toDateString() === date.toDateString();
+            // Parse card.deadlineDate explicitly as YYYY-MM-DD to avoid timezone issues
+            // and compare it with the selected date, also normalized to the start of the day.
+            const [year, month, day] = card.deadlineDate.split('-').map(Number);
+            const cardDateLocal = new Date(year, month - 1, day); // month - 1 because months are 0-indexed
+
+            const normalizedSelectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            
+            return cardDateLocal.toDateString() === normalizedSelectedDate.toDateString();
           })
           .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
           .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
@@ -1363,11 +1402,37 @@ const getBackgroundColor = (columnId) => {
 );
       }
 
-      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards, reorderCardInColumn }) {
+      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards, reorderCardInColumn, disablePulsing }) {
         const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(card.lastUpdated || card.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [card.lastUpdated, card.createdAt]);
     const isInactive = diffDays > 7;
     const [isDragOver, setIsDragOver] = useState(false); // Novo estado para controlar o hover de drag
     const [isHovered, setIsHovered] = useState(false); // Novo estado para controlar o hover do mouse
+
+    const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
+    const lastUpdatedDate = card.lastUpdated ? new Date(card.lastUpdated) : new Date(card.createdAt);
+    const timeSinceLastUpdate = Date.now() - lastUpdatedDate.getTime();
+    const isRecentlyUpdated = timeSinceLastUpdate < fortyEightHoursInMs;
+
+    // Calculate pulse frequency: faster for more recent updates
+    // Linearly interpolate between 0.5s (very recent) and 2s (48 hours ago)
+    let pulseDuration = 0; // Default to no pulse
+    let pulsingGreenColor = '#e4fac9'; // Default to new light green
+
+    if (isRecentlyUpdated && !disablePulsing) {
+      const normalizedTime = timeSinceLastUpdate / fortyEightHoursInMs; // 0 (now) to 1 (48 hours ago)
+      pulseDuration = 0.5 + (normalizedTime * 1.5); // 0.5s to 2s
+
+      // Interpolate green color for subtlety
+      const startR = 228, startG = 250, startB = 201; // #E4FAC9 - Brighter green
+      const endR = 235, endG = 252, endB = 217;     // A slightly lighter shade of #E4FAC9 for discreetness
+
+      const currentR = Math.round(startR + (endR - startR) * normalizedTime);
+      const currentG = Math.round(startG + (endG - startG) * normalizedTime);
+      const currentB = Math.round(startB + (endB - startB) * normalizedTime);
+
+      pulsingGreenColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
+    }
+
     return (
           <div
             draggable
@@ -1392,12 +1457,15 @@ const getBackgroundColor = (columnId) => {
               card.duration === 'Horas' ? 'border-l-4 border-green-500' : 
               card.duration === 'Dia' ? 'border-l-4 border-blue-500' : 
               card.duration === 'Dias' ? 'border-l-4 border-black' : ''
-            }`}
+            } ${isRecentlyUpdated && !disablePulsing ? 'pulsing-green' : ''}`}
             style={{ 
               width: '100%', 
               padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, 
               opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1,
-              backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white'
+              '--card-bg-color': (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Set CSS variable for background
+              '--pulse-green-color': pulsingGreenColor, // Set dynamic pulsing green color
+              backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Ensure base background color is always applied
+              animationDuration: isRecentlyUpdated && !disablePulsing ? `${pulseDuration}s` : 'initial'
             }}
             title={(card.notes || []).map(note => note.text).join('\n')}
           >
