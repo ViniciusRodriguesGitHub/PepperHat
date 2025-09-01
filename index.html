@@ -151,6 +151,7 @@ const getBackgroundColor = (columnId) => {
         const [filterMember, setFilterMember] = useState('');
         const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de busca
         const [filterActivity, setFilterActivity] = useState(''); // Novo estado para o filtro de atividade
+        const [filterDuration, setFilterDuration] = useState(''); // Novo estado para o filtro de duração
 
         // Estado para desfazer exclusões
         const [deletedCards, setDeletedCards] = useState([]);
@@ -766,7 +767,7 @@ const getBackgroundColor = (columnId) => {
                 <div className="relative">
                   <button
                     onClick={() => setShowAdminMenu(prev => !prev)}
-                    className="bg-gray-700 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    className="bg-gray-700 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
                   >
                     Opções
                   </button>
@@ -779,14 +780,14 @@ const getBackgroundColor = (columnId) => {
                     </div>
                   )}
                 </div>
-                <button onClick={saveToLocalFile} className={`${saveButtonColor} text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all ${hasUnsavedChanges ? 'pulsing-alert' : ''}`}>💾 Salvar</button>
-                <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
-                <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
-                <button onClick={importFromGoogleSheets} className="bg-purple-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">📥 Importar Sheets</button>
+                <button onClick={saveToLocalFile} className={`${saveButtonColor} text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all ${hasUnsavedChanges ? 'pulsing-alert' : ''}`}>💾 Salvar</button>
+                <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
+                <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
+                <button onClick={importFromGoogleSheets} className="bg-purple-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📥 Importar Sheets</button>
                 {lastDeletedCard && (
                   <button 
                     onClick={undoLastDeletion} 
-                    className="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    className="bg-yellow-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
                     title={`Desfazer exclusão de "${lastDeletedCard.name}"`}
                   >
                     ↩ Desfazer Card
@@ -795,7 +796,7 @@ const getBackgroundColor = (columnId) => {
                 {lastDeletedColumn && (
                   <button 
                     onClick={undoLastColumnDeletion} 
-                    className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    className="bg-orange-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
                     title={`Desfazer exclusão da coluna "${lastDeletedColumn.title}"`}
                   >
                     ↩ Desfazer Coluna
@@ -808,15 +809,15 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex flex-wrap gap-2 mb-4">
                   <button
                     onClick={() => setCurrentView('kanban')}
-                    className={`px-4 py-2 rounded-full font-semibold ${currentView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
                   >Kanban</button>
                   <button
                     onClick={() => setCurrentView('calendar')}
-                    className={`px-4 py-2 rounded-full font-semibold ${currentView === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
                   >Calendário</button>
                   <button
                     onClick={() => setCurrentView('list')}
-                    className={`px-4 py-2 rounded-full font-semibold ${currentView === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
                   >Lista de Tarefas</button>
                 </div>
 
@@ -824,24 +825,24 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex flex-wrap gap-4 mb-4 items-center">
                   <button 
                     onClick={() => setCompactCards(prev => !prev)}
-                    className="bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    className="bg-gray-400 text-white font-semibold text-sm py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
                   >
                     {compactCards ? 'Expandir' : 'Compactar'}
                   </button>
                   <button
                     onClick={() => setDisablePulsing(prev => !prev)}
-                    className="bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all"
+                    className="bg-gray-400 text-white font-semibold text-sm py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
                   >
                     {disablePulsing ? 'Pulsar Atualizações' : 'Desativar Pulsação'}
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <label htmlFor="filterCategory" className="font-semibold">Categoria:</label>
+                    <label htmlFor="filterCategory" className="font-semibold text-sm">Categoria:</label>
                     <select
                       id="filterCategory"
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
-                      className="p-2 border rounded-md"
+                      className="p-1 text-sm border rounded-md"
                     >
                       <option value="">Todas</option>
                       {categories.map((cat) => (
@@ -850,12 +851,12 @@ const getBackgroundColor = (columnId) => {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="filterMember" className="font-semibold">Membro:</label>
+                    <label htmlFor="filterMember" className="font-semibold text-sm">Membro:</label>
                     <select
                       id="filterMember"
                       value={filterMember}
                       onChange={(e) => setFilterMember(e.target.value)}
-                      className="p-2 border rounded-md"
+                      className="p-1 text-sm border rounded-md"
                     >
                       <option value="">Todos</option>
                       {teamMembers.map((member) => (
@@ -864,12 +865,12 @@ const getBackgroundColor = (columnId) => {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="filterActivity" className="font-semibold">Atividade:</label>
+                    <label htmlFor="filterActivity" className="font-semibold text-sm">Atividade:</label>
                     <select
                       id="filterActivity"
                       value={filterActivity}
                       onChange={(e) => setFilterActivity(e.target.value)}
-                      className="p-2 border rounded-md"
+                      className="p-1 text-sm border rounded-md"
                     >
                       <option value="">Todas</option>
                       {activityOptions.map((activity) => (
@@ -878,14 +879,28 @@ const getBackgroundColor = (columnId) => {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="searchTerm" className="font-semibold">Buscar:</label>
+                    <label htmlFor="filterDuration" className="font-semibold text-sm">Duração:</label>
+                    <select
+                      id="filterDuration"
+                      value={filterDuration}
+                      onChange={(e) => setFilterDuration(e.target.value)}
+                      className="p-1 text-sm border rounded-md"
+                    >
+                      <option value="">Todas</option>
+                      {durationOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="searchTerm" className="font-semibold text-sm">Buscar:</label>
                     <input
                       id="searchTerm"
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Buscar clientes..."
-                      className="p-2 border rounded-md w-64"
+                      className="p-1 text-sm border rounded-md w-64"
                     />
                   </div>
                 </div>
@@ -1032,6 +1047,7 @@ const getBackgroundColor = (columnId) => {
                           .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
                           .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
                           .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase())) // Novo filtro por atividade
+                          .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
                           .filter(c => searchTerm === '' || 
                             (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                             (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1091,6 +1107,7 @@ const getBackgroundColor = (columnId) => {
                 filterCategory={filterCategory}
                 filterMember={filterMember}
                 filterActivity={filterActivity}
+                filterDuration={filterDuration} // Passando o novo filtro de duração
                 searchTerm={searchTerm}
               />
             )}
@@ -1099,7 +1116,7 @@ const getBackgroundColor = (columnId) => {
     );
       }
 
-      function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, setShowDeleteModal, setCardToDelete, compactCards, filterCategory, filterMember, filterActivity, searchTerm }) {
+      function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, setShowDeleteModal, setCardToDelete, compactCards, filterCategory, filterMember, filterActivity, filterDuration, searchTerm }) {
         // Funções auxiliares para o calendário
         const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
         const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
@@ -1129,6 +1146,7 @@ const getBackgroundColor = (columnId) => {
           .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
           .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
           .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
+          .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
           .filter(c => searchTerm === '' || 
             (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
             (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1195,6 +1213,7 @@ const getBackgroundColor = (columnId) => {
                     .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
                     .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
                     .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
+                    .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
                     .filter(c => searchTerm === '' || 
                       (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                       (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1409,9 +1428,29 @@ const getBackgroundColor = (columnId) => {
     const [isHovered, setIsHovered] = useState(false); // Novo estado para controlar o hover do mouse
 
     const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
     const lastUpdatedDate = card.lastUpdated ? new Date(card.lastUpdated) : new Date(card.createdAt);
     const timeSinceLastUpdate = Date.now() - lastUpdatedDate.getTime();
     const isRecentlyUpdated = timeSinceLastUpdate < fortyEightHoursInMs;
+
+    const createdAtDate = new Date(card.createdAt);
+    const timeSinceCreation = Date.now() - createdAtDate.getTime();
+    const isCreatedRecently48h = timeSinceCreation < fortyEightHoursInMs;
+    const isCreatedRecently24h = timeSinceCreation < twentyFourHoursInMs;
+
+    // Helper to get Tailwind CSS colors (simplified for common colors)
+    const getTailwindColor = (colorName) => {
+      switch (colorName) {
+        case 'green-500': return 'rgb(34, 197, 94)';
+        case 'yellow-500': return 'rgb(234, 179, 8)';
+        case 'blue-500': return 'rgb(59, 130, 246)';
+        case 'black': return 'rgb(0, 0, 0)';
+        case 'red-400': return 'rgb(248, 113, 113)';
+        case 'pink-500': return 'rgb(236, 72, 153)';
+        case 'purple-500': return 'rgb(168, 85, 247)';
+        default: return 'transparent';
+      }
+    };
 
     // Calculate pulse frequency: faster for more recent updates
     // Linearly interpolate between 0.5s (very recent) and 2s (48 hours ago)
@@ -1433,6 +1472,31 @@ const getBackgroundColor = (columnId) => {
       pulsingGreenColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
     }
 
+    let leftBorderColor = 'transparent';
+    if (card.duration === 'Minutos') {
+      leftBorderColor = getTailwindColor('green-500');
+    } else if (card.duration === 'Horas') {
+      leftBorderColor = getTailwindColor('yellow-500');
+    } else if (card.duration === 'Dia') {
+      leftBorderColor = getTailwindColor('blue-500');
+    } else if (card.duration === 'Dias') {
+      leftBorderColor = getTailwindColor('black');
+    } else if (isInactive) {
+      leftBorderColor = getTailwindColor('red-400');
+    }
+
+    let rightBorderColor = 'transparent';
+    if (isCreatedRecently24h) {
+      rightBorderColor = getTailwindColor('pink-500');
+    } else if (isCreatedRecently48h) {
+      rightBorderColor = getTailwindColor('purple-500');
+    }
+
+    const customBoxShadow = [
+      leftBorderColor !== 'transparent' ? `inset 4px 0 0 0 ${leftBorderColor}` : '',
+      rightBorderColor !== 'transparent' ? `inset -4px 0 0 0 ${rightBorderColor}` : '',
+    ].filter(Boolean).join(', ');
+
     return (
           <div
             draggable
@@ -1452,12 +1516,8 @@ const getBackgroundColor = (columnId) => {
             }}
             onMouseEnter={() => setIsHovered(true)} // Adiciona manipulador de evento de mouseEnter
             onMouseLeave={() => setIsHovered(false)} // Adiciona manipulador de evento de mouseLeave
-            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isInactive ? 'border-l-4 border-red-400' : ''} ${isDragOver ? 'border-2 border-blue-500' : ''} ${
-              card.duration === 'Minutos' ? 'border-l-4 border-yellow-500' : 
-              card.duration === 'Horas' ? 'border-l-4 border-green-500' : 
-              card.duration === 'Dia' ? 'border-l-4 border-blue-500' : 
-              card.duration === 'Dias' ? 'border-l-4 border-black' : ''
-            } ${isRecentlyUpdated && !disablePulsing ? 'pulsing-green' : ''}`}
+            className={`bg-white rounded-lg shadow-md mb-2 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isRecentlyUpdated && !disablePulsing ? 'pulsing-green' : ''}
+            `}
             style={{ 
               width: '100%', 
               padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, 
@@ -1465,7 +1525,8 @@ const getBackgroundColor = (columnId) => {
               '--card-bg-color': (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Set CSS variable for background
               '--pulse-green-color': pulsingGreenColor, // Set dynamic pulsing green color
               backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Ensure base background color is always applied
-              animationDuration: isRecentlyUpdated && !disablePulsing ? `${pulseDuration}s` : 'initial'
+              animationDuration: isRecentlyUpdated && !disablePulsing ? `${pulseDuration}s` : 'initial',
+              boxShadow: customBoxShadow // Apply custom box-shadow for internal borders
             }}
             title={(card.notes || []).map(note => note.text).join('\n')}
           >
