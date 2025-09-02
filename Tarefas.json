@@ -28,11 +28,17 @@
         "id": "tarefas",
         "title": "Tarefas",
         "color": "#BAE1FF"
+      },
+      "parado": {
+        "id": "parado",
+        "title": "Parado",
+        "color": "#FFB3BA"
       }
     },
     "columnOrder": [
       "tarefas",
       "iniciar",
+      "parado",
       "fazendo",
       "feito",
       "arquivados",
@@ -77,7 +83,8 @@
       "iniciar": 220,
       "fazendo": 220,
       "feito": 220,
-      "tarefas": 220
+      "tarefas": 220,
+      "parado": 220
     }
   },
   "clients": [
@@ -94,7 +101,7 @@
       "id": "tg1iv49shymesig9hn",
       "columnId": "feito",
       "createdAt": "2025-08-26T12:16:47.627Z",
-      "lastUpdated": "2025-08-27T12:42:59.789Z",
+      "lastUpdated": "2025-08-26T12:16:47.627Z",
       "order": 1
     },
     {
@@ -115,68 +122,9 @@
       "id": "99fm7pkyuicmesi4w9s",
       "columnId": "descartados",
       "createdAt": "2025-08-26T12:07:57.281Z",
-      "lastUpdated": "2025-09-01T17:22:50.079Z",
+      "lastUpdated": "2025-08-26T12:07:57.281Z",
       "order": 2,
       "duration": "Minutos"
-    },
-    {
-      "name": "Cidadania",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Preparar documentos",
-          "timestamp": "2025-08-21T17:09:04.360Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "id": "8eaxhdqzn3amelnp3sa",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-21T17:09:14.987Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
-      "activity": "Externa",
-      "order": 3,
-      "deadlineDate": "2025-08-29",
-      "deadlineTime": "08:30",
-      "duration": "Minutos"
-    },
-    {
-      "name": "Agendar Exame Nícolas",
-      "email": "",
-      "phone": "",
-      "notes": [],
-      "rating": 5,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "id": "o0tcu5lzwtdmelnxhru",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-21T17:15:46.363Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
-      "activity": "Interna",
-      "order": 4,
-      "duration": "Minutos"
-    },
-    {
-      "name": "Microsoft",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Passar para o drive familiar",
-          "timestamp": "2025-08-21T18:46:11.231Z"
-        }
-      ],
-      "rating": 0,
-      "category": "Pessoal",
-      "assignedTo": "Diana",
-      "id": "e287gb6sgwmelr5td2",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-21T18:46:13.479Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
-      "activity": "Interna",
-      "order": 5
     },
     {
       "name": "Miriam Modas",
@@ -194,7 +142,7 @@
       "id": "l8oign2z4r8men5j2w7",
       "columnId": "fazendo",
       "createdAt": "2025-08-22T18:16:13.160Z",
-      "lastUpdated": "2025-08-29T13:08:10.120Z",
+      "lastUpdated": "2025-08-22T18:16:13.160Z",
       "order": 6,
       "activity": "Externa",
       "deadlineDate": "2025-08-28",
@@ -217,37 +165,9 @@
       "id": "ieumym407rmmer6jn6s",
       "columnId": "feito",
       "createdAt": "2025-08-25T13:55:43.780Z",
-      "lastUpdated": "2025-09-01T17:10:10.686Z",
+      "lastUpdated": "2025-08-25T13:55:43.780Z",
       "order": 7,
       "activity": "Interna"
-    },
-    {
-      "name": "Bradesco",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Ir ao banco resolver pendência urgente",
-          "timestamp": "2025-08-25T13:57:56.305Z"
-        },
-        {
-          "text": "Tentei contato dia 01/09 novamente",
-          "timestamp": "2025-09-01T17:22:07.027Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "address": "",
-      "id": "r8ewcmtcmxmer6mk8s",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-25T13:57:59.932Z",
-      "lastUpdated": "2025-08-27T13:56:53.441Z",
-      "order": 8,
-      "activity": "Externa",
-      "deadlineDate": "2025-09-02",
-      "deadlineTime": "10:00",
-      "duration": "Dia"
     },
     {
       "name": "Produção de Show",
@@ -278,7 +198,7 @@
       "id": "sxqkdsc0evmer6u0qi",
       "columnId": "iniciar",
       "createdAt": "2025-08-25T14:03:47.899Z",
-      "lastUpdated": "2025-09-01T14:14:52.937Z",
+      "lastUpdated": "2025-08-25T14:03:47.899Z",
       "order": 9,
       "activity": "Interna",
       "deadlineDate": "2025-09-10",
@@ -302,7 +222,7 @@
       "id": "yq28nrk6pnmer6z32m",
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:07:44.206Z",
-      "lastUpdated": "2025-08-28T18:59:20.950Z",
+      "lastUpdated": "2025-08-25T14:07:44.206Z",
       "order": 10,
       "activity": "Externa",
       "deadlineDate": "2025-08-27",
@@ -328,7 +248,7 @@
       "id": "rqvxk0gtumomelo36b4",
       "columnId": "feito",
       "createdAt": "2025-08-21T17:20:11.440Z",
-      "lastUpdated": "2025-08-29T12:51:36.229Z",
+      "lastUpdated": "2025-08-21T17:20:11.440Z",
       "activity": "Interna",
       "order": 2,
       "duration": "Minutos"
@@ -349,7 +269,7 @@
       "id": "cb10ixl189memvobit",
       "columnId": "iniciar",
       "createdAt": "2025-08-22T13:40:21.461Z",
-      "lastUpdated": "2025-08-26T12:43:48.124Z",
+      "lastUpdated": "2025-08-22T13:40:21.461Z",
       "order": 3,
       "activity": "Interna",
       "duration": "Horas",
@@ -375,7 +295,7 @@
       "id": "5cpeggvxqdemesjw5v7",
       "columnId": "descartados",
       "createdAt": "2025-08-26T12:57:09.044Z",
-      "lastUpdated": "2025-09-01T17:22:52.298Z",
+      "lastUpdated": "2025-08-26T12:57:09.044Z",
       "order": 11
     },
     {
@@ -402,6 +322,10 @@
         {
           "text": "Atualizar a planilha de investimento",
           "timestamp": "2025-08-25T14:14:35.579Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Parado'.",
+          "timestamp": "2025-09-01T23:18:21.909Z"
         }
       ],
       "rating": 5,
@@ -409,9 +333,9 @@
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "ls2cm7i3czmer78dtd",
-      "columnId": "fazendo",
+      "columnId": "parado",
       "createdAt": "2025-08-25T14:14:58.033Z",
-      "lastUpdated": "2025-08-26T12:58:13.875Z",
+      "lastUpdated": "2025-08-25T14:14:58.033Z",
       "order": 1,
       "activity": "Interna",
       "duration": "Dias"
@@ -427,7 +351,7 @@
       "id": "5xo175in3x7melnwnvs",
       "columnId": "arquivados",
       "createdAt": "2025-08-21T17:15:07.624Z",
-      "lastUpdated": "2025-08-28T19:31:38.269Z",
+      "lastUpdated": "2025-08-21T17:15:07.624Z",
       "activity": "Interna",
       "order": 2
     },
@@ -447,7 +371,7 @@
       "id": "xrt6ayxytoqmelocxqt",
       "columnId": "fazendo",
       "createdAt": "2025-08-21T17:27:46.901Z",
-      "lastUpdated": "2025-08-26T12:58:13.875Z",
+      "lastUpdated": "2025-08-21T17:27:46.901Z",
       "activity": "Interna",
       "order": 3,
       "duration": "Dias"
@@ -477,32 +401,10 @@
       "id": "hpqy15n4ycqmer6pbd4",
       "columnId": "feito",
       "createdAt": "2025-08-25T14:00:08.392Z",
-      "lastUpdated": "2025-08-28T21:02:02.275Z",
+      "lastUpdated": "2025-08-25T14:00:08.392Z",
       "order": 4,
       "activity": "Interna",
       "duration": "Horas"
-    },
-    {
-      "name": "Marcar Mecânico",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Agendar troca de óleo",
-          "timestamp": "2025-08-25T14:49:25.190Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pessoal",
-      "assignedTo": "Vinícius",
-      "address": "",
-      "id": "r9qr6ecudtmer8hjvp",
-      "columnId": "fazendo",
-      "createdAt": "2025-08-25T14:50:05.414Z",
-      "lastUpdated": "2025-08-26T12:58:13.875Z",
-      "order": 5,
-      "activity": "Interna",
-      "duration": "Minutos"
     },
     {
       "name": "Atualizar sistema Tarefas",
@@ -533,33 +435,10 @@
       "id": "09vsnnqaqrgmer8sks2",
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:58:39.795Z",
-      "lastUpdated": "2025-08-26T12:58:13.875Z",
+      "lastUpdated": "2025-08-25T14:58:39.795Z",
       "order": 6,
       "activity": "Interna",
       "duration": "Horas"
-    },
-    {
-      "name": "Energia Elétrica restituição",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Ligar para CPFL pra solicitar",
-          "timestamp": "2025-08-26T19:36:59.199Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pessoal",
-      "assignedTo": "Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-03",
-      "deadlineTime": "16:00",
-      "id": "61ki293mgcqmesy6dp1",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-26T19:37:00.374Z",
-      "lastUpdated": "2025-08-26T19:37:00.374Z",
-      "order": 11
     },
     {
       "name": "Fazer orçamento Carol",
@@ -598,7 +477,7 @@
       "id": "4wlx953ovcbmevrrmj5",
       "columnId": "descartados",
       "createdAt": "2025-08-28T19:00:52.817Z",
-      "lastUpdated": "2025-09-01T17:22:55.564Z",
+      "lastUpdated": "2025-08-28T19:00:52.817Z",
       "order": 12
     },
     {
@@ -630,7 +509,7 @@
       "id": "pi36xrgvdfmewtwej3",
       "columnId": "feito",
       "createdAt": "2025-08-29T12:48:21.135Z",
-      "lastUpdated": "2025-09-01T14:14:38.758Z",
+      "lastUpdated": "2025-08-29T12:48:21.135Z",
       "order": 12
     },
     {
@@ -658,8 +537,236 @@
       "id": "y10k30lu7kmewul66u",
       "columnId": "descartados",
       "createdAt": "2025-08-29T13:07:36.726Z",
-      "lastUpdated": "2025-09-01T17:23:00.283Z",
+      "lastUpdated": "2025-08-29T13:07:36.726Z",
       "order": 12
+    },
+    {
+      "name": "Entregar orçamento Vanessa Mutton",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ela quer TUDO que temos de opção... desde cerimônia até show de banda",
+          "timestamp": "2025-09-01T17:14:31.645Z"
+        },
+        {
+          "text": "Falar comigo a respeito",
+          "timestamp": "2025-09-01T17:14:40.244Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-02",
+      "deadlineTime": "17:00",
+      "duration": "Minutos",
+      "id": "bf7ijt9dgpmf1dqipg",
+      "columnId": "iniciar",
+      "createdAt": "2025-09-01T17:14:43.636Z",
+      "lastUpdated": "2025-09-01T17:14:43.636Z",
+      "order": 14
+    },
+    {
+      "name": "Montar orçamento Edna cerimonialista",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Evento corporativo DUO Pepper Hat, ofereça um trio tbm para dar opções",
+          "timestamp": "2025-09-01T17:19:32.844Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-02",
+      "deadlineTime": "17:00",
+      "duration": "Minutos",
+      "id": "4lkn34jxrplmf1dwtgh",
+      "columnId": "iniciar",
+      "createdAt": "2025-09-01T17:19:37.505Z",
+      "lastUpdated": "2025-09-01T17:19:37.505Z",
+      "order": 15
+    },
+    {
+      "name": "Montar orçamento Lilian",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Almoço de aniversário para sábado agora dia 06/09 ás 14hs",
+          "timestamp": "2025-09-01T17:21:05.363Z"
+        },
+        {
+          "text": "ver conversa no whats app",
+          "timestamp": "2025-09-01T17:21:14.734Z"
+        },
+        {
+          "text": "whats app business (Pepper Hat)",
+          "timestamp": "2025-09-01T17:21:34.628Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-01T23:18:58.342Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-01",
+      "deadlineTime": "16:00",
+      "duration": "Minutos",
+      "id": "14lfvhf9i8bmf1dzcw6",
+      "columnId": "feito",
+      "createdAt": "2025-09-01T17:21:36.006Z",
+      "lastUpdated": "2025-09-01T17:21:36.006Z",
+      "order": 16
+    },
+    {
+      "name": "Marcar Mecânico",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Agendar troca de óleo",
+          "timestamp": "2025-08-25T14:49:25.190Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Iniciar'.",
+          "timestamp": "2025-09-01T23:19:37.511Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Tarefas'.",
+          "timestamp": "2025-09-01T23:19:41.152Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "id": "r9qr6ecudtmer8hjvp",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T14:50:05.414Z",
+      "lastUpdated": "2025-08-25T14:50:05.414Z",
+      "order": 1,
+      "activity": "Interna",
+      "duration": "Minutos"
+    },
+    {
+      "name": "Cidadania",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Preparar documentos",
+          "timestamp": "2025-08-21T17:09:04.360Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "8eaxhdqzn3amelnp3sa",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:09:14.987Z",
+      "lastUpdated": "2025-08-21T17:09:14.987Z",
+      "activity": "Externa",
+      "order": 2,
+      "deadlineDate": "2025-08-29",
+      "deadlineTime": "08:30",
+      "duration": "Minutos"
+    },
+    {
+      "name": "Agendar Exame Nícolas",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "o0tcu5lzwtdmelnxhru",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:15:46.363Z",
+      "lastUpdated": "2025-08-21T17:15:46.363Z",
+      "activity": "Interna",
+      "order": 3,
+      "duration": "Minutos"
+    },
+    {
+      "name": "Microsoft",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Passar para o drive familiar",
+          "timestamp": "2025-08-21T18:46:11.231Z"
+        }
+      ],
+      "rating": 0,
+      "category": "Pessoal",
+      "assignedTo": "Diana",
+      "id": "e287gb6sgwmelr5td2",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T18:46:13.479Z",
+      "lastUpdated": "2025-08-21T18:46:13.479Z",
+      "activity": "Interna",
+      "order": 4
+    },
+    {
+      "name": "Bradesco",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ir ao banco resolver pendência urgente",
+          "timestamp": "2025-08-25T13:57:56.305Z"
+        },
+        {
+          "text": "Tentei contato dia 01/09 novamente",
+          "timestamp": "2025-09-01T17:22:07.027Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "r8ewcmtcmxmer6mk8s",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T13:57:59.932Z",
+      "lastUpdated": "2025-08-25T13:57:59.932Z",
+      "order": 5,
+      "activity": "Externa",
+      "deadlineDate": "2025-09-02",
+      "deadlineTime": "10:00",
+      "duration": "Dia"
+    },
+    {
+      "name": "Energia Elétrica restituição",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ligar para CPFL pra solicitar",
+          "timestamp": "2025-08-26T19:36:59.199Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-03",
+      "deadlineTime": "16:00",
+      "id": "61ki293mgcqmesy6dp1",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-26T19:37:00.374Z",
+      "lastUpdated": "2025-08-26T19:37:00.374Z",
+      "order": 6
     },
     {
       "name": "Convênio",
@@ -691,7 +798,7 @@
       "columnId": "tarefas",
       "createdAt": "2025-09-01T16:53:40.703Z",
       "lastUpdated": "2025-09-01T16:53:40.703Z",
-      "order": 12
+      "order": 7
     },
     {
       "name": "Marcar Reumatologista",
@@ -715,91 +822,31 @@
       "columnId": "tarefas",
       "createdAt": "2025-09-01T17:11:09.488Z",
       "lastUpdated": "2025-09-01T17:11:09.488Z",
-      "order": 13
+      "order": 8
     },
     {
-      "name": "Entregar orçamento Vanessa Mutton",
+      "name": "Trio Metais - Votorantim",
       "email": "",
       "phone": "",
       "notes": [
         {
-          "text": "Ela quer TUDO que temos de opção... desde cerimônia até show de banda",
-          "timestamp": "2025-09-01T17:14:31.645Z"
-        },
-        {
-          "text": "Falar comigo a respeito",
-          "timestamp": "2025-09-01T17:14:40.244Z"
+          "text": "Cobrar Evandro",
+          "timestamp": "2025-09-01T23:16:13.527Z"
         }
       ],
       "rating": 5,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-02",
-      "deadlineTime": "17:00",
+      "address": "Praça Votorantim",
+      "activity": "Externa",
+      "deadlineDate": "2025-09-04",
+      "deadlineTime": "18:00",
       "duration": "Minutos",
-      "id": "bf7ijt9dgpmf1dqipg",
-      "columnId": "iniciar",
-      "createdAt": "2025-09-01T17:14:43.636Z",
-      "lastUpdated": "2025-09-01T17:21:44.300Z",
-      "order": 14
-    },
-    {
-      "name": "Montar orçamento Edna cerimonialista",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Evento corporativo DUO Pepper Hat, ofereça um trio tbm para dar opções",
-          "timestamp": "2025-09-01T17:19:32.844Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pepper Hat",
-      "assignedTo": "Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-02",
-      "deadlineTime": "17:00",
-      "duration": "Minutos",
-      "id": "4lkn34jxrplmf1dwtgh",
-      "columnId": "iniciar",
-      "createdAt": "2025-09-01T17:19:37.505Z",
-      "lastUpdated": "2025-09-01T17:21:49.371Z",
-      "order": 15
-    },
-    {
-      "name": "Montar orçamento Lilian",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Almoço de aniversário para sábado agora dia 06/09 ás 14hs",
-          "timestamp": "2025-09-01T17:21:05.363Z"
-        },
-        {
-          "text": "ver conversa no whats app",
-          "timestamp": "2025-09-01T17:21:14.734Z"
-        },
-        {
-          "text": "whats app business (Pepper Hat)",
-          "timestamp": "2025-09-01T17:21:34.628Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pepper Hat",
-      "assignedTo": "Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-01",
-      "deadlineTime": "16:00",
-      "duration": "Minutos",
-      "id": "14lfvhf9i8bmf1dzcw6",
-      "columnId": "fazendo",
-      "createdAt": "2025-09-01T17:21:36.006Z",
-      "lastUpdated": "2025-09-01T19:20:50.698Z",
-      "order": 16
+      "id": "3amukcs2hrkmf1qnghl",
+      "columnId": "tarefas",
+      "createdAt": "2025-09-01T23:16:15.801Z",
+      "lastUpdated": "2025-09-01T23:16:15.801Z",
+      "order": 9
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

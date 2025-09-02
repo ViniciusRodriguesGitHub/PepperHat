@@ -326,13 +326,13 @@ const getBackgroundColor = (columnId) => {
             const updatedColumnCards = reordered.map((card, index) => ({
               ...card,
               order: index + 1,
-              lastUpdated: new Date().toISOString(),
+              // lastUpdated: new Date().toISOString(), // Removido: não atualizar lastUpdated para reordenação na mesma coluna
             }));
 
             const otherCards = prevClients.filter(c => c.columnId !== draggedCard.columnId);
             return [...otherCards, ...updatedColumnCards];
           });
-          setHasUnsavedChanges(true);
+          // setHasUnsavedChanges(true); // Removido: reordenação na mesma coluna não deve marcar como não salvo
         }
 
         function addCard(card) { // Renomeado de addClient
@@ -920,16 +920,19 @@ const getBackgroundColor = (columnId) => {
                   editingCardId ? clients.find((c) => c.id === editingCardId) : uiState.newClient
                 }
                 setCard={
-                  editingCardId
-                    ? (card) => setClients(clients.map((c) => (c.id === editingCardId ? card : c)))
-                    : (card) => setUiState((s) => ({ ...s, newClient: card }))
+                  (cardUpdate) => { // Alterado para aceitar uma função de atualização
+                    if (editingCardId) {
+                      // Se estiver editando, precisamos atualizar o estado de clients para refletir a edição temporária no App, mas apenas quando o salvar for clicado
+                      // Por enquanto, CardForm vai gerenciar o estado temporário internamente
+                    } else {
+                      setUiState((s) => ({ ...s, newClient: cardUpdate }));
+                    }
+                  }
                 }
                 onSubmit={(e) => {
                             e.preventDefault();
                   if (editingCardId) {
-                    const updated = clients.find((c) => c.id === editingCardId);
-                    if (updated) updateCard(updated);
-                                setEditingCardId(null);
+                    // A lógica de atualização será movida para dentro do CardForm com o estado temporário
                   } else {
                     if (!uiState.newClient.name) return;
                     // Nova validação para Categoria e Responsável
@@ -954,6 +957,7 @@ const getBackgroundColor = (columnId) => {
                 setCardToDelete={setCardToDelete} // Passando o setter para o card a ser excluído renomeado
                 activityOptions={activityOptions} // Passando as opções de atividade
                 durationOptions={durationOptions} // Passando as opções de duração
+                updateCardProp={updateCard} // Passando a função updateCard do App
                     />
                 )}
                 
@@ -1295,36 +1299,88 @@ const getBackgroundColor = (columnId) => {
         );
       }
 
-      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions }) {
+      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp }) {
     const [newNote, setNewNote] = useState('');
+    const [tempCard, setTempCard] = useState(card); // Estado temporário para as edições
+    const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false); // Novo estado para controlar edições não salvas no formulário
+
+    useEffect(() => {
+      setTempCard(card); // Inicializa tempCard quando o card original muda
+    }, [card]);
+
+    // Efeito para detectar alterações no tempCard em relação ao card original
+    useEffect(() => {
+      const cardJson = JSON.stringify(card);
+      const tempCardJson = JSON.stringify(tempCard);
+      setHasUnsavedEdits(cardJson !== tempCardJson);
+    }, [card, tempCard]);
+
+    const handleTempCardChange = (field, value) => {
+      setTempCard(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (newNote.trim()) { // Se houver texto na nova anotação, alertar para adicionar
+        alert('Por favor, adicione a anotação ou limpe o campo antes de salvar.');
+        return;
+      }
+      if (card.id) { // Se estiver editando um card existente
+        if (!tempCard.name) return;
+        updateCardProp(tempCard); // Usa a função updateCardProp do App para salvar
+      } else { // Se for um novo card
+        if (!tempCard.name) return;
+        if (!tempCard.category || !tempCard.assignedTo) {
+          alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
+          return;
+        }
+        setCard(tempCard); // Adiciona o novo card via prop setCard (do App)
+      }
+      onClose(); // Fecha o formulário após salvar/adicionar
+    };
+
+    const handleCloseForm = () => {
+      if (newNote.trim()) { // Se houver texto na nova anotação, alertar para adicionar
+        alert('Por favor, adicione a anotação ou limpe o campo antes de sair.');
+        return;
+      }
+      if (hasUnsavedEdits) {
+        if (window.confirm('Você tem alterações não salvas. Deseja sair sem salvar?')) {
+          onClose();
+        }
+      } else {
+        onClose();
+      }
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold">{card?.id ? 'Editar Card' : 'Adicionar Card'}</h2>
-                <button onClick={onClose}>✕</button>
+                <button onClick={handleCloseForm}>✕</button>
               </div>
-                <form onSubmit={onSubmit}>
+                <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label>Nome</label>
-                    <input type="text" value={card.name} onChange={(e) => setCard({ ...card, name: e.target.value })} className="w-full p-2 border rounded" required />
+                    <input type="text" value={tempCard.name} onChange={(e) => handleTempCardChange('name', e.target.value)} className="w-full p-2 border rounded" required />
                     </div>
                   <div>
                     <label>E-mail</label>
-                    <input type="email" value={card.email || ''} onChange={(e) => setCard({ ...card, email: e.target.value })} className="w-full p-2 border rounded" />
+                    <input type="email" value={tempCard.email || ''} onChange={(e) => handleTempCardChange('email', e.target.value)} className="w-full p-2 border rounded" />
             </div>
                   <div>
                     <label>Telefone</label>
-                    <input type="tel" value={card.phone || ''} onChange={(e) => setCard({ ...card, phone: e.target.value })} className="w-full p-2 border rounded" />
+                    <input type="tel" value={tempCard.phone || ''} onChange={(e) => handleTempCardChange('phone', e.target.value)} className="w-full p-2 border rounded" />
         </div>
                   <div>
                     <label>Endereço</label>
-                    <input type="text" value={card.address || ''} onChange={(e) => setCard({ ...card, address: e.target.value })} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
+                    <input type="text" value={tempCard.address || ''} onChange={(e) => handleTempCardChange('address', e.target.value)} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
                   </div>
                   <div>
                     <label>Categoria</label>
-                    <select value={card.category || ''} onChange={(e) => setCard({ ...card, category: e.target.value })} className="w-full p-2 border rounded">
+                    <select value={tempCard.category || ''} onChange={(e) => handleTempCardChange('category', e.target.value)} className="w-full p-2 border rounded">
                       <option value="">Nenhuma</option>
                       {categories.map((c) => (
                         <option key={c} value={c}>{c}</option>
@@ -1333,7 +1389,7 @@ const getBackgroundColor = (columnId) => {
                   </div>
                   <div>
                     <label>Responsável</label>
-                    <select value={card.assignedTo || ''} onChange={(e) => setCard({ ...card, assignedTo: e.target.value })} className="w-full p-2 border rounded">
+                    <select value={tempCard.assignedTo || ''} onChange={(e) => handleTempCardChange('assignedTo', e.target.value)} className="w-full p-2 border rounded">
                       <option value="">Nenhum</option>
                       {teamMembers.map((m) => (
                         <option key={m} value={m}>{m}</option>
@@ -1342,7 +1398,7 @@ const getBackgroundColor = (columnId) => {
                   </div>
                   <div>
                     <label>Atividade</label>
-                    <select value={card.activity || ''} onChange={(e) => setCard({ ...card, activity: e.target.value })} className="w-full p-2 border rounded">
+                    <select value={tempCard.activity || ''} onChange={(e) => handleTempCardChange('activity', e.target.value)} className="w-full p-2 border rounded">
                       <option value="">Nenhuma</option>
                       {activityOptions.map((activity) => (
                         <option key={activity} value={activity}>{activity}</option>
@@ -1351,7 +1407,7 @@ const getBackgroundColor = (columnId) => {
                   </div>
                   <div>
                     <label>Duração</label>
-                    <select value={card.duration || ''} onChange={(e) => setCard({ ...card, duration: e.target.value })} className="w-full p-2 border rounded">
+                    <select value={tempCard.duration || ''} onChange={(e) => handleTempCardChange('duration', e.target.value)} className="w-full p-2 border rounded">
     <option value="">Nenhuma</option>
     {durationOptions.map((option) => (
       <option key={option} value={option}>{option}</option>
@@ -1362,16 +1418,16 @@ const getBackgroundColor = (columnId) => {
                     <label>Prazo - Data</label>
                 <input
                       type="date" 
-                      value={card.deadlineDate || ''} 
-                      onChange={(e) => setCard({ ...card, deadlineDate: e.target.value })} 
+                      value={tempCard.deadlineDate || ''} 
+                      onChange={(e) => handleTempCardChange('deadlineDate', e.target.value)} 
                       className="w-full p-2 border rounded"
                     />
                 </div>
                   <div>
                     <label>Prazo - Hora</label>
                     <select 
-                      value={card.deadlineTime || ''} 
-                      onChange={(e) => setCard({ ...card, deadlineTime: e.target.value })} 
+                      value={tempCard.deadlineTime || ''} 
+                      onChange={(e) => handleTempCardChange('deadlineTime', e.target.value)} 
                       className="w-full p-2 border rounded"
                     >
                       <option value="">Nenhuma</option>
@@ -1387,7 +1443,7 @@ const getBackgroundColor = (columnId) => {
                     <label>Classificação</label>
                     <div className="flex">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <button key={i} type="button" onClick={() => setCard({ ...card, rating: i + 1 })} className={i < (card.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                        <button key={i} type="button" onClick={() => handleTempCardChange('rating', i + 1)} className={i < (tempCard.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
                           ★
                         </button>
                       ))}
@@ -1397,7 +1453,7 @@ const getBackgroundColor = (columnId) => {
                 <div className="mt-4">
                   <label>Anotações</label>
                   <div className="border rounded p-2 h-24 overflow-y-auto bg-gray-50">
-                    {(card.notes || []).map((n, i) => (
+                    {(tempCard.notes || []).map((n, i) => (
                       <div key={i} className="text-sm mb-1">
                         <span className="text-xs text-gray-500">{new Date(n.timestamp).toLocaleString()}</span>: {n.text}
         </div>
@@ -1406,13 +1462,13 @@ const getBackgroundColor = (columnId) => {
         </div>
                 <div className="flex mt-2">
                   <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
-                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(card, setCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(tempCard, setTempCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
-                  <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                  <button type="button" onClick={handleCloseForm} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
                   {card?.id && (
-                    <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); onClose(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
+                    <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); handleCloseForm(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
                   )}
                     </div>
                 </form>
