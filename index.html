@@ -761,7 +761,7 @@ const getBackgroundColor = (columnId) => {
           <div className="max-w-full mx-auto p-4 sm:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
               <h1 className="text-3xl sm:text-4xl font-bold">{pageTitle}</h1>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-0">
                 <button onClick={() => setShowAddCard(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Card</button>
                 {/* Dropdown para ações administrativas */}
                 <div className="relative">
@@ -806,7 +806,7 @@ const getBackgroundColor = (columnId) => {
                 </header>
 
                 {/* Botões de alternância de visualização */}
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-0 mb-4">
                   <button
                     onClick={() => setCurrentView('kanban')}
                     className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
@@ -836,7 +836,7 @@ const getBackgroundColor = (columnId) => {
                     {disablePulsing ? 'Pulsar Atualizações' : 'Desativar Pulsação'}
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0">
                     <label htmlFor="filterCategory" className="font-semibold text-sm">Categoria:</label>
                     <select
                       id="filterCategory"
@@ -850,7 +850,7 @@ const getBackgroundColor = (columnId) => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0">
                     <label htmlFor="filterMember" className="font-semibold text-sm">Membro:</label>
                     <select
                       id="filterMember"
@@ -864,7 +864,7 @@ const getBackgroundColor = (columnId) => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0">
                     <label htmlFor="filterActivity" className="font-semibold text-sm">Atividade:</label>
                     <select
                       id="filterActivity"
@@ -878,7 +878,7 @@ const getBackgroundColor = (columnId) => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0">
                     <label htmlFor="filterDuration" className="font-semibold text-sm">Duração:</label>
                     <select
                       id="filterDuration"
@@ -892,7 +892,7 @@ const getBackgroundColor = (columnId) => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0">
                     <label htmlFor="searchTerm" className="font-semibold text-sm">Buscar:</label>
                     <input
                       id="searchTerm"
@@ -1031,7 +1031,7 @@ const getBackgroundColor = (columnId) => {
                     >
                       <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
                         <span>{column.title}</span>
-                        <div className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center gap-0 text-sm">
                           {!['arquivados', 'descartados'].includes(column.id) && (
                             <>
                               <button onClick={() => moveColumn(column.id, 'left')} disabled={boardState.columnsLocked || !canMoveLeft(column.id)} className={`${boardState.columnsLocked || !canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
@@ -1464,7 +1464,7 @@ const getBackgroundColor = (columnId) => {
                   <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
                   <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(tempCard, setTempCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
                 </div>
-                <div className="flex justify-end gap-2 mt-6">
+                <div className="flex justify-end gap-0 mt-6">
                   <button type="button" onClick={handleCloseForm} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
                   {card?.id && (
@@ -1587,12 +1587,12 @@ const getBackgroundColor = (columnId) => {
             title={(card.notes || []).map(note => note.text).join('\n')}
           >
             <div className="flex justify-between items-start text-sm">
-                <div className="flex items-center gap-1">
-                  {card.activity === 'Interna' && <span className="mr-1" title="Atividade: Interna">🏠</span>}
-                  {card.activity === 'Externa' && <span className="mr-1" title="Atividade: Externa">🚗</span>}
+                <div className="flex items-center gap-0">
+                  {card.activity === 'Interna' && <span className="mr-0" title="Atividade: Interna">🏠</span>}
+                  {card.activity === 'Externa' && <span className="mr-0" title="Atividade: Externa">🚗</span>}
                   <h3 className="font-bold cursor-pointer hover:text-blue-600 text-xs" onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
                 </div>
-                <div className="flex flex-col gap-1 items-end">
+                <div className="flex flex-col gap-0 items-end">
                     {card.deadlineDate && (
                       <div className="text-xxs text-right">
                         {(() => {
@@ -1628,20 +1628,20 @@ const getBackgroundColor = (columnId) => {
             </div>
             </div>
             {(!compactCards || isHovered) && (card.rating > 0 || card.category) && (
-              <div className="flex items-center text-xs text-gray-600 mt-1 gap-2">
+              <div className="flex items-center text-xs text-gray-600 mt-1 gap-0">
 
                 {card.category && <span>{card.category}</span>}
               </div>
             )}
             {(!compactCards || isHovered) && (
-              <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
+              <div className="flex flex-wrap gap-0 text-xs text-gray-600 mt-1">
                 {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
                 {card.phone ? <span className="mr-1" title={`${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
                 {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
                 {card.address ? <span className="mr-1" title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
                 </div>
             )}
-            {isInactive && <div className="mt-1 text-xs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
+            {isInactive && <div className="mt-0 text-xxs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
 
         </div>
     );
@@ -1653,7 +1653,7 @@ const getBackgroundColor = (columnId) => {
         <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
               <h3 className="text-xl font-semibold mb-4">Confirmação</h3>
               <p className="mb-4">{message}</p>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-0">
                 <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                 <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded">Excluir</button>
               </div>
@@ -1672,7 +1672,7 @@ const getBackgroundColor = (columnId) => {
               </div>
             <form onSubmit={handleAddTeamMember}>
                 <input type="text" value={newTeamMemberName} onChange={(e) => setNewTeamMemberName(e.target.value)} placeholder="Nome do novo membro" className="w-full p-2 border rounded-md mb-4 focus:ring-2 focus:ring-blue-500 outline-none" required />
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-0">
                     <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors">Cancelar</button>
                     <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Adicionar</button>
                 </div>
@@ -1690,7 +1690,7 @@ const getBackgroundColor = (columnId) => {
                 <h2 className="text-2xl font-semibold">Gerenciar Categorias</h2>
                 <button onClick={onClose}>✕</button>
               </div>
-              <form onSubmit={addCategory} className="flex mb-4 gap-2">
+              <form onSubmit={addCategory} className="flex mb-4 gap-0">
                 <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria" className="flex-grow p-2 border rounded" />
                 <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
               </form>
@@ -1714,7 +1714,7 @@ const getBackgroundColor = (columnId) => {
             <h3 className="text-xl font-semibold mb-4">Adicionar Nova Coluna</h3>
               <form onSubmit={addColumn}>
                 <input type="text" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="Nome da coluna" className="w-full p-2 border rounded mb-4" />
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-0">
                   <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
         </div>
