@@ -165,6 +165,7 @@ const getBackgroundColor = (columnId) => {
         const [currentView, setCurrentView] = useState('kanban'); // Novo estado para controlar a visualização: 'kanban', 'calendar', 'list'
         const [selectedDate, setSelectedDate] = useState(new Date()); // Novo estado para a data selecionada no calendário
         const [disablePulsing, setDisablePulsing] = useState(false); // Novo estado para desativar pulsação
+        const [columnIdForNewCard, setColumnIdForNewCard] = useState(null); // Novo estado para armazenar a coluna onde o novo card será adicionado
 
         // Cores para o botão salvar quando houver alterações não salvas
         const flashingColors = [
@@ -288,9 +289,9 @@ const getBackgroundColor = (columnId) => {
                 if (c.columnId !== targetColumnId) { // Only add note if column actually changed
                   const noteText = `de '${oldColumn?.title || c.columnId}' para '${newColumn?.title || targetColumnId}'.`;
                   const newNotes = [...(c.notes || []), { text: noteText, timestamp: new Date().toISOString() }];
-                  return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), notes: newNotes };
+                  return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), notes: newNotes, pulsingDisabled: false };
                 }
-                return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString() };
+                return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), pulsingDisabled: false };
               }
               return c;
             });
@@ -326,6 +327,7 @@ const getBackgroundColor = (columnId) => {
             const updatedColumnCards = reordered.map((card, index) => ({
               ...card,
               order: index + 1,
+              pulsingDisabled: false, // Reabilita pulsação ao reordenar
               // lastUpdated: new Date().toISOString(), // Removido: não atualizar lastUpdated para reordenação na mesma coluna
             }));
 
@@ -335,11 +337,11 @@ const getBackgroundColor = (columnId) => {
           // setHasUnsavedChanges(true); // Removido: reordenação na mesma coluna não deve marcar como não salvo
         }
 
-        function addCard(card) { // Renomeado de addClient
+        function addCard(card, targetColumnId = columnOrder[0]) { // Renomeado de addClient, adicionado targetColumnId
           const id = uid();
           setClients((prev) => {
             // Determinar a maior ordem existente na coluna de destino para o novo card ir para o final
-            const cardsInTargetColumn = prev.filter(c => c.columnId === columnOrder[0]);
+            const cardsInTargetColumn = prev.filter(c => c.columnId === targetColumnId);
             const maxOrder = cardsInTargetColumn.reduce((max, c) => Math.max(max, c.order || 0), 0);
             const newOrder = maxOrder + 1;
 
@@ -348,11 +350,12 @@ const getBackgroundColor = (columnId) => {
               {
                 ...card,
                 id,
-            columnId: columnOrder[0],
-            createdAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
+                columnId: targetColumnId, // Usa a coluna passada como parâmetro
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
                 notes: card.notes || [],
                 order: newOrder, // Adicionando a propriedade de ordem
+                isPulsing: true, // Novo card pulsa por padrão
               },
             ];
           });
@@ -360,7 +363,7 @@ const getBackgroundColor = (columnId) => {
         }
 
         function updateCard(updated) { // Renomeado de updateClient
-          setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, lastUpdated: new Date().toISOString() } : c)));
+          setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, lastUpdated: new Date().toISOString(), pulsingDisabled: false } : c)));
           setHasUnsavedChanges(true);
         }
 
@@ -396,6 +399,7 @@ const getBackgroundColor = (columnId) => {
               ...card,
               order: index + 1, // Atribui nova ordem sequencial
               lastUpdated: new Date().toISOString(),
+              pulsingDisabled: false, // Reabilita pulsação ao reordenar
             }));
 
             // Combinar os cards da coluna atualizados com os outros cards
@@ -569,7 +573,7 @@ const getBackgroundColor = (columnId) => {
         };
 
         const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '' },
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '', columnId: columnOrder[0], isPulsing: true }, // Adicionado columnId e isPulsing
           newCategory: '',
           newColumnName: '',
           newTeamMemberName: '',
@@ -914,7 +918,7 @@ const getBackgroundColor = (columnId) => {
                   style={{ display: 'none' }}
                 />
 
-                {(showAddCard || editingCardId) && (
+                {(showAddCard || editingCardId || columnIdForNewCard) && (
                     <CardForm
                 card={
                   editingCardId ? clients.find((c) => c.id === editingCardId) : uiState.newClient
@@ -940,14 +944,16 @@ const getBackgroundColor = (columnId) => {
                       alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
                       return;
                     }
-                    addCard(uiState.newClient);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '' } }));
+                    addCard(uiState.newClient, uiState.newClient.columnId);
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '', columnId: columnOrder[0], isPulsing: true } })); // Garante que o columnId é resetado para o padrão
                     setShowAddCard(false);
+                    setColumnIdForNewCard(null);
                   }
                 }}
                 onClose={() => {
                   setShowAddCard(false);
                   setEditingCardId(null);
+                  setColumnIdForNewCard(null); // Limpar o estado
                 }}
                 categories={categories}
                 teamMembers={teamMembers}
@@ -1045,6 +1051,24 @@ const getBackgroundColor = (columnId) => {
                           )}
                         </div>
                                     </h2>
+                                    {/* Botão +Card na extremidade superior esquerda da coluna */}
+                                    <button
+                                      onClick={() => { 
+                                        setColumnIdForNewCard(column.id);
+                                        setUiState(s => ({ 
+                                          ...s, 
+                                          newClient: { 
+                                            ...s.newClient, 
+                                            columnId: column.id 
+                                          }
+                                        }));
+                                        setShowAddCard(true); 
+                                      }}
+                                      className="absolute top-2 left-2 text-xxs font-semibold text-blue-800 hover:text-blue-600" // Alterado para azul escuro
+                                      title="Adicionar novo card nesta coluna"
+                                    >
+                                      +card
+                                    </button>
                                     <div className="flex-grow min-h-[100px]">
                         {clients
                           .filter((c) => c.columnId === column.id)
@@ -1334,7 +1358,9 @@ const getBackgroundColor = (columnId) => {
           alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
           return;
         }
-        setCard(tempCard); // Adiciona o novo card via prop setCard (do App)
+        setCard(tempCard); // Atualiza o uiState.newClient com os dados do tempCard
+        onSubmit(e); // Chama o onSubmit do App para adicionar o card
+        return; // Retorna para não chamar onClose() aqui
       }
       onClose(); // Fecha o formulário após salvar/adicionar
     };
@@ -1470,6 +1496,9 @@ const getBackgroundColor = (columnId) => {
                   {card?.id && (
                     <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); handleCloseForm(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
                   )}
+                  {card?.id && tempCard.isPulsing && !tempCard.pulsingDisabled && (
+                    <button type="button" onClick={() => handleTempCardChange('pulsingDisabled', true)} className="px-4 py-2 bg-yellow-500 text-white rounded">Parar Pulsação</button>
+                  )}
                     </div>
                 </form>
         </div>
@@ -1513,7 +1542,8 @@ const getBackgroundColor = (columnId) => {
     let pulseDuration = 0; // Default to no pulse
     let pulsingGreenColor = '#e4fac9'; // Default to new light green
 
-    if (isRecentlyUpdated && !disablePulsing) {
+    if (isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled) { // Usar card.isPulsing (default true se não definido) e verificar se não está desabilitado
+      console.log('Card pulsando:', card.name, { isRecentlyUpdated, isPulsing: card.isPulsing, pulsingDisabled: card.pulsingDisabled, timeSinceLastUpdate });
       const normalizedTime = timeSinceLastUpdate / fortyEightHoursInMs; // 0 (now) to 1 (48 hours ago)
       pulseDuration = 0.5 + (normalizedTime * 1.5); // 0.5s to 2s
 
@@ -1572,7 +1602,7 @@ const getBackgroundColor = (columnId) => {
             }}
             onMouseEnter={() => setIsHovered(true)} // Adiciona manipulador de evento de mouseEnter
             onMouseLeave={() => setIsHovered(false)} // Adiciona manipulador de evento de mouseLeave
-            className={`bg-white rounded-lg shadow-md mb-1 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isRecentlyUpdated && !disablePulsing ? 'pulsing-green' : ''}
+            className={`bg-white rounded-lg shadow-md mb-1 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled ? 'pulsing-green' : ''}
             `}
             style={{ 
               width: '100%', 
