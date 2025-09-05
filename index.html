@@ -409,6 +409,12 @@ const getBackgroundColor = (columnId) => {
           setHasUnsavedChanges(true);
         }
 
+        // Nova função para alternar a pulsação de um card específico sem alterar lastUpdated
+        function toggleCardPulsing(cardId, disable) {
+          setClients(prev => prev.map(c => c.id === cardId ? { ...c, pulsingDisabled: disable } : c));
+          setHasUnsavedChanges(true);
+        }
+
         function deleteCard(cardId) { // Renomeado de deleteClient
           const cardToDelete = clients.find(c => c.id === cardId);
           if (!cardToDelete) return;
@@ -964,6 +970,7 @@ const getBackgroundColor = (columnId) => {
                 activityOptions={activityOptions} // Passando as opções de atividade
                 durationOptions={durationOptions} // Passando as opções de duração
                 updateCardProp={updateCard} // Passando a função updateCard do App
+                toggleCardPulsingProp={toggleCardPulsing} // Passando a nova função
                     />
                 )}
                 
@@ -1323,7 +1330,7 @@ const getBackgroundColor = (columnId) => {
         );
       }
 
-      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp }) {
+      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp, toggleCardPulsingProp }) {
     const [newNote, setNewNote] = useState('');
     const [tempCard, setTempCard] = useState(card); // Estado temporário para as edições
     const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false); // Novo estado para controlar edições não salvas no formulário
@@ -1491,13 +1498,13 @@ const getBackgroundColor = (columnId) => {
                   <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(tempCard, setTempCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
                 </div>
                 <div className="flex justify-end gap-0.5 mt-3">
+                  {card?.id && !tempCard.pulsingDisabled && (
+                    <button type="button" onClick={() => { toggleCardPulsingProp(card.id, true); onClose(); }} className="px-4 py-2 bg-yellow-500 text-white rounded">Parar Pulsação</button>
+                  )}
                   <button type="button" onClick={handleCloseForm} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
                   <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
                   {card?.id && (
                     <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); handleCloseForm(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
-                  )}
-                  {card?.id && tempCard.isPulsing && !tempCard.pulsingDisabled && (
-                    <button type="button" onClick={() => handleTempCardChange('pulsingDisabled', true)} className="px-4 py-2 bg-yellow-500 text-white rounded">Parar Pulsação</button>
                   )}
                     </div>
                 </form>
@@ -1543,8 +1550,7 @@ const getBackgroundColor = (columnId) => {
     let pulsingGreenColor = '#e4fac9'; // Default to new light green
 
     if (isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled) { // Usar card.isPulsing (default true se não definido) e verificar se não está desabilitado
-      console.log('Card pulsando:', card.name, { isRecentlyUpdated, isPulsing: card.isPulsing, pulsingDisabled: card.pulsingDisabled, timeSinceLastUpdate });
-      const normalizedTime = timeSinceLastUpdate / fortyEightHoursInMs; // 0 (now) to 1 (48 hours ago)
+      const normalizedTime = timeSinceLastUpdate / fortyEightHoursInMs; // 0 (now) to 1 (48 horas atrás)
       pulseDuration = 0.5 + (normalizedTime * 1.5); // 0.5s to 2s
 
       // Interpolate green color for subtlety
