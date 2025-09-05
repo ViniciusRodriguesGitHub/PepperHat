@@ -1548,8 +1548,8 @@ const getBackgroundColor = (columnId) => {
       pulseDuration = 0.5 + (normalizedTime * 1.5); // 0.5s to 2s
 
       // Interpolate green color for subtlety
-      const startR = 228, startG = 250, startB = 201; // #E4FAC9 - Brighter green
-      const endR = 235, endG = 252, endB = 217;     // A slightly lighter shade of #E4FAC9 for discreetness
+      const startR = 184, startG = 238, startB = 184; // Um verde mais escuro e saturado (lightgreen)
+      const endR = 221, endG = 190, endB = 221;     // Lilás para cards mais antigos (plum)
 
       const currentR = Math.round(startR + (endR - startR) * normalizedTime);
       const currentG = Math.round(startG + (endG - startG) * normalizedTime);
