@@ -1,0 +1,106 @@
+{
+  "boardState": {
+    "columns": {
+      "arquivados": {
+        "id": "arquivados",
+        "title": "Arquivados"
+      },
+      "descartados": {
+        "id": "descartados",
+        "title": "Descartados"
+      },
+      "contatos": {
+        "id": "contatos",
+        "title": "Contatos",
+        "color": "#FFDFBA"
+      },
+      "cliente": {
+        "id": "cliente",
+        "title": "Cliente",
+        "color": "#FFD7A3"
+      },
+      "conhecer": {
+        "id": "conhecer",
+        "title": "Conhecer",
+        "color": "#F0EAD6"
+      }
+    },
+    "columnOrder": [
+      "conhecer",
+      "contatos",
+      "cliente",
+      "arquivados",
+      "descartados"
+    ],
+    "categories": [
+      "Teatro",
+      "Cerimonialista"
+    ],
+    "teamMembers": [
+      "Diana",
+      "Vinícius",
+      "Diana&Vinícius"
+    ],
+    "activityOptions": [
+      "Interna",
+      "Externa"
+    ],
+    "durationOptions": [
+      "Minutos",
+      "Horas",
+      "Dia",
+      "Dias"
+    ],
+    "columnsLocked": false,
+    "columnWidths": {
+      "desconhecidos": 220,
+      "contatos": 220,
+      "cliente": 220,
+      "conhecer": 220
+    }
+  },
+  "clients": [
+    {
+      "name": "Mayara Zanetti",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 3,
+      "category": "Cerimonialista",
+      "assignedTo": "Diana&Vinícius",
+      "address": "https://www.instagram.com/mzeventosespeciais/",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-13",
+      "deadlineTime": "11:00",
+      "duration": "Minutos",
+      "columnId": "primeiro-contato",
+      "isPulsing": true,
+      "id": "3xsx2ypk5dqmf8ccpp0",
+      "createdAt": "2025-09-06T14:10:23.124Z",
+      "lastUpdated": "2025-09-06T14:10:23.124Z",
+      "order": 1
+    },
+    {
+      "name": "Mayara Zanetti",
+      "email": "",
+      "phone": "",
+      "notes": [],
+      "rating": 3,
+      "category": "Cerimonialista",
+      "assignedTo": "Vinícius",
+      "address": "https://www.instagram.com/mzeventosespeciais/",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-13",
+      "deadlineTime": "11:00",
+      "duration": "Minutos",
+      "columnId": "conhecer",
+      "isPulsing": true,
+      "id": "9663ub894fkmf8ce6z8",
+      "createdAt": "2025-09-06T14:11:32.180Z",
+      "lastUpdated": "2025-09-06T14:13:28.936Z",
+      "order": 1,
+      "pulsingDisabled": false
+    }
+  ],
+  "userId": "z5w24jnyb1lmf8bqndn"
+}

@@ -132,6 +132,21 @@ const getBackgroundColor = (columnId) => {
         return Math.random().toString(36).slice(2) + Date.now().toString(36);
       }
 
+      function getCurrentDateString() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function getCurrentTimeString() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+
       function App() {
         const [boardState, setBoardState] = useState(defaultBoardState);
         const [clients, setClients] = useState([]);
@@ -166,6 +181,7 @@ const getBackgroundColor = (columnId) => {
         const [selectedDate, setSelectedDate] = useState(new Date()); // Novo estado para a data selecionada no calendário
         const [disablePulsing, setDisablePulsing] = useState(false); // Novo estado para desativar pulsação
         const [columnIdForNewCard, setColumnIdForNewCard] = useState(null); // Novo estado para armazenar a coluna onde o novo card será adicionado
+        const [hideActivityDurationFields, setHideActivityDurationFields] = useState(false); // Novo estado para controlar a visibilidade de campos
 
         // Cores para o botão salvar quando houver alterações não salvas
         const flashingColors = [
@@ -579,7 +595,7 @@ const getBackgroundColor = (columnId) => {
         };
 
         const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '', columnId: columnOrder[0], isPulsing: true }, // Adicionado columnId e isPulsing
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: columnOrder[0], isPulsing: true, link: '' }, // Adicionado campo Link, Prazo - Data e Hora atual
           newCategory: '',
           newColumnName: '',
           newTeamMemberName: '',
@@ -627,7 +643,7 @@ const getBackgroundColor = (columnId) => {
 
         function exportToGoogleSheets() {
           // Criar dados formatados para CSV (mais compatível)
-          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora', 'Duração'];
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora', 'Duração', 'Link']; // Adicionado Link
                   
                   const csvData = [
                     headers.join(','),
@@ -646,7 +662,8 @@ const getBackgroundColor = (columnId) => {
                       `"${card.activity || ''}"`,
                       `"${card.deadlineDate || ''}"`,
                       `"${card.deadlineTime || ''}"`,
-                      `"${card.duration || ''}"`
+                      `"${card.duration || ''}"`,
+                      `"${card.link || ''}"` // Adicionado Link
                     ].join(','))
                   ].join('\n');
 
@@ -692,6 +709,13 @@ const getBackgroundColor = (columnId) => {
                 // Atualiza o título da página com o nome do arquivo
                 const fileName = file.name.replace('.json', '');
                 setPageTitle(fileName);
+
+                // Verifica se o nome do arquivo importado contém 'funil'
+                if (fileName.toLowerCase().includes('funil')) {
+                  setHideActivityDurationFields(true);
+                } else {
+                  setHideActivityDurationFields(false);
+                }
 
                 alert('Dados importados com sucesso!');
               }
@@ -748,7 +772,8 @@ const getBackgroundColor = (columnId) => {
                       activity: values[11] || '', // Novo campo Atividade
                       deadlineDate: values[12] || '', // Novo campo Prazo - Data
                       deadlineTime: values[13] || '', // Novo campo Prazo - Hora
-                      duration: values[14] || '' // Novo campo Duração
+                      duration: values[14] || '', // Novo campo Duração
+                      link: values[15] || '' // Novo campo Link
                     };
                     importedCards.push(card);
                   }
@@ -951,7 +976,7 @@ const getBackgroundColor = (columnId) => {
                       return;
                     }
                     addCard(uiState.newClient, uiState.newClient.columnId);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 0, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '', columnId: columnOrder[0], isPulsing: true } })); // Garante que o columnId é resetado para o padrão
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: columnOrder[0], isPulsing: true, link: '' } })); // Garante que o columnId é resetado para o padrão, e rating para 3 estrelas, e link vazio, e data/hora atual
                     setShowAddCard(false);
                     setColumnIdForNewCard(null);
                   }
@@ -971,6 +996,7 @@ const getBackgroundColor = (columnId) => {
                 durationOptions={durationOptions} // Passando as opções de duração
                 updateCardProp={updateCard} // Passando a função updateCard do App
                 toggleCardPulsingProp={toggleCardPulsing} // Passando a nova função
+                hideActivityDurationFields={hideActivityDurationFields} // Passando o novo estado
                     />
                 )}
                 
@@ -1330,7 +1356,7 @@ const getBackgroundColor = (columnId) => {
         );
       }
 
-      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp, toggleCardPulsingProp }) {
+      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp, toggleCardPulsingProp, hideActivityDurationFields }) {
     const [newNote, setNewNote] = useState('');
     const [tempCard, setTempCard] = useState(card); // Estado temporário para as edições
     const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false); // Novo estado para controlar edições não salvas no formulário
@@ -1429,6 +1455,8 @@ const getBackgroundColor = (columnId) => {
                       ))}
                     </select>
                   </div>
+                  {!hideActivityDurationFields && (
+                  <>
                   <div>
                     <label>Atividade</label>
                     <select value={tempCard.activity || ''} onChange={(e) => handleTempCardChange('activity', e.target.value)} className="w-full p-2 border rounded">
@@ -1447,6 +1475,8 @@ const getBackgroundColor = (columnId) => {
     ))}
     </select>
                   </div>
+                  </>
+                  )}
                   <div>
                     <label>Prazo - Data</label>
                 <input
@@ -1472,6 +1502,10 @@ const getBackgroundColor = (columnId) => {
                       })}
                     </select>
         </div>
+                  <div> {/* Novo campo Link */}
+                    <label>Link</label>
+                    <input type="url" value={tempCard.link || ''} onChange={(e) => handleTempCardChange('link', e.target.value)} placeholder="https://example.com" className="w-full p-2 border rounded" />
+                  </div>
                   <div>
                     <label>Classificação</label>
                     <div className="flex">
