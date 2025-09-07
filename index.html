@@ -1504,6 +1504,9 @@ const getBackgroundColor = (columnId) => {
         </div>
                   <div> {/* Novo campo Link */}
                     <label>Link</label>
+                    {tempCard.link && (
+                      <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(tempCard.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span>
+                    )}
                     <input type="url" value={tempCard.link || ''} onChange={(e) => handleTempCardChange('link', e.target.value)} placeholder="https://example.com" className="w-full p-2 border rounded" />
                   </div>
                   <div>
@@ -1660,7 +1663,7 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex items-center gap-0.5">
                   {card.activity === 'Interna' && <span className="mr-0" title="Atividade: Interna">🏠</span>}
                   {card.activity === 'Externa' && <span className="mr-0" title="Atividade: Externa">🚗</span>}
-                  <h3 className="font-bold cursor-pointer hover:text-blue-600 text-xs" onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
+                  <h3 className={`font-bold cursor-pointer text-xs ${card.link ? 'text-blue-800 underline' : 'hover:text-blue-600'}`} onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
                 </div>
                 <div className="flex flex-col gap-0.5 items-end">
                     {card.deadlineDate && (
@@ -1709,6 +1712,7 @@ const getBackgroundColor = (columnId) => {
                 {card.phone ? <span className="mr-1" title={`${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
                 {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
                 {card.address ? <span className="mr-1" title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
+                {card.link ? <span className="mr-1 cursor-pointer" onClick={() => window.open(card.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span> : <span className="mr-1" title="Link não informado">▫️</span>}
                 </div>
             )}
             {isInactive && <div className="mt-0 text-xxs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
