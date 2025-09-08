@@ -1071,16 +1071,16 @@ const getBackgroundColor = (columnId) => {
                       <h2 className="text-xl font-bold mb-1 flex items-center justify-between">
                         <span>{column.title}</span>
                         <div className="flex items-center gap-0.5 text-sm">
-                          {!['arquivados', 'descartados'].includes(column.id) && (
+                          {!['arquivados', 'descartados'].includes(column.id) && !boardState.columnsLocked && (
                             <>
-                              <button onClick={() => moveColumn(column.id, 'left')} disabled={boardState.columnsLocked || !canMoveLeft(column.id)} className={`${boardState.columnsLocked || !canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
-                              <button onClick={() => moveColumn(column.id, 'right')} disabled={boardState.columnsLocked || !canMoveRight(column.id)} className={`${boardState.columnsLocked || !canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
+                              <button onClick={() => moveColumn(column.id, 'left')} disabled={!canMoveLeft(column.id)} className={`${!canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
+                              <button onClick={() => moveColumn(column.id, 'right')} disabled={!canMoveRight(column.id)} className={`${!canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
                               <button onClick={() => changeColumnColor(column.id)} className="text-gray-500 hover:text-purple-500" title="Mudar cor">🎨</button>
                             </>
                           )}
                           {/* Removida opção de ocultar Arquivados/Descartados */}
-                          {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && (
-                            <button onClick={() => deleteColumn(column.id)} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-red-500'}`} title="Excluir coluna">🗑</button>
+                          {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && !boardState.columnsLocked && (
+                            <button onClick={() => deleteColumn(column.id)} className={`text-gray-500 hover:text-red-500`} title="Excluir coluna">🗑</button>
                           )}
                         </div>
                                     </h2>
@@ -1097,7 +1097,7 @@ const getBackgroundColor = (columnId) => {
                                         }));
                                         setShowAddCard(true); 
                                       }}
-                                      className="absolute top-2 left-2 text-xxs font-semibold text-blue-800 hover:text-blue-600" // Alterado para azul escuro
+                                      className="absolute top-2 right-2 text-xxs font-semibold text-blue-800 hover:text-blue-600" // Alterado para azul escuro
                                       title="Adicionar novo card nesta coluna"
                                     >
                                       +card
@@ -1361,6 +1361,16 @@ const getBackgroundColor = (columnId) => {
     const [tempCard, setTempCard] = useState(card); // Estado temporário para as edições
     const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false); // Novo estado para controlar edições não salvas no formulário
 
+    const getWhatsAppLink = (phoneNumber) => {
+      if (!phoneNumber) return null;
+      const cleanedPhone = phoneNumber.replace(/\D/g, ''); // Remove caracteres não numéricos
+      let formattedPhone = cleanedPhone;
+      if (!cleanedPhone.startsWith('55')) {
+        formattedPhone = `55${cleanedPhone}`;
+      }
+      return `https://api.whatsapp.com/send?phone=${formattedPhone}`;
+    };
+
     useEffect(() => {
       setTempCard(card); // Inicializa tempCard quando o card original muda
     }, [card]);
@@ -1431,6 +1441,9 @@ const getBackgroundColor = (columnId) => {
             </div>
                   <div>
                     <label>Telefone</label>
+                    {tempCard.phone && (
+                      <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(getWhatsAppLink(tempCard.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span>
+                    )}
                     <input type="tel" value={tempCard.phone || ''} onChange={(e) => handleTempCardChange('phone', e.target.value)} className="w-full p-2 border rounded" />
         </div>
                   <div>
@@ -1556,6 +1569,16 @@ const getBackgroundColor = (columnId) => {
     const [isDragOver, setIsDragOver] = useState(false); // Novo estado para controlar o hover de drag
     const [isHovered, setIsHovered] = useState(false); // Novo estado para controlar o hover do mouse
 
+    const getWhatsAppLink = (phoneNumber) => {
+      if (!phoneNumber) return null;
+      const cleanedPhone = phoneNumber.replace(/\D/g, ''); // Remove caracteres não numéricos
+      let formattedPhone = cleanedPhone;
+      if (!cleanedPhone.startsWith('55')) {
+        formattedPhone = `55${cleanedPhone}`;
+      }
+      return `https://api.whatsapp.com/send?phone=${formattedPhone}`;
+    };
+
     const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
     const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
     const lastUpdatedDate = card.lastUpdated ? new Date(card.lastUpdated) : new Date(card.createdAt);
@@ -1663,6 +1686,13 @@ const getBackgroundColor = (columnId) => {
                 <div className="flex items-center gap-0.5">
                   {card.activity === 'Interna' && <span className="mr-0" title="Atividade: Interna">🏠</span>}
                   {card.activity === 'Externa' && <span className="mr-0" title="Atividade: Externa">🚗</span>}
+                  {!card.activity && card.category === 'Cerimonialista' && <span className="mr-0" title="Categoria: Cerimonialista">💐</span>}
+                  {!card.activity && card.category === 'Hotel' && <span className="mr-0" title="Categoria: Hotel">🏨</span>}
+                  {!card.activity && card.category === 'Teatro' && <span className="mr-0" title="Categoria: Teatro">🎭</span>}
+                  {!card.activity && card.category === 'Eventos' && <span className="mr-0" title="Categoria: Eventos">🍾</span>}
+                  {!card.activity && card.category === 'Corporativo' && <span className="mr-0" title="Categoria: Corporativo">👔</span>}    
+                  {!card.activity && card.category === 'Setor Público' && <span className="mr-0" title="Categoria: Setor Público">🏛️</span>}
+                  {!card.activity && card.category === 'Serviço Social' && <span className="mr-0" title="Categoria: Serviço Social">🌎</span>}
                   <h3 className={`font-bold cursor-pointer text-xs ${card.link ? 'text-blue-800 underline' : 'hover:text-blue-600'}`} onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
                 </div>
                 <div className="flex flex-col gap-0.5 items-end">
@@ -1709,7 +1739,7 @@ const getBackgroundColor = (columnId) => {
             {(!compactCards || isHovered) && (
               <div className="flex flex-wrap gap-0.5 text-xs text-gray-600 mt-1">
                 {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
-                {card.phone ? <span className="mr-1" title={`${card.phone}`}>📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
+                {card.phone ? <span className="mr-1 cursor-pointer" onClick={() => window.open(getWhatsAppLink(card.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
                 {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
                 {card.address ? <span className="mr-1" title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
                 {card.link ? <span className="mr-1 cursor-pointer" onClick={() => window.open(card.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span> : <span className="mr-1" title="Link não informado">▫️</span>}
