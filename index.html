@@ -797,7 +797,6 @@ const getBackgroundColor = (columnId) => {
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-2">
               <h1 className="text-3xl sm:text-4xl font-bold">{pageTitle}</h1>
                     <div className="flex flex-wrap gap-0.5">
-                <button onClick={() => setShowAddCard(true)} className="bg-white text-gray-800 font-semibold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition-all">+ Card</button>
                 {/* Dropdown para ações administrativas */}
                 <div className="relative">
                   <button
@@ -808,17 +807,18 @@ const getBackgroundColor = (columnId) => {
                   </button>
                   {showAdminMenu && (
                     <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                      <button onClick={() => { setShowAddCard(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Card</button>
                       <button onClick={() => { setShowAddCategory(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Categoria</button>
                       <button onClick={() => { !boardState.columnsLocked && setIsAddingColumn(true); setShowAdminMenu(false); }} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-400 cursor-not-allowed' : 'text-gray-800 hover:bg-gray-100'} block w-full text-left px-4 py-2`}>+ Coluna</button>
                       <button onClick={() => { setShowAddMemberModal(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Membro</button>
                       <button onClick={() => { setBoardState((prev) => ({ ...prev, columnsLocked: !prev.columnsLocked })); setShowAdminMenu(false); }} className={`block w-full text-left px-4 py-2 ${boardState.columnsLocked ? 'text-red-500 hover:bg-red-50' : 'text-gray-800 hover:bg-gray-100'}`}>{boardState.columnsLocked ? 'Destravar colunas' : 'Travar colunas'}</button>
+                      <button onClick={exportToGoogleSheets} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">📊 Exportar CSV</button>
+                      <button onClick={() => { importFromGoogleSheets(); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">📥 Importar Sheets</button>
                     </div>
                   )}
                 </div>
                 <button onClick={saveToLocalFile} className={`${saveButtonColor} text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all ${hasUnsavedChanges ? 'pulsing-alert' : ''}`}>💾 Salvar</button>
                 <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
-                <button onClick={exportToGoogleSheets} className="bg-orange-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📊 Exportar CSV</button>
-                <button onClick={importFromGoogleSheets} className="bg-purple-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📥 Importar Sheets</button>
                 {lastDeletedCard && (
                   <button 
                     onClick={undoLastDeletion} 
@@ -1580,15 +1580,13 @@ const getBackgroundColor = (columnId) => {
     };
 
     const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
-    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+    const oneHundredTwentyHoursInMs = 168 * 60 * 60 * 1000; // 168 horas em ms
     const lastUpdatedDate = card.lastUpdated ? new Date(card.lastUpdated) : new Date(card.createdAt);
     const timeSinceLastUpdate = Date.now() - lastUpdatedDate.getTime();
     const isRecentlyUpdated = timeSinceLastUpdate < fortyEightHoursInMs;
 
     const createdAtDate = new Date(card.createdAt);
     const timeSinceCreation = Date.now() - createdAtDate.getTime();
-    const isCreatedRecently48h = timeSinceCreation < fortyEightHoursInMs;
-    const isCreatedRecently24h = timeSinceCreation < twentyFourHoursInMs;
 
     // Helper to get Tailwind CSS colors (simplified for common colors)
     const getTailwindColor = (colorName) => {
@@ -1638,10 +1636,17 @@ const getBackgroundColor = (columnId) => {
     }
 
     let rightBorderColor = 'transparent';
-    if (isCreatedRecently24h) {
-      rightBorderColor = getTailwindColor('pink-500');
-    } else if (isCreatedRecently48h) {
-      rightBorderColor = getTailwindColor('purple-500');
+    if (timeSinceCreation < oneHundredTwentyHoursInMs) {
+      // Cores para interpolação: do rosa (#ff86a5) ao roxo escuro (#260038)
+      const startR = 255, startG = 134, startB = 165; // #ff86a5
+      const endR = 38, endG = 0, endB = 56;       // #260038
+      const factor = timeSinceCreation / oneHundredTwentyHoursInMs; // 0 (now) to 1 (120 horas atrás)
+      const currentR = Math.round(startR + (endR - startR) * factor);
+      const currentG = Math.round(startG + (endG - startG) * factor);
+      const currentB = Math.round(startB + (endB - startB) * factor);
+      rightBorderColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
+    } else {
+      rightBorderColor = 'transparent';
     }
 
     const customBoxShadow = [
