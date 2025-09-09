@@ -119,7 +119,7 @@
       "id": "tg1iv49shymesig9hn",
       "columnId": "feito",
       "createdAt": "2025-08-26T12:16:47.627Z",
-      "lastUpdated": "2025-09-09T01:02:03.853Z",
+      "lastUpdated": "2025-09-09T17:16:09.863Z",
       "order": 1,
       "pulsingDisabled": true,
       "deadlineDate": "2025-09-05",
@@ -141,7 +141,7 @@
       "id": "8eaxhdqzn3amelnp3sa",
       "columnId": "tarefas",
       "createdAt": "2025-08-21T17:09:14.987Z",
-      "lastUpdated": "2025-09-09T01:01:08.810Z",
+      "lastUpdated": "2025-09-09T17:12:09.528Z",
       "activity": "Externa",
       "order": 3,
       "deadlineDate": "2025-08-29",
@@ -165,7 +165,7 @@
       "id": "o0tcu5lzwtdmelnxhru",
       "columnId": "iniciar",
       "createdAt": "2025-08-21T17:15:46.363Z",
-      "lastUpdated": "2025-09-09T01:01:36.034Z",
+      "lastUpdated": "2025-09-09T17:12:36.359Z",
       "activity": "Interna",
       "order": 4,
       "duration": "Minutos",
@@ -214,7 +214,7 @@
       "id": "r8ewcmtcmxmer6mk8s",
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:57:59.932Z",
-      "lastUpdated": "2025-09-09T01:01:17.018Z",
+      "lastUpdated": "2025-09-09T17:12:13.290Z",
       "order": 8,
       "activity": "Externa",
       "deadlineDate": "2025-09-02",
@@ -259,7 +259,7 @@
       "id": "sxqkdsc0evmer6u0qi",
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:03:47.899Z",
-      "lastUpdated": "2025-09-09T01:01:57.182Z",
+      "lastUpdated": "2025-09-09T17:13:40.091Z",
       "order": 9,
       "activity": "Interna",
       "deadlineDate": "2025-09-10",
@@ -288,7 +288,7 @@
       "id": "yq28nrk6pnmer6z32m",
       "columnId": "feito",
       "createdAt": "2025-08-25T14:07:44.206Z",
-      "lastUpdated": "2025-09-09T01:02:11.068Z",
+      "lastUpdated": "2025-09-09T17:16:16.706Z",
       "order": 10,
       "activity": "Externa",
       "deadlineDate": "2025-08-27",
@@ -357,7 +357,7 @@
       "id": "cb10ixl189memvobit",
       "columnId": "feito",
       "createdAt": "2025-08-22T13:40:21.461Z",
-      "lastUpdated": "2025-09-09T01:02:07.184Z",
+      "lastUpdated": "2025-09-09T17:16:13.368Z",
       "order": 3,
       "activity": "Interna",
       "duration": "Horas",
@@ -397,7 +397,7 @@
       "id": "5cpeggvxqdemesjw5v7",
       "columnId": "fazendo",
       "createdAt": "2025-08-26T12:57:09.044Z",
-      "lastUpdated": "2025-09-09T01:02:00.401Z",
+      "lastUpdated": "2025-09-09T17:16:05.529Z",
       "order": 11,
       "pulsingDisabled": true
     },
@@ -438,7 +438,7 @@
       "id": "ls2cm7i3czmer78dtd",
       "columnId": "iniciar",
       "createdAt": "2025-08-25T14:14:58.033Z",
-      "lastUpdated": "2025-09-09T01:01:32.247Z",
+      "lastUpdated": "2025-09-09T17:12:33.069Z",
       "order": 1,
       "activity": "Interna",
       "duration": "Dias",
@@ -483,7 +483,7 @@
       "pulsingDisabled": false
     },
     {
-      "name": "Marcar Mecânico",
+      "name": "Levar Carro Mecânico",
       "email": "",
       "phone": "",
       "notes": [
@@ -506,20 +506,34 @@
         {
           "text": "de 'Tarefas' para 'Iniciar'.",
           "timestamp": "2025-09-05T22:07:47.496Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-08T13:19:18.528Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-09T17:13:27.361Z"
+        },
+        {
+          "text": "de 'Feito' para 'Tarefas'.",
+          "timestamp": "2025-09-09T17:15:44.750Z"
         }
       ],
-      "rating": 4,
+      "rating": 5,
       "category": "Pessoal",
       "assignedTo": "Vinícius",
       "address": "",
       "id": "r9qr6ecudtmer8hjvp",
-      "columnId": "iniciar",
+      "columnId": "tarefas",
       "createdAt": "2025-08-25T14:50:05.414Z",
-      "lastUpdated": "2025-09-09T01:01:39.336Z",
+      "lastUpdated": "2025-09-09T17:17:25.471Z",
       "order": 5,
-      "activity": "Interna",
+      "activity": "Externa",
       "duration": "Minutos",
-      "pulsingDisabled": true
+      "pulsingDisabled": false,
+      "deadlineDate": "2025-10-21",
+      "deadlineTime": "08:00"
     },
     {
       "name": "Atualizar sistema Tarefas",
@@ -554,7 +568,7 @@
       "id": "09vsnnqaqrgmer8sks2",
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:58:39.795Z",
-      "lastUpdated": "2025-09-09T01:01:53.366Z",
+      "lastUpdated": "2025-09-09T17:13:33.279Z",
       "order": 6,
       "activity": "Interna",
       "duration": "Horas",
@@ -580,7 +594,7 @@
       "id": "61ki293mgcqmesy6dp1",
       "columnId": "tarefas",
       "createdAt": "2025-08-26T19:37:00.374Z",
-      "lastUpdated": "2025-09-09T01:01:20.841Z",
+      "lastUpdated": "2025-09-09T17:12:17.599Z",
       "order": 11,
       "pulsingDisabled": true
     },
@@ -609,7 +623,7 @@
       "order": 13
     },
     {
-      "name": "Entregar orçamento Vanessa Mutton",
+      "name": "Agendar reunião Vanessa Mutton",
       "email": "",
       "phone": "",
       "notes": [
@@ -632,6 +646,10 @@
         {
           "text": "de 'Fazendo' para 'Iniciar'.",
           "timestamp": "2025-09-05T21:56:15.056Z"
+        },
+        {
+          "text": "Voltar o contato para agendar reunião",
+          "timestamp": "2025-09-08T13:32:29.520Z"
         }
       ],
       "rating": 4,
@@ -645,7 +663,7 @@
       "id": "bf7ijt9dgpmf1dqipg",
       "columnId": "iniciar",
       "createdAt": "2025-09-01T17:14:43.636Z",
-      "lastUpdated": "2025-09-09T01:01:42.483Z",
+      "lastUpdated": "2025-09-09T17:12:39.214Z",
       "order": 14,
       "pulsingDisabled": true
     },
@@ -682,7 +700,7 @@
       "id": "4lkn34jxrplmf1dwtgh",
       "columnId": "arquivados",
       "createdAt": "2025-09-01T17:19:37.505Z",
-      "lastUpdated": "2025-09-09T01:02:20.278Z",
+      "lastUpdated": "2025-09-09T17:16:29.075Z",
       "order": 15,
       "pulsingDisabled": true
     },
@@ -720,7 +738,7 @@
       "isPulsing": true,
       "id": "fu09lmha8u4mf4ee5jn",
       "createdAt": "2025-09-03T19:56:24.851Z",
-      "lastUpdated": "2025-09-09T01:02:16.978Z",
+      "lastUpdated": "2025-09-09T17:16:24.285Z",
       "order": 14,
       "pulsingDisabled": true
     },
@@ -757,6 +775,10 @@
         {
           "text": "Fazer agendamentos ",
           "timestamp": "2025-09-03T23:31:25.480Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-08T13:19:12.823Z"
         }
       ],
       "rating": 4,
@@ -767,11 +789,11 @@
       "deadlineDate": "2025-09-05",
       "deadlineTime": "17:00",
       "duration": "Horas",
-      "columnId": "tarefas",
+      "columnId": "iniciar",
       "isPulsing": true,
       "id": "b5m69zvd2ccmf4m6vnu",
       "createdAt": "2025-09-03T23:34:42.378Z",
-      "lastUpdated": "2025-09-09T01:01:24.704Z",
+      "lastUpdated": "2025-09-09T17:12:42.361Z",
       "order": 15,
       "pulsingDisabled": true
     },
@@ -787,6 +809,14 @@
         {
           "text": "de 'Tarefas' para 'Iniciar'.",
           "timestamp": "2025-09-05T12:31:18.782Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-09T17:12:49.429Z"
+        },
+        {
+          "text": "Adicionado Cerimonialistas",
+          "timestamp": "2025-09-09T17:13:12.390Z"
         }
       ],
       "rating": 4,
@@ -797,11 +827,11 @@
       "deadlineDate": "2025-09-04",
       "deadlineTime": "17:00",
       "duration": "Horas",
-      "columnId": "iniciar",
+      "columnId": "fazendo",
       "isPulsing": true,
       "id": "lkyt17g9m89mf4me2wf",
       "createdAt": "2025-09-03T23:40:18.351Z",
-      "lastUpdated": "2025-09-09T01:01:46.763Z",
+      "lastUpdated": "2025-09-09T17:13:17.110Z",
       "order": 16,
       "pulsingDisabled": true
     },
@@ -851,7 +881,7 @@
       "isPulsing": true,
       "id": "hlo1qy2d9damf4mvbx8",
       "createdAt": "2025-09-03T23:53:43.197Z",
-      "lastUpdated": "2025-09-09T01:02:13.813Z",
+      "lastUpdated": "2025-09-09T17:16:19.687Z",
       "order": 18,
       "pulsingDisabled": true
     },
@@ -877,7 +907,7 @@
       "isPulsing": true,
       "id": "wuv6awa4dldmf6rzcb7",
       "createdAt": "2025-09-05T11:52:20.756Z",
-      "lastUpdated": "2025-09-09T01:01:28.816Z",
+      "lastUpdated": "2025-09-09T17:12:21.242Z",
       "order": 17,
       "pulsingDisabled": true
     },
@@ -911,7 +941,91 @@
       "isPulsing": true,
       "id": "j5gnxfe39fhmf6uumb3",
       "createdAt": "2025-09-05T13:12:39.279Z",
-      "lastUpdated": "2025-09-09T01:01:50.265Z",
+      "lastUpdated": "2025-09-09T17:12:53.163Z",
+      "order": 19,
+      "pulsingDisabled": true
+    },
+    {
+      "name": "Montar show Elvis Natural (Votorantim)",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Montar cronologicamente o show",
+          "timestamp": "2025-09-08T13:31:06.620Z"
+        },
+        {
+          "text": "Pensar nas vestimentas dos músicos, algo q se Dê pra usar o show inteiro, ",
+          "timestamp": "2025-09-08T13:31:34.020Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-12",
+      "deadlineTime": "17:00",
+      "duration": "Horas",
+      "columnId": "primeiro-contato",
+      "isPulsing": true,
+      "link": "",
+      "id": "ns03jnzurzimfb5upx3",
+      "createdAt": "2025-09-08T13:31:44.439Z",
+      "lastUpdated": "2025-09-08T13:31:44.439Z",
+      "order": 2
+    },
+    {
+      "name": "Ver IPI Usina",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Verificar com o Lucas, IPI da usina Araporã",
+          "timestamp": "2025-09-08T13:37:32.026Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Compasse",
+      "assignedTo": "Diana",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-09",
+      "deadlineTime": "16:00",
+      "duration": "Minutos",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "",
+      "id": "3tlwc9ig7gmfb62b5t",
+      "createdAt": "2025-09-08T13:37:38.561Z",
+      "lastUpdated": "2025-09-09T17:12:25.576Z",
+      "order": 18,
+      "pulsingDisabled": true
+    },
+    {
+      "name": "Estudar sobre auditoria Weiss",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Estudar sobre o relatório de auditoria da Weiss",
+          "timestamp": "2025-09-08T13:38:31.174Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Compasse",
+      "assignedTo": "Diana",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-09",
+      "deadlineTime": "11:00",
+      "duration": "Minutos",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "",
+      "id": "q3gr4xf1ulmfb63jtd",
+      "createdAt": "2025-09-08T13:38:36.433Z",
+      "lastUpdated": "2025-09-09T17:12:29.567Z",
       "order": 19,
       "pulsingDisabled": true
     }

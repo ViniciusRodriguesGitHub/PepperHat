@@ -36,17 +36,18 @@
     pepper_idle_2: 'pepper_idle_2.png',
     pepper_idle_3: 'pepper_idle_3.png',
     pepper_idle_4: 'pepper_idle_4.png',
-    pepper_idle_5: 'pepper_idle_5.png'
-    ,
-    // Frames for walking animation
-    pepper_walk_0: 'pepper_walk_0.png',
-    pepper_walk_1: 'pepper_walk_1.png',
-    pepper_walk_2: 'pepper_walk_2.png',
-    pepper_walk_3: 'pepper_walk_3.png'
-    ,
-    // Collectible sprites
+    pepper_idle_5: 'pepper_idle_5.png',
+    wk1: 'wk1.png',
+    wk2: 'wk2.png',
+    wk3: 'wk3.png',
+    wk4: 'wk4.png',
+    subindo: '1subindo.png',
+    desacelerando: '2desacelerando.png',
+    caindo: '3caindo.png',
+    parado: 'parado.png',
     note: 'note.png',
-    record: 'record.png'
+    record: 'record.png',
+    ground_tile: 'ground_tile.png'
   };
 
   const images = {};
@@ -82,12 +83,14 @@
   const player = {
     x: 100,
     y: 0,
-    width: 100,
-    height: 120,
+    width: 50, // Reduced from 100 to 50
+    height: 60, // Reduced from 120 to 60
     vx: 0,
     vy: 0,
     onGround: false,
     facingRight: true,
+    idleTime: 0, // Track how long the player has been idle
+    lastAnim: 'idle', // Track the previous animation state
     // Animation data.  Each key holds an array of Image objects
     animations: {
       idle: [],
@@ -126,9 +129,13 @@
         img.src = assets[key];
         img.onload = () => {
           images[key] = img;
+          console.log(`Image loaded: ${key} -> ${assets[key]}`); // Log image loading
           resolve();
         };
-        img.onerror = reject;
+        img.onerror = (err) => {
+          console.error(`Error loading image: ${key} -> ${assets[key]}`, err); // Log image loading errors
+          reject(err);
+        };
       });
     });
     return Promise.all(promises);
@@ -439,6 +446,14 @@
     if (input.left && !input.right) player.vx = -moveSpeed;
     if (input.right && !input.left) player.vx = moveSpeed;
 
+    // Handle idle animation logic
+    if (player.vx === 0 && player.onGround) {
+      player.idleTime += dt;
+    } else {
+      player.idleTime = 0;
+      // Removed: player.animIndex = 0; // Reset to the first (and only) idle frame when moving or not on ground
+    }
+
     // Apply horizontal velocity
     player.x += player.vx * dt;
     // Clamp within world bounds (now only left side)
@@ -512,15 +527,31 @@
       }
     }
 
-    // Select appropriate animation based on current state.  You can
+    // Select appropriate animation based on current state. You can
     // expand this logic when you implement walking or jumping
     if (!player.onGround) {
-      player.currentAnim = 'jump';
-    } else if (player.vx !== 0) {
+      if (player.vy < 0) {
+        player.currentAnim = 'jump';
+        player.animIndex = 0; // 1subindo.png
+      } else if (player.vy >= 200 && player.vy <= 400) { // Adjusted from === 0 to a range around 0
+        player.currentAnim = 'jump';
+        player.animIndex = 1; // 2desacelerando.png
+      } else {
+        player.currentAnim = 'jump';
+        player.animIndex = 2; // 3caindo.png
+      }
+    } else if (input.left || input.right) { // Changed from player.vx !== 0 to direct input check
       player.currentAnim = 'walk';
     } else {
       player.currentAnim = 'idle';
     }
+
+    // Reset animIndex if the animation changes
+    if (player.currentAnim !== player.lastAnim) {
+      player.animIndex = 0;
+    }
+    player.lastAnim = player.currentAnim;
+
     // Advance the frame timer.  When enough time has passed, move to
     // the next frame in the current animation.  If the selected
     // animation has no frames (e.g., walk/jump not yet implemented),
@@ -528,11 +559,20 @@
     const frames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
       ? player.animations[player.currentAnim]
       : player.animations.idle;
-    const animSpeed = 0.15; // seconds per frame
+    const animSpeed = 0.15; // Doubled animation speed (reduced from 0.3 to 0.15 seconds per frame)
+
     player.animTimer += dt;
     if (player.animTimer >= animSpeed) {
       player.animTimer = 0;
-      player.animIndex = (player.animIndex + 1) % frames.length;
+      if (player.currentAnim === 'idle') {
+        player.animIndex = 0; // Always use the single idle frame (parado.png)
+      } else if (player.currentAnim === 'jump') {
+        // For jump animation, animIndex is set based on vy, so no need to advance here
+      } else { // This block handles 'walk' and other non-idle/non-jump animations
+        console.log(`WALK ANIM: Before update - currentAnim: ${player.currentAnim}, animIndex: ${player.animIndex}, frames.length: ${frames.length}`);
+        player.animIndex = (player.animIndex + 1) % frames.length;
+        console.log(`WALK ANIM: After update - animIndex: ${player.animIndex}`);
+      }
     }
 
     // Camera follows player
@@ -628,6 +668,7 @@
       ? player.animations[player.currentAnim]
       : player.animations.idle;
     const frameImage = activeFrames[player.animIndex % activeFrames.length];
+    console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`); // Log current animation frame
     ctx.save();
     const drawX = player.x - scrollX;
     const drawY = player.y;
@@ -678,22 +719,21 @@
     // later, push their frames into player.animations.walk or
     // player.animations.jump respectively.
     player.animations.idle = [
-      images.pepper_idle_0,
-      images.pepper_idle_1,
-      images.pepper_idle_2,
-      images.pepper_idle_3,
-      images.pepper_idle_4,
-      images.pepper_idle_5
+      images.parado // Only parado.png for idle
     ];
     // Assemble walking animation frames
     player.animations.walk = [
-      images.pepper_walk_0,
-      images.pepper_walk_1,
-      images.pepper_walk_2,
-      images.pepper_walk_3
+      images.wk1,
+      images.wk2,
+      images.wk3,
+      images.wk4
     ];
-    // Initially we have no dedicated jump frames; jumping will use the idle frames
-    player.animations.jump = player.animations.jump.length ? player.animations.jump : player.animations.idle;
+    // Define jump animation frames
+    player.animations.jump = [
+      images.subindo,
+      images.desacelerando,
+      images.caindo
+    ];
 
     // Initialise collectible items.  Musical notes and vinyl records are
     // placed throughout the level for the player to collect.  When
