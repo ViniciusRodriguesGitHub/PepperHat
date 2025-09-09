@@ -111,7 +111,7 @@
           "timestamp": "2025-09-05T22:07:31.706Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
       "address": "Batatais",
@@ -119,9 +119,9 @@
       "id": "tg1iv49shymesig9hn",
       "columnId": "feito",
       "createdAt": "2025-08-26T12:16:47.627Z",
-      "lastUpdated": "2025-09-05T22:07:31.706Z",
+      "lastUpdated": "2025-09-09T01:02:03.853Z",
       "order": 1,
-      "pulsingDisabled": false,
+      "pulsingDisabled": true,
       "deadlineDate": "2025-09-05",
       "deadlineTime": "14:00"
     },
@@ -135,18 +135,19 @@
           "timestamp": "2025-08-21T17:09:04.360Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "id": "8eaxhdqzn3amelnp3sa",
       "columnId": "tarefas",
       "createdAt": "2025-08-21T17:09:14.987Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
+      "lastUpdated": "2025-09-09T01:01:08.810Z",
       "activity": "Externa",
       "order": 3,
       "deadlineDate": "2025-08-29",
       "deadlineTime": "08:30",
-      "duration": "Minutos"
+      "duration": "Minutos",
+      "pulsingDisabled": true
     },
     {
       "name": "Agendar Exame Nícolas",
@@ -158,19 +159,19 @@
           "timestamp": "2025-09-02T12:55:52.783Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "id": "o0tcu5lzwtdmelnxhru",
       "columnId": "iniciar",
       "createdAt": "2025-08-21T17:15:46.363Z",
-      "lastUpdated": "2025-09-03T23:15:20.156Z",
+      "lastUpdated": "2025-09-09T01:01:36.034Z",
       "activity": "Interna",
       "order": 4,
       "duration": "Minutos",
       "deadlineDate": "2025-09-05",
       "deadlineTime": "17:00",
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Microsoft",
@@ -206,19 +207,20 @@
           "timestamp": "2025-09-01T17:22:07.027Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "r8ewcmtcmxmer6mk8s",
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:57:59.932Z",
-      "lastUpdated": "2025-08-27T13:56:53.441Z",
+      "lastUpdated": "2025-09-09T01:01:17.018Z",
       "order": 8,
       "activity": "Externa",
       "deadlineDate": "2025-09-02",
       "deadlineTime": "10:00",
-      "duration": "Dia"
+      "duration": "Dia",
+      "pulsingDisabled": true
     },
     {
       "name": "Produção de Show",
@@ -250,20 +252,20 @@
           "timestamp": "2025-09-03T23:55:59.553Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "sxqkdsc0evmer6u0qi",
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:03:47.899Z",
-      "lastUpdated": "2025-09-03T23:56:04.416Z",
+      "lastUpdated": "2025-09-09T01:01:57.182Z",
       "order": 9,
       "activity": "Interna",
       "deadlineDate": "2025-09-10",
       "deadlineTime": "14:00",
       "duration": "Dias",
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Costureira",
@@ -279,19 +281,19 @@
           "timestamp": "2025-09-05T22:07:19.244Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "yq28nrk6pnmer6z32m",
       "columnId": "feito",
       "createdAt": "2025-08-25T14:07:44.206Z",
-      "lastUpdated": "2025-09-05T22:07:19.244Z",
+      "lastUpdated": "2025-09-09T01:02:11.068Z",
       "order": 10,
       "activity": "Externa",
       "deadlineDate": "2025-08-27",
       "deadlineTime": "09:00",
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Contatar Vanessa Martin",
@@ -349,18 +351,18 @@
           "timestamp": "2025-09-05T22:07:35.126Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Vinícius",
       "id": "cb10ixl189memvobit",
       "columnId": "feito",
       "createdAt": "2025-08-22T13:40:21.461Z",
-      "lastUpdated": "2025-09-05T22:07:35.126Z",
+      "lastUpdated": "2025-09-09T01:02:07.184Z",
       "order": 3,
       "activity": "Interna",
       "duration": "Horas",
       "deadlineDate": "2025-09-04",
-      "pulsingDisabled": false,
+      "pulsingDisabled": true,
       "deadlineTime": "00:00"
     },
     {
@@ -385,7 +387,7 @@
           "timestamp": "2025-09-04T20:38:58.068Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Vinícius",
       "address": "",
@@ -395,9 +397,9 @@
       "id": "5cpeggvxqdemesjw5v7",
       "columnId": "fazendo",
       "createdAt": "2025-08-26T12:57:09.044Z",
-      "lastUpdated": "2025-09-04T20:38:58.068Z",
+      "lastUpdated": "2025-09-09T01:02:00.401Z",
       "order": 11,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Financeiro",
@@ -429,18 +431,18 @@
           "timestamp": "2025-09-03T23:54:42.221Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "ls2cm7i3czmer78dtd",
       "columnId": "iniciar",
       "createdAt": "2025-08-25T14:14:58.033Z",
-      "lastUpdated": "2025-09-03T23:54:42.221Z",
+      "lastUpdated": "2025-09-09T01:01:32.247Z",
       "order": 1,
       "activity": "Interna",
       "duration": "Dias",
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Mentoria",
@@ -506,18 +508,18 @@
           "timestamp": "2025-09-05T22:07:47.496Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Vinícius",
       "address": "",
       "id": "r9qr6ecudtmer8hjvp",
       "columnId": "iniciar",
       "createdAt": "2025-08-25T14:50:05.414Z",
-      "lastUpdated": "2025-09-05T22:07:47.496Z",
+      "lastUpdated": "2025-09-09T01:01:39.336Z",
       "order": 5,
       "activity": "Interna",
       "duration": "Minutos",
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Atualizar sistema Tarefas",
@@ -545,18 +547,18 @@
           "timestamp": "2025-09-03T23:55:37.651Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Vinícius",
       "address": "",
       "id": "09vsnnqaqrgmer8sks2",
       "columnId": "fazendo",
       "createdAt": "2025-08-25T14:58:39.795Z",
-      "lastUpdated": "2025-09-03T23:55:38.643Z",
+      "lastUpdated": "2025-09-09T01:01:53.366Z",
       "order": 6,
       "activity": "Interna",
       "duration": "Horas",
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Energia Elétrica restituição",
@@ -568,7 +570,7 @@
           "timestamp": "2025-08-26T19:36:59.199Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Vinícius",
       "address": "",
@@ -578,8 +580,9 @@
       "id": "61ki293mgcqmesy6dp1",
       "columnId": "tarefas",
       "createdAt": "2025-08-26T19:37:00.374Z",
-      "lastUpdated": "2025-08-26T19:37:00.374Z",
-      "order": 11
+      "lastUpdated": "2025-09-09T01:01:20.841Z",
+      "order": 11,
+      "pulsingDisabled": true
     },
     {
       "name": "Marcar Reumatologista",
@@ -631,7 +634,7 @@
           "timestamp": "2025-09-05T21:56:15.056Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
       "address": "",
@@ -642,9 +645,9 @@
       "id": "bf7ijt9dgpmf1dqipg",
       "columnId": "iniciar",
       "createdAt": "2025-09-01T17:14:43.636Z",
-      "lastUpdated": "2025-09-05T21:56:23.386Z",
+      "lastUpdated": "2025-09-09T01:01:42.483Z",
       "order": 14,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Montar orçamento Edna cerimonialista",
@@ -668,7 +671,7 @@
           "timestamp": "2025-09-04T20:25:57.207Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Vinícius",
       "address": "",
@@ -679,9 +682,9 @@
       "id": "4lkn34jxrplmf1dwtgh",
       "columnId": "arquivados",
       "createdAt": "2025-09-01T17:19:37.505Z",
-      "lastUpdated": "2025-09-04T20:25:57.207Z",
+      "lastUpdated": "2025-09-09T01:02:20.278Z",
       "order": 15,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Marcar Dermato Nícolas",
@@ -705,7 +708,7 @@
           "timestamp": "2025-09-05T22:07:12.017Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana",
       "address": "",
@@ -717,9 +720,9 @@
       "isPulsing": true,
       "id": "fu09lmha8u4mf4ee5jn",
       "createdAt": "2025-09-03T19:56:24.851Z",
-      "lastUpdated": "2025-09-05T22:07:12.017Z",
+      "lastUpdated": "2025-09-09T01:02:16.978Z",
       "order": 14,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Agendar dermato Nícolas",
@@ -756,7 +759,7 @@
           "timestamp": "2025-09-03T23:31:25.480Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Diana",
       "address": "",
@@ -768,8 +771,9 @@
       "isPulsing": true,
       "id": "b5m69zvd2ccmf4m6vnu",
       "createdAt": "2025-09-03T23:34:42.378Z",
-      "lastUpdated": "2025-09-03T23:34:42.378Z",
-      "order": 15
+      "lastUpdated": "2025-09-09T01:01:24.704Z",
+      "order": 15,
+      "pulsingDisabled": true
     },
     {
       "name": "Mapear e rastrear clientes",
@@ -785,7 +789,7 @@
           "timestamp": "2025-09-05T12:31:18.782Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Vinícius",
       "address": "",
@@ -797,9 +801,9 @@
       "isPulsing": true,
       "id": "lkyt17g9m89mf4me2wf",
       "createdAt": "2025-09-03T23:40:18.351Z",
-      "lastUpdated": "2025-09-05T12:31:18.783Z",
+      "lastUpdated": "2025-09-09T01:01:46.763Z",
       "order": 16,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Finalizar relatório SG Leite",
@@ -835,7 +839,7 @@
           "timestamp": "2025-09-05T22:10:32.385Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Compasse",
       "assignedTo": "Diana&Vinícius",
       "address": "",
@@ -847,9 +851,9 @@
       "isPulsing": true,
       "id": "hlo1qy2d9damf4mvbx8",
       "createdAt": "2025-09-03T23:53:43.197Z",
-      "lastUpdated": "2025-09-05T22:10:32.385Z",
+      "lastUpdated": "2025-09-09T01:02:13.813Z",
       "order": 18,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Fazer RX dente",
@@ -861,7 +865,7 @@
           "timestamp": "2025-09-05T11:52:16.052Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "address": "",
@@ -873,9 +877,9 @@
       "isPulsing": true,
       "id": "wuv6awa4dldmf6rzcb7",
       "createdAt": "2025-09-05T11:52:20.756Z",
-      "lastUpdated": "2025-09-05T11:55:15.992Z",
+      "lastUpdated": "2025-09-09T01:01:28.816Z",
       "order": 17,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     },
     {
       "name": "Finalizar contas mês",
@@ -895,7 +899,7 @@
           "timestamp": "2025-09-05T22:10:05.370Z"
         }
       ],
-      "rating": 5,
+      "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "address": "",
@@ -907,9 +911,9 @@
       "isPulsing": true,
       "id": "j5gnxfe39fhmf6uumb3",
       "createdAt": "2025-09-05T13:12:39.279Z",
-      "lastUpdated": "2025-09-05T22:10:05.370Z",
+      "lastUpdated": "2025-09-09T01:01:50.265Z",
       "order": 19,
-      "pulsingDisabled": false
+      "pulsingDisabled": true
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

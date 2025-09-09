@@ -1694,6 +1694,7 @@ const getBackgroundColor = (columnId) => {
                   {!card.activity && card.category === 'Setor Público' && <span className="mr-0" title="Categoria: Setor Público">🏛️</span>}
                   {!card.activity && card.category === 'Serviço Social' && <span className="mr-0" title="Categoria: Serviço Social">🌎</span>}
                   <h3 className={`font-bold cursor-pointer text-xs ${card.link ? 'text-blue-800 underline' : 'hover:text-blue-600'}`} onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
+                  {card.rating === 5 && <span className="ml-0.5" title="Classificação: 5 estrelas">⭐</span>}
                 </div>
                 <div className="flex flex-col gap-0.5 items-end">
                     {card.deadlineDate && (
@@ -1707,7 +1708,7 @@ const getBackgroundColor = (columnId) => {
                           if (diffTime < 0) {
                             // Passou do prazo
                             return <span className="text-red-600">{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>;
-                          } else if (diffDays > 7) {
+                          } else if (diffDays >= 7) {
                             // Mais de 7 dias
                             return <span>{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ')}</span>;
                           } else if (diffDays < 7 && diffDays > 1) {
