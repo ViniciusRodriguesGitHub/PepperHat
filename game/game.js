@@ -4,7 +4,7 @@
  * The game displays a pixel art city backdrop, a ground plane and a
  * single pepper character that you can move left and right across a
  * scrolling world.  Use the left/right arrow keys on a keyboard, the
- * on‑screen buttons on touch devices or a connected gamepad’s D‑pad
+ * on‑screen buttons on touch devices or a connected gamepad's D‑pad
  * (left/right) to walk.  Press the space bar, the on‑screen A button
  * or the primary gamepad button to jump.  The camera follows the
  * player as they traverse a level three screens wide.
@@ -23,13 +23,13 @@
 
   // Asset paths relative to this script.  In addition to the city
   // background and ground tile, we load a sequence of frames for the
-  // pepper’s idle animation.  Additional animations (walk, jump) can
+  // pepper's idle animation.  Additional animations (walk, jump) can
   // easily be added later by including more frames here and pushing
   // them into the appropriate player.animations arrays.
   const assets = {
     ground: 'ground_tile.png',
     // An unused single frame is kept for backwards compatibility but
-    // won’t be drawn once animations are in place.
+    // won't be drawn once animations are in place.
     pepper: 'pepper.png',
     pepper_idle_0: 'pepper_idle_0.png',
     pepper_idle_1: 'pepper_idle_1.png',
@@ -118,6 +118,7 @@
 
   let noteCount = 0; // Redeclare noteCount as a global variable
   let recordCount = 0; // Redeclare recordCount as a global variable
+  let playerDistanceWalked = 0; // New global variable to track player's distance walked
   let houseFurniture = []; // Stores furniture objects when inside a house
   let isInHouse = false; // New state to track if player is inside a house
   let lastEntranceDoor = null; // Stores the door object the player last entered through
@@ -134,7 +135,12 @@
     onGround: false,
   };
 
+  const enemyHitboxOffset = 10; // Offset to reduce the enemy's collision box size
+
   let isGameOver = false; // New global variable to track game over state
+  let currentGameState = 'menu'; // 'menu', 'playing', 'gameOver'
+  let difficulty = 'normal'; // 'easy', 'normal'
+  let highScores = JSON.parse(localStorage.getItem('highScores') || '[]'); // Load high scores from localStorage
 
   // Player state
   const player = {
@@ -159,7 +165,12 @@
     },
     currentAnim: 'idle',
     animIndex: 0,
-    animTimer: 0
+    animTimer: 0,
+    animSpeed: 0.2, // seconds per frame (Restored)
+    idleTime: 0, // Time spent idle for potential future mechanics
+    isAcceleratedJump: false, // Tracks if player is in an accelerated jump
+    jumpAccelerationFactor: 1.0, // Factor to multiply player.vx during accelerated jump
+    baseMoveSpeed: 200, // pixels per second - Moved to player object
   };
 
   // Input state
@@ -567,8 +578,8 @@
 
     // Gradient body
     const gradient = ctx.createLinearGradient(drawX, drawY, drawX + width, drawY + height);
-    gradient.addColorStop(0, '#FF6347'); // Tomato
-    gradient.addColorStop(1, '#FF4500'); // OrangeRed
+    gradient.addColorStop(0, '#4B0082'); // Dark Violet
+    gradient.addColorStop(1, '#800080'); // Purple
     ctx.fillStyle = gradient;
     ctx.fillRect(drawX, drawY, width, height);
 
@@ -823,6 +834,51 @@
     });
   }
 
+  // Setup menu input (mouse and touch)
+  function setupMenuInput() {
+    const handleMenuInteraction = (e) => {
+      if (currentGameState === 'menu') {
+        e.preventDefault(); // Prevent default behavior (e.g., scrolling on touch)
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // Scale click/touch coordinates to game's internal resolution
+        const scaleX = GAME_WIDTH / rect.width;
+        const scaleY = GAME_HEIGHT / rect.height;
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+
+        // Easy Button coordinates (defined in drawMenu)
+        const easyButtonWidth = 200;
+        const easyButtonHeight = 60;
+        const easyButtonX = GAME_WIDTH / 2 - easyButtonWidth / 2;
+        const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
+
+        // Normal Button coordinates (defined in drawMenu)
+        const normalButtonWidth = 200;
+        const normalButtonHeight = 60;
+        const normalButtonX = GAME_WIDTH / 2 - normalButtonWidth / 2;
+        const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
+
+        // Check if Easy button clicked/touched
+        if (x >= easyButtonX && x <= easyButtonX + easyButtonWidth &&
+            y >= easyButtonY && y <= easyButtonY + easyButtonHeight) {
+          difficulty = 'easy';
+          resetGame(); // Starts the game in easy mode
+        }
+        // Check if Normal button clicked/touched
+        else if (x >= normalButtonX && x <= normalButtonX + normalButtonWidth &&
+                 y >= normalButtonY && y <= normalButtonY + normalButtonHeight) {
+          difficulty = 'normal';
+          resetGame(); // Starts the game in normal mode
+        }
+      }
+    };
+    canvas.addEventListener('mousedown', handleMenuInteraction, false);
+    canvas.addEventListener('touchstart', handleMenuInteraction, false);
+  }
+
   // Poll gamepad state each frame.  Many controllers map the d‑pad
   // buttons to indices 14 and 15 for left/right and 0 for the main
   // button.  Axis 0 is the left stick horizontal axis.
@@ -841,10 +897,50 @@
     }
   }
 
+  // Reset game state to initial values
+  function resetGame() {
+    isGameOver = false;
+    currentGameState = 'playing'; // Set game state to playing when resetting
+    isInHouse = false; // Ensure player is outside house
+    lastEntranceDoor = null;
+
+    player.x = 100;
+    player.y = groundY - player.initialHeight;
+    player.vx = 0;
+    player.vy = 0;
+    player.onGround = true;
+    player.currentAnim = 'idle';
+    player.lastAnim = 'idle';
+    player.animIndex = 0;
+    player.animTimer = 0;
+    player.idleTime = 0;
+    player.isAcceleratedJump = false;
+    player.jumpAccelerationFactor = 1.0;
+    playerDistanceWalked = 0; // Reset player distance walked
+
+    enemy.x = GAME_WIDTH - 200;
+    enemy.y = groundY - enemy.height;
+    enemy.vx = 0;
+    enemy.vy = 0;
+    enemy.onGround = true;
+
+    staminaBar.fill = 1.0; // Full stamina
+
+    animatedBar.fill = 0.0; // Empty animated bar
+    animatedBar.fillDirection = 1;
+    animatedBar.isVisible = false;
+
+    // Reset input states
+    input.left = false;
+    input.right = false;
+    input.jump = false;
+    input.crouch = false;
+  }
+
   // Game update loop
   function update(dt) {
-    if (isGameOver) {
-      return; // Stop all game updates if game is over
+    if (currentGameState === 'menu' || currentGameState === 'gameOver') {
+      return; // Stop all game updates if in menu or game over state
     }
 
     // dt is delta time in seconds
@@ -855,7 +951,16 @@
 
     // Adjust move speed based on stamina
     if (staminaBar.fill < 1.0) {
-      moveSpeed = baseMoveSpeed * (0.5 + 0.5 * staminaBar.fill); // Scales from 50% to 100% of baseMoveSpeed
+      moveSpeed = player.baseMoveSpeed * (0.5 + 0.5 * staminaBar.fill); // Scales from 50% to 100% of baseMoveSpeed
+    } else {
+      moveSpeed = player.baseMoveSpeed; // Use baseMoveSpeed if stamina is full
+    }
+
+    // Apply accelerated jump factor if active
+    if (player.isAcceleratedJump) {
+      moveSpeed *= player.jumpAccelerationFactor;
+      // Gradually decay the acceleration factor
+      player.jumpAccelerationFactor = Math.max(1.0, player.jumpAccelerationFactor - (0.8 * dt)); // Decay from 1.8 to 1.0 over time
     }
 
     player.vx = 0;
@@ -894,14 +999,25 @@
       const px2 = player.x + player.width;
       const py2 = player.y + player.height;
 
-      const ex1 = enemy.x;
-      const ey1 = enemy.y;
-      const ex2 = enemy.x + enemy.width;
-      const ey2 = enemy.y + enemy.height;
+      // Apply offset to enemy's hitbox
+      const ex1 = enemy.x + enemyHitboxOffset;
+      const ey1 = enemy.y + enemyHitboxOffset;
+      const ex2 = enemy.x + enemy.width - enemyHitboxOffset;
+      const ey2 = enemy.y + enemy.height - enemyHitboxOffset;
 
       if (px1 < ex2 && px2 > ex1 && py1 < ey2 && py2 > ey1) {
-        isGameOver = true; // Player collided with enemy
-        return; // Stop further updates
+        if (difficulty === 'normal') { // Only die in normal mode
+          isGameOver = true; // Player collided with enemy
+          // Update high scores only if in normal mode and player died
+          if (currentGameState !== 'gameOver') { // Only run this logic once when game over state is triggered
+            highScores.push(Math.floor(playerDistanceWalked / 10)); // Add current distance (in meters)
+            highScores.sort((a, b) => b - a); // Sort in descending order
+            highScores = highScores.slice(0, 10); // Keep only top 10 scores
+            localStorage.setItem('highScores', JSON.stringify(highScores)); // Save to localStorage
+          }
+          currentGameState = 'gameOver'; // Set game state to game over
+          return; // Stop further updates
+        }
       }
     }
 
@@ -976,6 +1092,11 @@
 
     // Apply horizontal velocity
     player.x += player.vx * dt;
+    // Update distance walked
+    if (player.vx > 0) {
+      playerDistanceWalked += player.vx * dt; // Accumulate distance when moving right
+    }
+    
     // Clamp within world bounds (now only left side)
     if (player.x < 0) player.x = 0;
     // Removed right-side clamping, world is infinite to the right
@@ -983,12 +1104,24 @@
     // Gravity
     player.vy += gravity * dt; // Apply gravity to player
 
-    // Jump
-    if (input.jump && player.onGround) {
-      player.vy = -600; // jump impulse
-      player.onGround = false;
-      // Reset jump flag so holding the button doesn't cause repeated jumps
-      input.jump = false;
+    // Jump input handling
+    if (input.jump) {
+      if (currentGameState === 'gameOver' && input.jump) { // Allow jump to restart game from Game Over screen
+        resetGame();
+        input.jump = false; // Consume the jump input
+        return; // Skip remaining update logic for this frame to allow full reset
+      } else if (player.onGround) {
+        player.vy = -600; // jump impulse
+        player.onGround = false;
+        // Reset jump flag so holding the button doesn't cause repeated jumps
+        input.jump = false;
+
+        // Check for accelerated jump condition (red animated bar)
+        if (animatedBar.fill > 0.9) {
+          player.isAcceleratedJump = true;
+          player.jumpAccelerationFactor = 1.8; // Initial acceleration factor
+        }
+      }
     }
 
     // Apply vertical velocity
@@ -998,6 +1131,11 @@
     if (player.y + player.height >= groundY - groundTolerance) {
       player.y = groundY - player.height; // Snap to ground
       player.vy = 0;
+      // Reset accelerated jump state if landing on ground
+      if (!player.onGround && player.isAcceleratedJump) { // Only reset if just landed and was in accelerated jump
+        player.isAcceleratedJump = false;
+        player.jumpAccelerationFactor = 1.0;
+      }
       player.onGround = true;
     } else {
       player.onGround = false;
@@ -1184,9 +1322,63 @@
     }
   }
 
-  // Render loop
+  // Function to draw the main menu
+  function drawMenu() {
+    ctx.fillStyle = '#2c3e50'; // Dark blue-gray background
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    ctx.fillStyle = '#ecf0f1'; // Light gray text
+    ctx.font = 'bold 60px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PEPPER\'S ADVENTURE', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150);
+
+    // Easy Button
+    const easyButtonWidth = 200;
+    const easyButtonHeight = 60;
+    const easyButtonX = GAME_WIDTH / 2 - easyButtonWidth / 2;
+    const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
+
+    ctx.fillStyle = '#27ae60'; // Green for Easy
+    ctx.fillRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
+    ctx.strokeStyle = '#ecf0f1';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
+
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = 'bold 30px Arial';
+    ctx.fillText('EASY', GAME_WIDTH / 2, easyButtonY + easyButtonHeight / 2);
+
+    // Normal Button
+    const normalButtonWidth = 200;
+    const normalButtonHeight = 60;
+    const normalButtonX = GAME_WIDTH / 2 - normalButtonWidth / 2;
+    const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
+
+    ctx.fillStyle = '#e74c3c'; // Red for Normal
+    ctx.fillRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
+    ctx.strokeStyle = '#ecf0f1';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
+
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = 'bold 30px Arial';
+    ctx.fillText('NORMAL', GAME_WIDTH / 2, normalButtonY + normalButtonHeight / 2);
+  }
+
+  // Main drawing loop
   function render() {
+    // Clear the canvas
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    if (currentGameState === 'menu') {
+      drawMenu();
+      return; // Stop rendering game elements if in menu
+    }
+
+    // Calculate parallax scroll for background
+    const parallaxScrollX = -player.x * 0.2; // 20% scroll speed
+    const cityParallaxScrollX = -player.x * 0.1; // 10% scroll speed for distant city
 
     if (isInHouse) {
       // Draw house interior
@@ -1261,7 +1453,7 @@
 
       // Draw the player using the current animation frame.  If the
       // current animation has no frames loaded (e.g. walk/jump
-      // animations aren’t provided yet), fall back to the idle
+      // animations aren't provided yet), fall back to the idle
       // animation.  When facing left we flip the image horizontally.
       const activeFrames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
         ? player.animations[player.currentAnim]
@@ -1318,6 +1510,9 @@
     ctx.drawImage(images.record, 10, offsetY, iconSize, iconSize);
     recordCount = worldObjects.filter(obj => obj.type === 'collectible' && obj.itemType === 'record' && !obj.collected).length;
     ctx.fillText('x ' + recordCount, 10 + iconSize + 4, offsetY + iconSize - 6);
+
+    // Draw distance walked counter
+    ctx.fillText(`Distance: ${Math.floor(playerDistanceWalked / 10)}m`, GAME_WIDTH - 150, 30); // Display distance in meters
 
     // Draw stamina bar
     ctx.fillStyle = '#333333'; // Dark grey background
@@ -1425,6 +1620,8 @@
     // Set up input handlers
     setupKeyboard();
     createTouchControls();
+    setupMenuInput(); // Call the new function to set up menu input
+
     // Start the loop
     requestAnimationFrame(gameLoop);
   }).catch((err) => {
