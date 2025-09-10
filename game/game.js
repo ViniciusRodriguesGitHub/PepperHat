@@ -45,6 +45,9 @@
     desacelerando: '2desacelerando.png',
     caindo: '3caindo.png',
     parado: 'parado.png',
+    abaixar1: 'l0_abaixar1.png',
+    abaixar2: 'l0_abaixar2.png',
+    abaixar3: 'l0_abaixar3.png',
     note: 'note.png',
     record: 'record.png',
     ground_tile: 'ground_tile.png'
@@ -84,7 +87,9 @@
     x: 100,
     y: 0,
     width: 50, // Reduced from 100 to 50
-    height: 60, // Reduced from 120 to 60
+    initialHeight: 60, // Store initial height
+    crouchHeight: 30, // Crouching height (half of initialHeight)
+    height: 60, // Reduced from 120 to 60. This will change when crouching.
     vx: 0,
     vy: 0,
     onGround: false,
@@ -95,7 +100,8 @@
     animations: {
       idle: [],
       walk: [],
-      jump: []
+      jump: [],
+      crouch: [] // New animation array for crouching
     },
     currentAnim: 'idle',
     animIndex: 0,
@@ -106,7 +112,8 @@
   const input = {
     left: false,
     right: false,
-    jump: false
+    jump: false,
+    crouch: false // New input for crouching
   };
 
   // World objects for procedural generation
@@ -332,9 +339,10 @@
     container.style.pointerEvents = 'none';
     document.body.appendChild(container);
     // Helper to create a button
-    function makeButton(label) {
+    function makeButton(label, id) {
       const btn = document.createElement('div');
       btn.textContent = label;
+      btn.dataset.id = id; // Assign a unique ID to the button
       btn.style.position = 'absolute';
       btn.style.width = '70px';
       btn.style.height = '70px';
@@ -349,11 +357,15 @@
       btn.style.userSelect = 'none';
       btn.style.zIndex = '10';
       btn.style.pointerEvents = 'auto';
+      btn.style.cursor = 'grab'; // Indicate draggable
       return btn;
     }
-    const leftBtn = makeButton('◄');
-    const rightBtn = makeButton('►');
-    const actionBtn = makeButton('A');
+    const leftBtn = makeButton('◄', 'leftBtn');
+    const rightBtn = makeButton('►', 'rightBtn');
+    const actionBtn = makeButton('A', 'actionBtn');
+    const crouchBtn = makeButton('B', 'crouchBtn'); // New button for crouching
+    const lockBtn = makeButton('🔒', 'lockBtn'); // New button for locking/unlocking controls
+    lockBtn.id = 'lockButton'; // Assign an ID for easy access
     // Position buttons relative to the game resolution.  Since the canvas
     // is scaled, absolute positions based on GAME_WIDTH/HEIGHT still
     // align visually.
@@ -363,9 +375,17 @@
     rightBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Pushed slightly higher
     actionBtn.style.left = (GAME_WIDTH - 100) + 'px'; // Increased padding from right
     actionBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Pushed slightly higher
+    crouchBtn.style.left = (GAME_WIDTH - 190) + 'px'; // Position to the left of actionBtn
+    crouchBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Align with actionBtn
+    lockBtn.style.left = '10px'; // Position at top left
+    lockBtn.style.top = '10px';
+    lockBtn.style.width = '50px'; // Smaller button
+    lockBtn.style.height = '50px';
     container.appendChild(leftBtn);
     container.appendChild(rightBtn);
     container.appendChild(actionBtn);
+    container.appendChild(crouchBtn);
+    container.appendChild(lockBtn); // Add lock button to container
     // Attach pointer listeners
     const set = (btn, prop) => {
       btn.addEventListener('pointerdown', () => { input[prop] = true; });
@@ -380,6 +400,96 @@
     actionBtn.addEventListener('pointerup', () => { input.jump = false; });
     actionBtn.addEventListener('pointercancel', () => { input.jump = false; });
     actionBtn.addEventListener('pointerout', () => { input.jump = false; });
+    // Crouch button uses the crouch flag
+    crouchBtn.addEventListener('pointerdown', () => { input.crouch = true; });
+    crouchBtn.addEventListener('pointerup', () => { input.crouch = false; });
+    crouchBtn.addEventListener('pointercancel', () => { input.crouch = false; });
+    crouchBtn.addEventListener('pointerout', () => { input.crouch = false; });
+    // Lock button logic
+    let controlsLocked = false;
+    const controlButtons = [leftBtn, rightBtn, actionBtn, crouchBtn, lockBtn]; // Array of all control buttons
+
+    // Load saved positions if they exist
+    const savedPositions = JSON.parse(localStorage.getItem('controlPositions') || '{}');
+    if (Object.keys(savedPositions).length > 0) {
+      controlButtons.forEach(btn => {
+        const pos = savedPositions[btn.dataset.id];
+        if (pos) {
+          btn.style.left = pos.left;
+          btn.style.top = pos.top;
+        }
+      });
+    }
+
+    lockBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); // Prevent drag from starting on lock button click
+      controlsLocked = !controlsLocked;
+      lockBtn.textContent = controlsLocked ? '🔒' : '🔓';
+      // Toggle draggable state
+      controlButtons.forEach(btn => {
+        if (btn.dataset.id !== 'lockBtn') { // Don't make the lock button itself draggable
+          btn.style.pointerEvents = controlsLocked ? 'auto' : 'auto'; // Allow pointer events on buttons even when dragging is enabled
+          btn.style.cursor = controlsLocked ? 'pointer' : 'grab';
+        }
+      });
+      // Save positions when locking
+      if (controlsLocked) {
+        const currentPositions = {};
+        controlButtons.forEach(btn => {
+          if (btn.dataset.id) {
+            currentPositions[btn.dataset.id] = { left: btn.style.left, top: btn.style.top };
+          }
+        });
+        localStorage.setItem('controlPositions', JSON.stringify(currentPositions));
+      }
+    });
+
+    // Drag functionality for buttons
+    let activeDragBtn = null;
+    let initialX, initialY;
+
+    controlButtons.forEach(btn => {
+      if (btn.dataset.id === 'lockBtn') return; // Lock button is not draggable
+
+      btn.addEventListener('pointerdown', (e) => {
+        if (controlsLocked) return; // Cannot drag if controls are locked
+        activeDragBtn = btn;
+        initialX = e.clientX - btn.getBoundingClientRect().left;
+        initialY = e.clientY - btn.getBoundingClientRect().top;
+        btn.style.zIndex = '11'; // Bring dragged button to front
+        btn.setPointerCapture(e.pointerId);
+        // Prevent default pointer actions like text selection
+        e.preventDefault();
+        e.stopPropagation(); // Prevent triggering other listeners on container
+      });
+
+      btn.addEventListener('pointermove', (e) => {
+        if (!activeDragBtn || activeDragBtn !== btn || controlsLocked) return;
+
+        const newX = e.clientX - initialX;
+        const newY = e.clientY - initialY;
+
+        activeDragBtn.style.left = `${newX}px`;
+        activeDragBtn.style.top = `${newY}px`;
+        e.preventDefault();
+      });
+
+      btn.addEventListener('pointerup', (e) => {
+        if (!activeDragBtn || activeDragBtn !== btn) return;
+        activeDragBtn.style.zIndex = '10';
+        activeDragBtn.releasePointerCapture(e.pointerId);
+        activeDragBtn = null;
+        e.stopPropagation(); // Prevent triggering other listeners on container
+      });
+
+      btn.addEventListener('pointercancel', (e) => {
+        if (!activeDragBtn || activeDragBtn !== btn) return;
+        activeDragBtn.style.zIndex = '10';
+        activeDragBtn.releasePointerCapture(e.pointerId);
+        activeDragBtn = null;
+        e.stopPropagation();
+      });
+    });
   }
 
   // Keyboard controls
@@ -399,6 +509,13 @@
         case 'KeyW':
           input.jump = true;
           break;
+        case 'ControlLeft': // New case for 'Ctrl' key for crouching
+        case 'ControlRight':
+          input.crouch = true;
+          break;
+        case 'ArrowDown': // New case for 'ArrowDown' key for crouching
+          input.crouch = true;
+          break;
       }
     });
     window.addEventListener('keyup', (e) => {
@@ -415,6 +532,13 @@
         case 'ArrowUp':
         case 'KeyW':
           input.jump = false;
+          break;
+        case 'ControlLeft': // New case for 'Ctrl' key for crouching
+        case 'ControlRight':
+          input.crouch = false;
+          break;
+        case 'ArrowDown': // New case for 'ArrowDown' key for crouching
+          input.crouch = false;
           break;
       }
     });
@@ -433,6 +557,7 @@
         input.left = input.left || horizontal < -0.5 || (pad.buttons[14] && pad.buttons[14].pressed);
         input.right = input.right || horizontal > 0.5 || (pad.buttons[15] && pad.buttons[15].pressed);
         if (pad.buttons[0] && pad.buttons[0].pressed) input.jump = true;
+        if (pad.buttons[1] && pad.buttons[1].pressed) input.crouch = true; // New: Gamepad button 1 for crouch
       }
     }
   }
@@ -443,8 +568,10 @@
     // Horizontal movement
     const moveSpeed = 200; // pixels per second
     player.vx = 0;
-    if (input.left && !input.right) player.vx = -moveSpeed;
-    if (input.right && !input.left) player.vx = moveSpeed;
+    if (!input.crouch) { // Only allow horizontal movement if not crouching
+      if (input.left && !input.right) player.vx = -moveSpeed;
+      if (input.right && !input.left) player.vx = moveSpeed;
+    }
 
     // Handle idle animation logic
     if (player.vx === 0 && player.onGround) {
@@ -540,6 +667,8 @@
         player.currentAnim = 'jump';
         player.animIndex = 2; // 3caindo.png
       }
+    } else if (input.crouch && player.onGround) { // New: Crouch animation takes precedence
+      player.currentAnim = 'crouch';
     } else if (input.left || input.right) { // Changed from player.vx !== 0 to direct input check
       player.currentAnim = 'walk';
     } else {
@@ -568,7 +697,11 @@
         player.animIndex = 0; // Always use the single idle frame (parado.png)
       } else if (player.currentAnim === 'jump') {
         // For jump animation, animIndex is set based on vy, so no need to advance here
-      } else { // This block handles 'walk' and other non-idle/non-jump animations
+      } else if (player.currentAnim === 'crouch') { // Crouch animation should pause on the last frame
+        if (player.animIndex < frames.length - 1) {
+          player.animIndex = (player.animIndex + 1) % frames.length;
+        }
+      } else { // This block handles 'walk' and other non-idle/non-jump/non-crouch animations
         console.log(`WALK ANIM: Before update - currentAnim: ${player.currentAnim}, animIndex: ${player.animIndex}, frames.length: ${frames.length}`);
         player.animIndex = (player.animIndex + 1) % frames.length;
         console.log(`WALK ANIM: After update - animIndex: ${player.animIndex}`);
@@ -733,6 +866,12 @@
       images.subindo,
       images.desacelerando,
       images.caindo
+    ];
+    // Define crouch animation frames
+    player.animations.crouch = [
+      images.abaixar1,
+      images.abaixar2,
+      images.abaixar3
     ];
 
     // Initialise collectible items.  Musical notes and vinyl records are

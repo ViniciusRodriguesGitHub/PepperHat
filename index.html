@@ -1447,7 +1447,12 @@ const getBackgroundColor = (columnId) => {
                     <input type="tel" value={tempCard.phone || ''} onChange={(e) => handleTempCardChange('phone', e.target.value)} className="w-full p-2 border rounded" />
         </div>
                   <div>
-                    <label>Endereço</label>
+                    <label>
+                      <span>Endereço</span>
+                      {tempCard.address && (
+                        <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tempCard.address)}`, '_blank', 'noopener noreferrer')} title="Ver no Google Maps">📍</span>
+                      )}
+                    </label>
                     <input type="text" value={tempCard.address || ''} onChange={(e) => handleTempCardChange('address', e.target.value)} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
                   </div>
                   <div>
@@ -1747,7 +1752,7 @@ const getBackgroundColor = (columnId) => {
                 {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
                 {card.phone ? <span className="mr-1 cursor-pointer" onClick={() => window.open(getWhatsAppLink(card.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
                 {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
-                {card.address ? <span className="mr-1" title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
+                {card.address ? <span className="mr-1 cursor-pointer" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(card.address)}`, '_blank', 'noopener noreferrer')} title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
                 {card.link ? <span className="mr-1 cursor-pointer" onClick={() => window.open(card.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span> : <span className="mr-1" title="Link não informado">▫️</span>}
                 </div>
             )}
