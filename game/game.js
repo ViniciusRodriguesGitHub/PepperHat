@@ -53,7 +53,30 @@
     ground_tile: 'ground_tile.png'
   };
 
-  const images = {};
+  const animatedBar = {
+    x: GAME_WIDTH / 2 - 100, // Centered horizontally
+    y: 50, // Positioned near the top
+    width: 200,
+    height: 20,
+    fill: 0.0, // Current fill level (0.0 to 1.0)
+    fillDirection: 1, // 1 for increasing, -1 for decreasing
+    speed: 2.0, // How fast it oscillates (0.5 * 4 = 2.0)
+    isVisible: false,
+    color: '#00FF00', // Default to green
+  };
+
+  const staminaBar = {
+    x: animatedBar.x, // Same horizontal position as animatedBar
+    y: animatedBar.y - animatedBar.height - 10, // 10 pixels above animatedBar
+    width: animatedBar.width,
+    height: animatedBar.height,
+    fill: 1.0, // Start fully filled
+    drainSpeed: 0.2, // Speed at which stamina drains (per second)
+    recoverSpeed: 0.2, // Speed at which stamina recovers (per second)
+    color: '#FFA500', // Orange
+  };
+
+  let images = {};
 
   // Pastel color palettes
   const pastelLightColors = [
@@ -62,6 +85,20 @@
     '#FFF9C4', // Light Yellow
     '#FFCCBC', // Light Orange
     '#F8BBD0', // Light Pink
+  ];
+  const softPastelLightColors = [
+    '#FDFD96', // Light Yellow
+    '#84B6F4', // Light Blue
+    '#FF6961', // Light Red
+    '#77DD77', // Light Green
+    '#FFD1DC', // Light Pink
+    '#B19CD9', // Light Purple
+  ];
+  const furnitureTypes = [
+    { type: 'refrigerator', minWidth: 40, maxWidth: 50, minHeight: 90, maxHeight: 120 },
+    { type: 'cabinet', minWidth: 60, maxWidth: 100, minHeight: 70, maxHeight: 100 },
+    { type: 'table', minWidth: 80, maxWidth: 150, minHeight: 40, maxHeight: 60 },
+    { type: 'television', minWidth: 50, maxWidth: 80, minHeight: 40, maxHeight: 60 },
   ];
   const pastelDesaturatedColors = [
     '#90CAF9', // Desaturated Blue
@@ -81,11 +118,28 @@
 
   let noteCount = 0; // Redeclare noteCount as a global variable
   let recordCount = 0; // Redeclare recordCount as a global variable
+  let houseFurniture = []; // Stores furniture objects when inside a house
+  let isInHouse = false; // New state to track if player is inside a house
+  let lastEntranceDoor = null; // Stores the door object the player last entered through
+
+  // Enemy state
+  const enemy = {
+    x: GAME_WIDTH - 50, // Initial position on the right side of the screen
+    y: 0, // Will be set correctly after groundY is calculated
+    width: 40,
+    height: 40,
+    vx: 0,
+    vy: 0,
+    speed: 150, // Slightly slower than player's moveSpeed (200) - Adjusted from 180
+    onGround: false,
+  };
+
+  let isGameOver = false; // New global variable to track game over state
 
   // Player state
   const player = {
     x: 100,
-    y: 0,
+    y: 0, // Will be set correctly after groundY is calculated
     width: 50, // Reduced from 100 to 50
     initialHeight: 60, // Store initial height
     crouchHeight: 30, // Crouching height (half of initialHeight)
@@ -184,6 +238,16 @@
         const selectedWindowColor = hasWindow ? windowColors[Math.floor(Math.random() * windowColors.length)] : null;
         const selectedDoorColor = hasDoor ? doorColors[Math.floor(Math.random() * doorColors.length)] : null;
 
+        const doorWidth_val = houseWidth / 4;
+        const doorHeight_val = houseHeight / 2;
+        let doorX_offset_val;
+        if (hasWindow) {
+          doorX_offset_val = houseWidth - doorWidth_val - (houseWidth / 8);
+        } else {
+          doorX_offset_val = (houseWidth / 2) - (doorWidth_val / 2);
+        }
+        const doorY_offset_val = houseHeight - doorHeight_val;
+
         worldObjects.push({
           type: 'structure',
           x: currentX,
@@ -195,6 +259,14 @@
           doorColor: selectedDoorColor,
           hasRoof: hasRoof,
           layer: isBackground ? 'background' : 'foreground',
+          // Add door collision area if it has a door
+          doorArea: hasDoor ? {
+            x_offset: doorX_offset_val,
+            y_offset: doorY_offset_val,
+            width: doorWidth_val,
+            height: doorHeight_val,
+          } : null,
+          houseInterior: hasDoor ? null : null, // New: Stores generated furniture for this house
         });
       } else if (rand < 0.7) { // 30% chance for a tree
         const trunkHeight = 80 + Math.random() * 70; // Random height between 80-150
@@ -241,6 +313,170 @@
     }
     // Sort objects by x-coordinate for correct rendering order
     worldObjects.sort((a, b) => a.x - b.x);
+  }
+
+  // Function to generate random furniture for the house interior
+  function generateHouseFurniture(currentHouse) {
+    const newFurniture = [];
+    const numFurniture = 3 + Math.floor(Math.random() * 4); // 3 to 6 pieces of furniture
+    // Define interior room dimensions for furniture placement
+    const floorY = GAME_HEIGHT / 2;
+    const interiorXStart = GAME_WIDTH * 0.2; // Start of the back wall
+    const interiorWidth = GAME_WIDTH * 0.6; // Width of the back wall area
+
+    // Helper function for AABB collision detection
+    const checkCollision = (rect1, rect2) => {
+      return rect1.x < rect2.x + rect2.width &&
+             rect1.x + rect1.width > rect2.x &&
+             rect1.y < rect2.y + rect2.height &&
+             rect1.y + rect1.height > rect2.y;
+    };
+
+    for (let i = 0; i < numFurniture; i++) {
+      const furnitureType = furnitureTypes[Math.floor(Math.random() * furnitureTypes.length)];
+      const color = softPastelLightColors[Math.floor(Math.random() * softPastelLightColors.length)];
+
+      const width = furnitureType.minWidth + Math.random() * (furnitureType.maxWidth - furnitureType.minWidth);
+      const height = furnitureType.minHeight + Math.random() * (furnitureType.maxHeight - furnitureType.minHeight);
+
+      let placed = false;
+      let attempts = 0;
+      const maxAttempts = 20; // Max attempts to place a furniture item without overlap
+
+      while (!placed && attempts < maxAttempts) {
+        // Random X position within the interior width
+        const x = interiorXStart + Math.random() * (interiorWidth - width);
+        // Y position is on the floor
+        const y = floorY; // Furniture base is at floorY
+
+        const newFurnitureRect = {
+          x: x,
+          y: y - height, // Top-left corner for collision check
+          width: width,
+          height: height,
+        };
+
+        let collision = false;
+        for (const existingItem of newFurniture) {
+          const existingRect = {
+            x: existingItem.x,
+            y: existingItem.y - existingItem.height,
+            width: existingItem.width,
+            height: existingItem.height,
+          };
+          if (checkCollision(newFurnitureRect, existingRect)) {
+            collision = true;
+            break;
+          }
+        }
+
+        if (!collision) {
+          newFurniture.push({
+            type: furnitureType.type,
+            x: x,
+            y: y, // Store y as the base of the furniture
+            width: width,
+            height: height,
+            color: color,
+          });
+          placed = true;
+        }
+        attempts++;
+      }
+    }
+    return newFurniture;
+  }
+
+  // Function to draw the interior of a house with perspective
+  function drawRoom(exitDoorX, exitDoorY) {
+    const floorColor = '#D2B48C'; // Tan
+    const wallColor = '#F0E68C'; // Khaki
+    const backWallColor = '#BDB76B'; // Dark Khaki
+    const doorColor = '#8B4513'; // SaddleBrown
+
+    const floorY = GAME_HEIGHT / 2; // Top of the floor
+    const floorHeight = GAME_HEIGHT / 2; // Height of the floor
+
+    // Floor
+    ctx.fillStyle = floorColor;
+    ctx.fillRect(0, floorY, GAME_WIDTH, floorHeight);
+
+    // Side Walls (trapezoids for perspective)
+    // Left Wall
+    ctx.fillStyle = wallColor;
+    ctx.beginPath();
+    ctx.moveTo(0, floorY);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(GAME_WIDTH * 0.2, 0);
+    ctx.lineTo(GAME_WIDTH * 0.2, floorY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right Wall
+    ctx.beginPath();
+    ctx.moveTo(GAME_WIDTH, floorY);
+    ctx.lineTo(GAME_WIDTH, 0);
+    ctx.lineTo(GAME_WIDTH * 0.8, 0);
+    ctx.lineTo(GAME_WIDTH * 0.8, floorY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Back Wall
+    ctx.fillStyle = backWallColor;
+    ctx.fillRect(GAME_WIDTH * 0.2, 0, GAME_WIDTH * 0.6, floorY);
+
+    // Exit Door
+    ctx.fillStyle = doorColor;
+    const doorWidth = 60;
+    const doorHeight = 100;
+    const doorX = exitDoorX - (doorWidth / 2); // Center the door
+    const doorY = exitDoorY - doorHeight; // Position door above the floor
+    ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+
+    // Door frame (minimalist)
+    ctx.strokeStyle = '#5A2D0C'; // Darker brown
+    ctx.lineWidth = 3;
+    ctx.strokeRect(doorX, doorY, doorWidth, doorHeight);
+  }
+
+  // Function to draw minimalist furniture inside the house
+  function drawFurniture(type, x, y, width, height, color) {
+    ctx.fillStyle = color;
+    const drawX = x;
+    const drawY = y - height; // Draw from bottom up
+
+    switch (type) {
+      case 'refrigerator':
+        ctx.fillRect(drawX, drawY, width, height);
+        // Door handle
+        ctx.fillStyle = '#A9A9A9'; // DarkGrey
+        ctx.fillRect(drawX + width - 10, drawY + (height / 3), 5, height / 3);
+        break;
+      case 'cabinet':
+        ctx.fillRect(drawX, drawY, width, height);
+        // Cabinet doors
+        ctx.strokeStyle = '#5A2D0C'; // Darker brown
+        ctx.lineWidth = 2;
+        ctx.strokeRect(drawX, drawY, width / 2, height);
+        ctx.strokeRect(drawX + width / 2, drawY, width / 2, height);
+        break;
+      case 'table':
+        // Tabletop
+        ctx.fillRect(drawX, drawY, width, 10);
+        // Table legs
+        ctx.fillRect(drawX, drawY + 10, 5, height - 10);
+        ctx.fillRect(drawX + width - 5, drawY + 10, 5, height - 10);
+        break;
+      case 'television':
+        ctx.fillRect(drawX, drawY, width, height);
+        // Screen
+        ctx.fillStyle = '#2F4F4F'; // DarkSlateGrey
+        ctx.fillRect(drawX + 5, drawY + 5, width - 10, height - 10);
+        break;
+      default:
+        ctx.fillRect(drawX, drawY, width, height);
+        break;
+    }
   }
 
   // Function to draw a generic structure (house, building, dog house)
@@ -320,6 +556,49 @@
     if (img) {
       ctx.drawImage(img, drawX, y, size, size);
     }
+  }
+
+  // Function to draw the enemy
+  function drawEnemy(enemyObj, parallaxScrollX) {
+    const drawX = enemyObj.x - parallaxScrollX;
+    const drawY = enemyObj.y;
+    const width = enemyObj.width;
+    const height = enemyObj.height;
+
+    // Gradient body
+    const gradient = ctx.createLinearGradient(drawX, drawY, drawX + width, drawY + height);
+    gradient.addColorStop(0, '#FF6347'); // Tomato
+    gradient.addColorStop(1, '#FF4500'); // OrangeRed
+    ctx.fillStyle = gradient;
+    ctx.fillRect(drawX, drawY, width, height);
+
+    // Eyes (simple circles)
+    ctx.fillStyle = '#FFFFFF'; // White eyes
+    const eyeRadius = width / 8;
+    const eyeOffsetY = height / 4;
+    const eyeOffsetX = width / 4;
+
+    // Left eye
+    ctx.beginPath();
+    ctx.arc(drawX + eyeOffsetX, drawY + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Right eye
+    ctx.beginPath();
+    ctx.arc(drawX + width - eyeOffsetX, drawY + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pupils (small black circles)
+    ctx.fillStyle = '#000000'; // Black pupils
+    const pupilRadius = eyeRadius / 2;
+    // Left pupil (center based on eye position)
+    ctx.beginPath();
+    ctx.arc(drawX + eyeOffsetX, drawY + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
+    ctx.fill();
+    // Right pupil
+    ctx.beginPath();
+    ctx.arc(drawX + width - eyeOffsetX, drawY + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Create on‑screen controls for touch devices.  They are always visible
@@ -564,13 +843,127 @@
 
   // Game update loop
   function update(dt) {
+    if (isGameOver) {
+      return; // Stop all game updates if game is over
+    }
+
     // dt is delta time in seconds
     // Horizontal movement
-    const moveSpeed = 200; // pixels per second
+    const baseMoveSpeed = 200; // pixels per second
+    let moveSpeed = baseMoveSpeed; // Initialize with base speed
+    const gravity = 1200; // pixels per second squared
+
+    // Adjust move speed based on stamina
+    if (staminaBar.fill < 1.0) {
+      moveSpeed = baseMoveSpeed * (0.5 + 0.5 * staminaBar.fill); // Scales from 50% to 100% of baseMoveSpeed
+    }
+
     player.vx = 0;
     if (!input.crouch) { // Only allow horizontal movement if not crouching
       if (input.left && !input.right) player.vx = -moveSpeed;
       if (input.right && !input.left) player.vx = moveSpeed;
+    }
+
+    // Enemy movement and gravity (only when outside the house)
+    if (!isInHouse) {
+      enemy.vy += gravity * dt; // Apply gravity
+      enemy.y += enemy.vy * dt;
+
+      // Ground collision for enemy
+      if (enemy.y + enemy.height > groundY) {
+        enemy.y = groundY - enemy.height;
+        enemy.vy = 0;
+        enemy.onGround = true;
+      } else {
+        enemy.onGround = false;
+      }
+
+      // Horizontal pursuit logic
+      if (player.x < enemy.x) {
+        enemy.vx = -enemy.speed;
+      } else if (player.x > enemy.x) {
+        enemy.vx = enemy.speed;
+      } else {
+        enemy.vx = 0;
+      }
+      enemy.x += enemy.vx * dt;
+
+      // Player-enemy collision detection (only outside house)
+      const px1 = player.x;
+      const py1 = player.y;
+      const px2 = player.x + player.width;
+      const py2 = player.y + player.height;
+
+      const ex1 = enemy.x;
+      const ey1 = enemy.y;
+      const ex2 = enemy.x + enemy.width;
+      const ey2 = enemy.y + enemy.height;
+
+      if (px1 < ex2 && px2 > ex1 && py1 < ey2 && py2 > ey1) {
+        isGameOver = true; // Player collided with enemy
+        return; // Stop further updates
+      }
+    }
+
+    // Handle house entry/exit logic
+    if (!isInHouse) {
+      // Check for entering a house
+      if (input.crouch) {
+        for (const obj of worldObjects) {
+          if (obj.type === 'structure' && obj.doorArea && obj.layer !== 'background') {
+            // Calculate player bounding box
+            const px1 = player.x;
+            const py1 = player.y;
+            const px2 = player.x + player.width;
+            const py2 = player.y + player.height;
+
+            // Calculate door bounding box (relative to world coordinates)
+            const dx1 = obj.x + obj.doorArea.x_offset;
+            const dy1 = obj.y + obj.doorArea.y_offset;
+            const dx2 = obj.x + obj.doorArea.x_offset + obj.doorArea.width;
+            const dy2 = obj.y + obj.doorArea.y_offset + obj.doorArea.height;
+
+            // Simple AABB collision detection
+            if (px1 < dx2 && px2 > dx1 && py1 < dy2 && py2 > dy1) {
+              lastEntranceDoor = obj; // Store the current door object before potentially generating new furniture
+              if (!lastEntranceDoor.houseInterior) {
+                lastEntranceDoor.houseInterior = generateHouseFurniture(lastEntranceDoor); // Generate and store furniture if not already done
+              }
+              houseFurniture = lastEntranceDoor.houseInterior; // Set current houseFurniture to this house's interior
+              isInHouse = true;
+              // Reposition player inside the house, in front of the exit door
+              player.x = GAME_WIDTH / 2;
+              player.y = groundY - player.initialHeight; // Ensure player is on the ground inside
+              input.crouch = false; // Reset crouch input to prevent immediate re-entry/exit
+              return; // Exit update early to prevent further movement/animation issues
+            }
+          }
+        }
+      }
+    } else { // isInHouse === true
+      // Check for exiting a house
+      if (input.crouch) {
+        const exitDoorXCenter = GAME_WIDTH / 2; // Center of the exit door inside
+        const exitDoorWidth = 60; // From drawRoom function
+        const exitDoorTolerance = 30; // How close player needs to be to exit door
+
+        // Check if player is near the exit door inside the house
+        if (player.x > exitDoorXCenter - exitDoorTolerance &&
+            player.x < exitDoorXCenter + exitDoorTolerance) {
+          isInHouse = false;
+          // Reposition player outside the house, in front of the entrance door
+          if (lastEntranceDoor) {
+            player.x = lastEntranceDoor.x + lastEntranceDoor.doorArea.x_offset + (lastEntranceDoor.doorArea.width / 2) - (player.width / 2);
+            player.y = groundY - player.initialHeight; // Position outside on ground
+          } else {
+            // Fallback if no entrance door was stored (shouldn't happen)
+            player.x = 100;
+            player.y = groundY - player.initialHeight;
+          }
+          input.crouch = false; // Reset crouch input
+          return; // Exit update early
+        }
+      }
     }
 
     // Handle idle animation logic
@@ -588,8 +981,7 @@
     // Removed right-side clamping, world is infinite to the right
 
     // Gravity
-    const gravity = 1200; // pixels per second squared
-    player.vy += gravity * dt;
+    player.vy += gravity * dt; // Apply gravity to player
 
     // Jump
     if (input.jump && player.onGround) {
@@ -602,13 +994,17 @@
     // Apply vertical velocity
     player.y += player.vy * dt;
     // Ground collision
-    if (player.y + player.height > groundY) {
-      player.y = groundY - player.height;
+    const groundTolerance = 1; // Small tolerance for ground detection
+    if (player.y + player.height >= groundY - groundTolerance) {
+      player.y = groundY - player.height; // Snap to ground
       player.vy = 0;
       player.onGround = true;
     } else {
       player.onGround = false;
     }
+
+    // Debugging: Log player.onGround, player.y, and groundY state
+    console.log(`Player y: ${player.y.toFixed(2)}, Ground y: ${groundY.toFixed(2)}, On Ground: ${player.onGround}`);
 
     // Determine facing direction for drawing
     if (player.vx < 0) player.facingRight = false;
@@ -656,7 +1052,15 @@
 
     // Select appropriate animation based on current state. You can
     // expand this logic when you implement walking or jumping
-    if (!player.onGround) {
+    if (player.onGround) { // Check grounded animations first
+      if (input.crouch) {
+        player.currentAnim = 'crouch';
+      } else if (input.left || input.right) {
+        player.currentAnim = 'walk';
+      } else {
+        player.currentAnim = 'idle';
+      }
+    } else { // Not on ground, must be jumping/falling
       if (player.vy < 0) {
         player.currentAnim = 'jump';
         player.animIndex = 0; // 1subindo.png
@@ -667,12 +1071,6 @@
         player.currentAnim = 'jump';
         player.animIndex = 2; // 3caindo.png
       }
-    } else if (input.crouch && player.onGround) { // New: Crouch animation takes precedence
-      player.currentAnim = 'crouch';
-    } else if (input.left || input.right) { // Changed from player.vx !== 0 to direct input check
-      player.currentAnim = 'walk';
-    } else {
-      player.currentAnim = 'idle';
     }
 
     // Reset animIndex if the animation changes
@@ -680,6 +1078,42 @@
       player.animIndex = 0;
     }
     player.lastAnim = player.currentAnim;
+
+    // Update animated bar
+    const wasVisible = animatedBar.isVisible;
+    animatedBar.isVisible = (player.currentAnim === 'walk');
+    if (animatedBar.isVisible && !wasVisible) {
+      // Reset bar when it first becomes visible
+      animatedBar.fill = 0.0;
+      animatedBar.fillDirection = 1;
+    }
+
+    if (animatedBar.isVisible) {
+      animatedBar.fill += animatedBar.fillDirection * animatedBar.speed * dt;
+      if (animatedBar.fill > 1.0) {
+        animatedBar.fill = 1.0;
+        animatedBar.fillDirection = -1;
+      } else if (animatedBar.fill < 0.0) {
+        animatedBar.fill = 0.0;
+        animatedBar.fillDirection = 1;
+      }
+
+      // Set color based on fill level
+      if (animatedBar.fill > 0.9) {
+        animatedBar.color = '#FF0000'; // Red
+      } else {
+        animatedBar.color = '#00FF00'; // Green
+      }
+    }
+
+    // Update stamina bar
+    if (player.vx !== 0) { // Player is moving
+      staminaBar.fill -= staminaBar.drainSpeed * dt;
+    } else { // Player is idle
+      staminaBar.fill += staminaBar.recoverSpeed * dt;
+    }
+    // Clamp stamina between 0 and 1
+    staminaBar.fill = Math.max(0, Math.min(1, staminaBar.fill));
 
     // Advance the frame timer.  When enough time has passed, move to
     // the next frame in the current animation.  If the selected
@@ -753,66 +1187,121 @@
   // Render loop
   function render() {
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    ctx.fillStyle = '#87CEEB'; // Set background color to light blue
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    // Draw the ground as a repeating tile across the world
-    const groundImg = images.ground;
-    const numGroundTiles = Math.ceil(GAME_WIDTH / groundImg.width) + 1; // Changed WORLD_WIDTH to GAME_WIDTH
-    for (let i = 0; i < numGroundTiles; i++) {
-      const gx = i * groundImg.width - (scrollX % groundImg.width); // Added modulo for infinite ground
-      ctx.drawImage(groundImg, gx, groundY, groundImg.width, groundImg.height);
-    }
 
-    // Draw all procedurally generated world objects
-    for (const obj of worldObjects) {
-      if (obj.x + (obj.width || 0) < scrollX - VIEW_RANGE || obj.x > scrollX + GAME_WIDTH + VIEW_RANGE) {
-        continue; // Only draw objects within the view range
+    if (isInHouse) {
+      // Draw house interior
+      drawRoom(GAME_WIDTH / 2, GAME_HEIGHT / 2 + (GAME_HEIGHT / 2)); // Pass exit door coords
+
+      // Draw furniture
+      for (const furniture of houseFurniture) {
+        drawFurniture(furniture.type, furniture.x, furniture.y, furniture.width, furniture.height, furniture.color);
       }
 
-      const parallaxFactor = obj.layer === 'background' ? 0.5 : 1; // Adjust parallax for background
-      const effectiveScrollX = scrollX * parallaxFactor;
-
-      if (obj.type === 'structure') {
-        drawStructure(obj.x, obj.y, obj.width, obj.height, obj.bodyColor, obj.windowColor, obj.doorColor, obj.hasRoof, effectiveScrollX);
-      } else if (obj.type === 'tree') {
-        drawTree(obj.x, obj.y, obj.trunkHeight, obj.canopyRadius, obj.trunkColor, obj.canopyColor, effectiveScrollX);
-      } else if (obj.type === 'pole') {
-        drawPole(obj.x, obj.y, obj.height, obj.color, effectiveScrollX);
+      // Draw the player inside the house
+      const activeFrames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
+        ? player.animations[player.currentAnim]
+        : player.animations.idle;
+      const frameImage = activeFrames[player.animIndex % activeFrames.length];
+      console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`);
+      ctx.save();
+      const drawX = player.x; // No scrollX when inside
+      const drawY = player.y;
+      if (player.facingRight) {
+        ctx.drawImage(frameImage, drawX, drawY, player.width, player.height);
+      } else {
+        ctx.translate(drawX + player.width, drawY);
+        ctx.scale(-1, 1);
+        ctx.drawImage(frameImage, 0, 0, player.width, player.height);
       }
-    }
+      ctx.restore();
 
-    // Draw collectibles that have not yet been collected from worldObjects
-    for (const obj of worldObjects) {
-      if (obj.type === 'collectible' && !obj.collected) {
-        if (obj.x + (obj.size || 0) < scrollX - VIEW_RANGE || obj.x > scrollX + GAME_WIDTH + VIEW_RANGE) {
+    } else { // Not in house, draw exterior world
+      ctx.fillStyle = '#87CEEB'; // Set background color to light blue
+      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      // Draw the ground as a repeating tile across the world
+      const groundImg = images.ground;
+      const numGroundTiles = Math.ceil(GAME_WIDTH / groundImg.width) + 1; // Changed WORLD_WIDTH to GAME_WIDTH
+      for (let i = 0; i < numGroundTiles; i++) {
+        const gx = i * groundImg.width - (scrollX % groundImg.width); // Added modulo for infinite ground
+        ctx.drawImage(groundImg, gx, groundY, groundImg.width, groundImg.height);
+      }
+
+      // Draw all procedurally generated world objects
+      for (const obj of worldObjects) {
+        if (obj.x + (obj.width || 0) < scrollX - VIEW_RANGE || obj.x > scrollX + GAME_WIDTH + VIEW_RANGE) {
           continue; // Only draw objects within the view range
         }
+
         const parallaxFactor = obj.layer === 'background' ? 0.5 : 1; // Adjust parallax for background
         const effectiveScrollX = scrollX * parallaxFactor;
-        drawCollectible(obj.x, obj.y, obj.size, obj.itemType, effectiveScrollX);
+
+        if (obj.type === 'structure') {
+          drawStructure(obj.x, obj.y, obj.width, obj.height, obj.bodyColor, obj.windowColor, obj.doorColor, obj.hasRoof, effectiveScrollX);
+        } else if (obj.type === 'tree') {
+          drawTree(obj.x, obj.y, obj.trunkHeight, obj.canopyRadius, obj.trunkColor, obj.canopyColor, effectiveScrollX);
+        } else if (obj.type === 'pole') {
+          drawPole(obj.x, obj.y, obj.height, obj.color, effectiveScrollX);
+        }
       }
+
+      // Draw the enemy (only when outside the house)
+      drawEnemy(enemy, scrollX);
+
+      // Draw collectibles that have not yet been collected from worldObjects
+      for (const obj of worldObjects) {
+        if (obj.type === 'collectible' && !obj.collected) {
+          if (obj.x + (obj.size || 0) < scrollX - VIEW_RANGE || obj.x > scrollX + GAME_WIDTH + VIEW_RANGE) {
+            continue; // Only draw objects within the view range
+          }
+          const parallaxFactor = obj.layer === 'background' ? 0.5 : 1; // Adjust parallax for background
+          const effectiveScrollX = scrollX * parallaxFactor;
+          drawCollectible(obj.x, obj.y, obj.size, obj.itemType, effectiveScrollX);
+        }
+      }
+
+      // Draw the player using the current animation frame.  If the
+      // current animation has no frames loaded (e.g. walk/jump
+      // animations aren’t provided yet), fall back to the idle
+      // animation.  When facing left we flip the image horizontally.
+      const activeFrames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
+        ? player.animations[player.currentAnim]
+        : player.animations.idle;
+      const frameImage = activeFrames[player.animIndex % activeFrames.length];
+      console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`); // Log current animation frame
+      ctx.save();
+      const drawX = player.x - scrollX;
+      const drawY = player.y;
+      if (player.facingRight) {
+        ctx.drawImage(frameImage, drawX, drawY, player.width, player.height);
+      } else {
+        ctx.translate(drawX + player.width, drawY);
+        ctx.scale(-1, 1);
+        ctx.drawImage(frameImage, 0, 0, player.width, player.height);
+      }
+      ctx.restore();
     }
 
-    // Draw the player using the current animation frame.  If the
-    // current animation has no frames loaded (e.g. walk/jump
-    // animations aren’t provided yet), fall back to the idle
-    // animation.  When facing left we flip the image horizontally.
-    const activeFrames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
-      ? player.animations[player.currentAnim]
-      : player.animations.idle;
-    const frameImage = activeFrames[player.animIndex % activeFrames.length];
-    console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`); // Log current animation frame
-    ctx.save();
-    const drawX = player.x - scrollX;
-    const drawY = player.y;
-    if (player.facingRight) {
-      ctx.drawImage(frameImage, drawX, drawY, player.width, player.height);
-    } else {
-      ctx.translate(drawX + player.width, drawY);
-      ctx.scale(-1, 1);
-      ctx.drawImage(frameImage, 0, 0, player.width, player.height);
+    // Game Over overlay
+    if (isGameOver) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent black overlay
+      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+      ctx.fillStyle = '#FFFFFF'; // White text
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const gameOverText = 'YOU DIED!';
+      const skullEmoji = '💀';
+
+      // Draw skull emoji
+      ctx.font = '96px Arial'; // Larger font for emoji
+      ctx.fillText(skullEmoji, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50);
+
+      // Draw 'YOU DIED!' text
+      ctx.font = 'bold 48px Arial';
+      ctx.fillText(gameOverText, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50);
     }
-    ctx.restore();
 
     // Draw counters for collected items in the upper left corner.
     // We draw the icon at a small size followed by the count text.
@@ -829,6 +1318,33 @@
     ctx.drawImage(images.record, 10, offsetY, iconSize, iconSize);
     recordCount = worldObjects.filter(obj => obj.type === 'collectible' && obj.itemType === 'record' && !obj.collected).length;
     ctx.fillText('x ' + recordCount, 10 + iconSize + 4, offsetY + iconSize - 6);
+
+    // Draw stamina bar
+    ctx.fillStyle = '#333333'; // Dark grey background
+    ctx.fillRect(staminaBar.x, staminaBar.y, staminaBar.width, staminaBar.height);
+
+    ctx.fillStyle = staminaBar.color;
+    ctx.fillRect(staminaBar.x, staminaBar.y, staminaBar.width * staminaBar.fill, staminaBar.height);
+
+    ctx.strokeStyle = '#FFFFFF'; // White border
+    ctx.lineWidth = 2;
+    ctx.strokeRect(staminaBar.x, staminaBar.y, staminaBar.width, staminaBar.height);
+
+    // Draw animated bar if visible
+    if (animatedBar.isVisible) {
+      // Draw bar background
+      ctx.fillStyle = '#333333'; // Dark grey background
+      ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
+
+      // Draw bar fill
+      ctx.fillStyle = animatedBar.color;
+      ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width * animatedBar.fill, animatedBar.height);
+
+      // Draw border for the bar
+      ctx.strokeStyle = '#FFFFFF'; // White border
+      ctx.lineWidth = 2;
+      ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
+    }
   }
 
   // Main game loop using requestAnimationFrame
@@ -847,6 +1363,11 @@
   loadImages().then(() => {
     // Calculate ground Y coordinate from the ground image height
     groundY = GAME_HEIGHT - images.ground.height;
+
+    // Set initial player and enemy Y positions now that groundY is known
+    player.y = groundY - player.height;
+    enemy.y = groundY - enemy.height; // Set enemy on the ground
+
     // Build idle animation frames from the loaded images.  The frames
     // are kept in order.  If walking or jumping animations are added
     // later, push their frames into player.animations.walk or
