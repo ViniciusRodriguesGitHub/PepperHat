@@ -909,24 +909,37 @@
 
     function handleOrientation(event) {
       const gamma = event.gamma; // -90 (left) to 90 (right)
+      const beta = event.beta;   // -180 (upside down) to 180 (upside down), 0 (flat)
 
-      const tiltThreshold = 10; // Degrees to start moving
+      // Determine if the device is more horizontal or vertical for movement control
+      // We'll use the larger absolute tilt value for horizontal movement
+      let effectiveTilt = 0;
+      if (Math.abs(gamma) > Math.abs(beta)) {
+        effectiveTilt = gamma;
+      } else {
+        // If beta is greater, we might be in landscape, so beta controls horizontal movement
+        // Need to ensure consistent direction: positive beta for right, negative for left
+        // This might need fine-tuning depending on the device's default orientation.
+        effectiveTilt = beta; // Assuming positive beta means tilt right in landscape
+      }
+
+      const tiltThreshold = 20; // Degrees to start moving
       const maxTilt = 45; // Max tilt for full speed (e.g., 45 degrees)
 
       input.left = false;
       input.right = false;
       input.accelerometerSpeedFactor = 0;
 
-      if (gamma > tiltThreshold) {
+      if (effectiveTilt > tiltThreshold) {
         // Tilt right
         input.right = true;
-        const tiltFactor = Math.min(1, (gamma - tiltThreshold) / (maxTilt - tiltThreshold));
-        input.accelerometerSpeedFactor = tiltFactor; // Store factor, don't set player.vx directly
-      } else if (gamma < -tiltThreshold) {
+        // No need for tiltFactor here, as we want full speed
+        input.accelerometerSpeedFactor = 1; // Always full speed
+      } else if (effectiveTilt < -tiltThreshold) {
         // Tilt left
         input.left = true;
-        const tiltFactor = Math.min(1, (-gamma - tiltThreshold) / (maxTilt - tiltThreshold));
-        input.accelerometerSpeedFactor = tiltFactor; // Store factor, don't set player.vx directly
+        // No need for tiltFactor here, as we want full speed
+        input.accelerometerSpeedFactor = 1; // Always full speed
       } else {
         // Neutral position, input.left/right are already false, speedFactor is 0
       }
@@ -1056,8 +1069,8 @@
     if (!input.crouch) { // Only allow horizontal movement if not crouching
       // Prioritize accelerometer input if it's active and detecting movement
       if (input.accelerometerActive && input.accelerometerSpeedFactor > 0) {
-        if (input.left) player.vx = -moveSpeed * input.accelerometerSpeedFactor;
-        else if (input.right) player.vx = moveSpeed * input.accelerometerSpeedFactor;
+        if (input.left) player.vx = -moveSpeed;
+        else if (input.right) player.vx = moveSpeed;
       } else { // Fallback to keyboard/gamepad
         if (input.left && !input.right) player.vx = -moveSpeed;
         if (input.right && !input.left) player.vx = moveSpeed;
