@@ -145,7 +145,7 @@
 
   // Player state
   const player = {
-    x: GAME_WIDTH / 2 - player.width / 2, // Center player horizontally
+    x: GAME_WIDTH / 2 - 25, // Centered horizontally using a direct value (50 / 2 = 25)
     y: 0, // Will be set correctly after groundY is calculated
     width: 50, // Reduced from 100 to 50
     initialHeight: 60, // Store initial height
@@ -777,6 +777,7 @@
           break;
         case 'ControlLeft': // New case for 'Ctrl' key for crouching
         case 'ControlRight':
+        case 'KeyS': // New case for 'S' key for crouching
           input.crouch = true;
           break;
         case 'ArrowDown': // New case for 'ArrowDown' key for crouching
@@ -801,6 +802,7 @@
           break;
         case 'ControlLeft': // New case for 'Ctrl' key for crouching
         case 'ControlRight':
+        case 'KeyS': // New case for 'S' key for crouching
           input.crouch = false;
           break;
         case 'ArrowDown': // New case for 'ArrowDown' key for crouching
@@ -935,23 +937,26 @@
   function setupGameTouchControls() {
     const handleTouchInteraction = (e) => {
       e.preventDefault(); // Prevent default touch actions like scrolling
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches[0].clientX;
-      const clientY = e.touches[0].clientY;
-
-      // Scale touch coordinates to game's internal resolution
-      const scaleX = GAME_WIDTH / rect.width;
-      const scaledX = (clientX - rect.left) * scaleX;
-
+      
       if (e.type === 'touchstart') {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches[0].clientX;
+        const clientY = e.touches[0].clientY; // This line was also implicitly affected
+
+        // Scale touch coordinates to game's internal resolution
+        const scaleX = GAME_WIDTH / rect.width;
+        const scaledX = (clientX - rect.left) * scaleX;
+
         if (scaledX > GAME_WIDTH / 2) {
           // Right half of the screen for jumping
           input.jump = true;
+          input.crouch = false; // Ensure crouch is false if jumping
         } else {
           // Left half of the screen for crouching/interacting
           input.crouch = true;
+          input.jump = false; // Ensure jump is false if crouching
         }
-      } else if (e.type === 'touchend') {
+      } else if (e.type === 'touchend' || e.type === 'touchcancel') {
         input.jump = false;
         input.crouch = false;
       }
@@ -1049,10 +1054,11 @@
 
     player.vx = 0;
     if (!input.crouch) { // Only allow horizontal movement if not crouching
-      if (input.accelerometerActive) {
+      // Prioritize accelerometer input if it's active and detecting movement
+      if (input.accelerometerActive && input.accelerometerSpeedFactor > 0) {
         if (input.left) player.vx = -moveSpeed * input.accelerometerSpeedFactor;
         else if (input.right) player.vx = moveSpeed * input.accelerometerSpeedFactor;
-      } else { // Fallback to keyboard/gamepad if accelerometer is not active
+      } else { // Fallback to keyboard/gamepad
         if (input.left && !input.right) player.vx = -moveSpeed;
         if (input.right && !input.left) player.vx = moveSpeed;
       }
