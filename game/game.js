@@ -145,7 +145,7 @@
 
   // Player state
   const player = {
-    x: 100,
+    x: GAME_WIDTH / 2 - player.width / 2, // Center player horizontally
     y: 0, // Will be set correctly after groundY is calculated
     width: 50, // Reduced from 100 to 50
     initialHeight: 60, // Store initial height
@@ -179,7 +179,9 @@
     left: false,
     right: false,
     jump: false,
-    crouch: false // New input for crouching
+    crouch: false, // New input for crouching
+    accelerometerActive: false, // New: Indicates if accelerometer is actively providing input
+    accelerometerSpeedFactor: 0, // New: Stores the speed factor from accelerometer tilt
   };
 
   // World objects for procedural generation
@@ -651,31 +653,15 @@
       btn.style.cursor = 'grab'; // Indicate draggable
       return btn;
     }
-    const leftBtn = makeButton('◄', 'leftBtn');
-    const rightBtn = makeButton('►', 'rightBtn');
-    const actionBtn = makeButton('A', 'actionBtn');
-    const crouchBtn = makeButton('B', 'crouchBtn'); // New button for crouching
     const lockBtn = makeButton('🔒', 'lockBtn'); // New button for locking/unlocking controls
     lockBtn.id = 'lockButton'; // Assign an ID for easy access
     // Position buttons relative to the game resolution.  Since the canvas
     // is scaled, absolute positions based on GAME_WIDTH/HEIGHT still
     // align visually.
-    leftBtn.style.left = '30px'; // Increased padding from left
-    leftBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Pushed slightly higher
-    rightBtn.style.left = '120px'; // Adjusted relative to leftBtn
-    rightBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Pushed slightly higher
-    actionBtn.style.left = (GAME_WIDTH - 100) + 'px'; // Increased padding from right
-    actionBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Pushed slightly higher
-    crouchBtn.style.left = (GAME_WIDTH - 190) + 'px'; // Position to the left of actionBtn
-    crouchBtn.style.top = (GAME_HEIGHT - 100) + 'px'; // Align with actionBtn
     lockBtn.style.left = '10px'; // Position at top left
     lockBtn.style.top = '10px';
     lockBtn.style.width = '50px'; // Smaller button
     lockBtn.style.height = '50px';
-    container.appendChild(leftBtn);
-    container.appendChild(rightBtn);
-    container.appendChild(actionBtn);
-    container.appendChild(crouchBtn);
     container.appendChild(lockBtn); // Add lock button to container
     // Attach pointer listeners
     const set = (btn, prop) => {
@@ -684,21 +670,10 @@
       btn.addEventListener('pointercancel', () => { input[prop] = false; });
       btn.addEventListener('pointerout', () => { input[prop] = false; });
     };
-    set(leftBtn, 'left');
-    set(rightBtn, 'right');
-    // Jump button uses the jump flag
-    actionBtn.addEventListener('pointerdown', () => { input.jump = true; });
-    actionBtn.addEventListener('pointerup', () => { input.jump = false; });
-    actionBtn.addEventListener('pointercancel', () => { input.jump = false; });
-    actionBtn.addEventListener('pointerout', () => { input.jump = false; });
-    // Crouch button uses the crouch flag
-    crouchBtn.addEventListener('pointerdown', () => { input.crouch = true; });
-    crouchBtn.addEventListener('pointerup', () => { input.crouch = false; });
-    crouchBtn.addEventListener('pointercancel', () => { input.crouch = false; });
-    crouchBtn.addEventListener('pointerout', () => { input.crouch = false; });
+    set(lockBtn, 'lockBtn');
     // Lock button logic
     let controlsLocked = false;
-    const controlButtons = [leftBtn, rightBtn, actionBtn, crouchBtn, lockBtn]; // Array of all control buttons
+    const controlButtons = [lockBtn]; // Only lockBtn remains
 
     // Load saved positions if they exist
     const savedPositions = JSON.parse(localStorage.getItem('controlPositions') || '{}');
@@ -905,6 +880,88 @@
     canvas.addEventListener('touchstart', handleMenuInteraction, false);
   }
 
+  // Setup accelerometer controls for mobile devices
+  function setupAccelerometerControls() {
+    if (window.DeviceOrientationEvent) {
+      // Request permission for iOS 13+ devices
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation);
+              input.accelerometerActive = true; // Set flag when accelerometer is active
+            } else {
+              console.warn('Permission for device orientation not granted.');
+              input.accelerometerActive = false; // Ensure flag is false if permission denied
+            }
+          })
+          .catch(error => {
+            console.error('Error requesting device orientation permission:', error);
+            input.accelerometerActive = false;
+          });
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation);
+        input.accelerometerActive = true; // Set flag for older browsers/Android
+      }
+    }
+
+    function handleOrientation(event) {
+      const gamma = event.gamma; // -90 (left) to 90 (right)
+
+      const tiltThreshold = 10; // Degrees to start moving
+      const maxTilt = 45; // Max tilt for full speed (e.g., 45 degrees)
+
+      input.left = false;
+      input.right = false;
+      input.accelerometerSpeedFactor = 0;
+
+      if (gamma > tiltThreshold) {
+        // Tilt right
+        input.right = true;
+        const tiltFactor = Math.min(1, (gamma - tiltThreshold) / (maxTilt - tiltThreshold));
+        input.accelerometerSpeedFactor = tiltFactor; // Store factor, don't set player.vx directly
+      } else if (gamma < -tiltThreshold) {
+        // Tilt left
+        input.left = true;
+        const tiltFactor = Math.min(1, (-gamma - tiltThreshold) / (maxTilt - tiltThreshold));
+        input.accelerometerSpeedFactor = tiltFactor; // Store factor, don't set player.vx directly
+      } else {
+        // Neutral position, input.left/right are already false, speedFactor is 0
+      }
+    }
+  }
+
+  // Setup touch controls for jumping and crouching on the game canvas
+  function setupGameTouchControls() {
+    const handleTouchInteraction = (e) => {
+      e.preventDefault(); // Prevent default touch actions like scrolling
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+
+      // Scale touch coordinates to game's internal resolution
+      const scaleX = GAME_WIDTH / rect.width;
+      const scaledX = (clientX - rect.left) * scaleX;
+
+      if (e.type === 'touchstart') {
+        if (scaledX > GAME_WIDTH / 2) {
+          // Right half of the screen for jumping
+          input.jump = true;
+        } else {
+          // Left half of the screen for crouching/interacting
+          input.crouch = true;
+        }
+      } else if (e.type === 'touchend') {
+        input.jump = false;
+        input.crouch = false;
+      }
+    };
+
+    canvas.addEventListener('touchstart', handleTouchInteraction, false);
+    canvas.addEventListener('touchend', handleTouchInteraction, false);
+    canvas.addEventListener('touchcancel', handleTouchInteraction, false);
+  }
+
   // Poll gamepad state each frame.  Many controllers map the d‑pad
   // buttons to indices 14 and 15 for left/right and 0 for the main
   // button.  Axis 0 is the left stick horizontal axis.
@@ -930,7 +987,7 @@
     isInHouse = false; // Ensure player is outside house
     lastEntranceDoor = null;
 
-    player.x = 100;
+    player.x = GAME_WIDTH / 2 - player.width / 2; // Center player horizontally
     player.y = groundY - player.initialHeight;
     player.vx = 0;
     player.vy = 0;
@@ -945,7 +1002,7 @@
     playerDistanceWalked = 0; // Reset player distance walked
     maxPlayerX = 0; // Reset maxPlayerX
 
-    enemy.x = GAME_WIDTH - 200;
+    enemy.x = -enemy.width; // Start enemy off-screen to the left
     enemy.y = groundY - enemy.height;
     enemy.vx = 0;
     enemy.vy = 0;
@@ -992,8 +1049,13 @@
 
     player.vx = 0;
     if (!input.crouch) { // Only allow horizontal movement if not crouching
-      if (input.left && !input.right) player.vx = -moveSpeed;
-      if (input.right && !input.left) player.vx = moveSpeed;
+      if (input.accelerometerActive) {
+        if (input.left) player.vx = -moveSpeed * input.accelerometerSpeedFactor;
+        else if (input.right) player.vx = moveSpeed * input.accelerometerSpeedFactor;
+      } else { // Fallback to keyboard/gamepad if accelerometer is not active
+        if (input.left && !input.right) player.vx = -moveSpeed;
+        if (input.right && !input.left) player.vx = moveSpeed;
+      }
     }
 
     // Enemy movement and gravity (only when outside the house)
@@ -1616,7 +1678,9 @@
 
     // Set initial player and enemy Y positions now that groundY is known
     player.y = groundY - player.height;
+    player.x = GAME_WIDTH / 2 - player.width / 2; // Center player horizontally
     enemy.y = groundY - enemy.height; // Set enemy on the ground
+    enemy.x = -enemy.width; // Start enemy off-screen to the left
 
     // Build idle animation frames from the loaded images.  The frames
     // are kept in order.  If walking or jumping animations are added
@@ -1676,6 +1740,8 @@
     setupKeyboard();
     createTouchControls();
     setupMenuInput(); // Call the new function to set up menu input
+    setupAccelerometerControls(); // Setup accelerometer controls
+    setupGameTouchControls(); // Setup game touch controls for jump/crouch
 
     // Start the loop
     requestAnimationFrame(gameLoop);
