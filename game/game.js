@@ -184,6 +184,13 @@
     accelerometerSpeedFactor: 0, // New: Stores the speed factor from accelerometer tilt
   };
 
+  // New: Store neutral inclination values for dynamic calibration
+  let neutralGamma = 0;
+  let neutralBeta = 0;
+
+  // New: Stores the last device orientation event for calibration
+  let lastDeviceOrientationEvent = null;
+
   // World objects for procedural generation
   let worldObjects = [];
 
@@ -850,12 +857,20 @@
         if (x >= easyButtonX && x <= easyButtonX + easyButtonWidth &&
             y >= easyButtonY && y <= easyButtonY + easyButtonHeight) {
           difficulty = 'easy';
+          if (lastDeviceOrientationEvent) {
+            neutralGamma = lastDeviceOrientationEvent.gamma;
+            neutralBeta = lastDeviceOrientationEvent.beta;
+          }
           resetGame(); // Starts the game in easy mode
         }
         // Check if Normal button clicked/touched
         else if (x >= normalButtonX && x <= normalButtonX + normalButtonWidth &&
                  y >= normalButtonY && y <= normalButtonY + normalButtonHeight) {
           difficulty = 'normal';
+          if (lastDeviceOrientationEvent) {
+            neutralGamma = lastDeviceOrientationEvent.gamma;
+            neutralBeta = lastDeviceOrientationEvent.beta;
+          }
           resetGame(); // Starts the game in normal mode
         }
       }
@@ -908,19 +923,21 @@
     }
 
     function handleOrientation(event) {
-      const gamma = event.gamma; // -90 (left) to 90 (right)
-      const beta = event.beta;   // -180 (upside down) to 180 (upside down), 0 (flat)
+      lastDeviceOrientationEvent = event; // Store the latest orientation event
+      const currentGamma = event.gamma;
+      const currentBeta = event.beta;
+
+      // Calculate tilt relative to the neutral point established at game start
+      const relativeGamma = currentGamma - neutralGamma;
+      const relativeBeta = currentBeta - neutralBeta;
 
       // Determine if the device is more horizontal or vertical for movement control
       // We'll use the larger absolute tilt value for horizontal movement
       let effectiveTilt = 0;
-      if (Math.abs(gamma) > Math.abs(beta)) {
-        effectiveTilt = gamma;
+      if (Math.abs(relativeGamma) > Math.abs(relativeBeta)) {
+        effectiveTilt = relativeGamma;
       } else {
-        // If beta is greater, we might be in landscape, so beta controls horizontal movement
-        // Need to ensure consistent direction: positive beta for right, negative for left
-        // This might need fine-tuning depending on the device's default orientation.
-        effectiveTilt = beta; // Assuming positive beta means tilt right in landscape
+        effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
       }
 
       const tiltThreshold = 20; // Degrees to start moving
@@ -1117,7 +1134,7 @@
         if (difficulty === 'normal') { // Only die in normal mode
           isGameOver = true; // Player collided with enemy
           // Update high scores only if in normal mode and player died
-          if (currentGameState !== 'gameOver') { // Only run this logic once when game over state is triggered
+          if (currentGameState !== 'gameOver' && difficulty !== 'easy') { // Only run this logic once when game over state is triggered
             highScores.push(Math.floor(playerDistanceWalked / 10)); // Add current distance (in meters)
             highScores.sort((a, b) => b - a); // Sort in descending order
             highScores = highScores.slice(0, 10); // Keep only top 10 scores
@@ -1202,10 +1219,12 @@
     player.x += player.vx * dt;
     // Update maxPlayerX and playerDistanceWalked
     if (!isInHouse) { // Only update distance if not inside a house
-      maxPlayerX = Math.max(maxPlayerX, player.x); // Store the maximum x-coordinate reached
+      if (difficulty !== 'easy') { // Only count distance if not in easy mode
+        maxPlayerX = Math.max(maxPlayerX, player.x); // Store the maximum x-coordinate reached
+        playerDistanceWalked = Math.floor(maxPlayerX / 10); // Display distance in meters based on max x
+      }
     }
-    playerDistanceWalked = Math.floor(maxPlayerX / 10); // Display distance in meters based on max x
-    
+
     // Clamp within world bounds (now only left side)
     if (player.x < 0) player.x = 0;
     // Removed right-side clamping, world is infinite to the right
@@ -1421,10 +1440,12 @@
         const iy2 = item.y + item.size;
         if (px1 < ix2 && px2 > ix1 && py1 < iy2 && py2 > iy1) {
           item.collected = true;
-          if (item.itemType === 'note') {
-            noteCount++;
-          } else if (item.itemType === 'record') {
-            recordCount++;
+          if (difficulty !== 'easy') { // Only count scores if not in easy mode
+            if (item.itemType === 'note') {
+              noteCount++;
+            } else if (item.itemType === 'record') {
+              recordCount++;
+            }
           }
         }
       }
