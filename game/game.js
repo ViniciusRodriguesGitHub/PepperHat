@@ -119,6 +119,7 @@
   let noteCount = 0; // Redeclare noteCount as a global variable
   let recordCount = 0; // Redeclare recordCount as a global variable
   let playerDistanceWalked = 0; // New global variable to track player's distance walked
+  let maxPlayerX = 0; // New global variable to store the maximum x-coordinate reached by the player
   let houseFurniture = []; // Stores furniture objects when inside a house
   let isInHouse = false; // New state to track if player is inside a house
   let lastEntranceDoor = null; // Stores the door object the player last entered through
@@ -832,23 +833,30 @@
           break;
       }
     });
+    // New: Handle any keydown to restart to menu from Game Over screen
+    window.addEventListener('keydown', (e) => {
+      if (currentGameState === 'gameOver') {
+        e.preventDefault(); // Prevent default action (e.g., scrolling)
+        currentGameState = 'menu'; // Go back to menu
+      }
+    });
   }
 
   // Setup menu input (mouse and touch)
   function setupMenuInput() {
     const handleMenuInteraction = (e) => {
+      e.preventDefault(); // Prevent default behavior (e.g., scrolling on touch)
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      // Scale click/touch coordinates to game's internal resolution
+      const scaleX = GAME_WIDTH / rect.width;
+      const scaleY = GAME_HEIGHT / rect.height;
+      const x = (clientX - rect.left) * scaleX;
+      const y = (clientY - rect.top) * scaleY;
+
       if (currentGameState === 'menu') {
-        e.preventDefault(); // Prevent default behavior (e.g., scrolling on touch)
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-        // Scale click/touch coordinates to game's internal resolution
-        const scaleX = GAME_WIDTH / rect.width;
-        const scaleY = GAME_HEIGHT / rect.height;
-        const x = (clientX - rect.left) * scaleX;
-        const y = (clientY - rect.top) * scaleY;
-
         // Easy Button coordinates (defined in drawMenu)
         const easyButtonWidth = 200;
         const easyButtonHeight = 60;
@@ -872,6 +880,24 @@
                  y >= normalButtonY && y <= normalButtonY + normalButtonHeight) {
           difficulty = 'normal';
           resetGame(); // Starts the game in normal mode
+        }
+      }
+      // Check for Restart button click/touch if in game over state
+      else if (currentGameState === 'gameOver') {
+        // Restart Button coordinates (defined in drawGameOverMenu)
+        // Removed scoreY calculation as it's not needed for the restart button's fixed position
+        const restartButtonWidth = 120; // Diminuído (match drawGameOverMenu)
+        const restartButtonHeight = 40; // Diminuído (match drawGameOverMenu)
+        const restartButtonX = GAME_WIDTH / 2 - restartButtonWidth / 2;
+        const restartButtonY = 10; // Mais próximo do topo (match drawGameOverMenu)
+
+        // Debugging: Log click coordinates and button bounds
+        console.log(`Click: x=${x}, y=${y}`);
+        console.log(`Restart Button: x=${restartButtonX}, y=${restartButtonY}, width=${restartButtonWidth}, height=${restartButtonHeight}`);
+
+        if (x >= restartButtonX && x <= restartButtonX + restartButtonWidth &&
+            y >= restartButtonY && y <= restartButtonY + restartButtonHeight) {
+          currentGameState = 'menu'; // Change to menu state
         }
       }
     };
@@ -917,6 +943,7 @@
     player.isAcceleratedJump = false;
     player.jumpAccelerationFactor = 1.0;
     playerDistanceWalked = 0; // Reset player distance walked
+    maxPlayerX = 0; // Reset maxPlayerX
 
     enemy.x = GAME_WIDTH - 200;
     enemy.y = groundY - enemy.height;
@@ -1092,10 +1119,11 @@
 
     // Apply horizontal velocity
     player.x += player.vx * dt;
-    // Update distance walked
-    if (player.vx > 0) {
-      playerDistanceWalked += player.vx * dt; // Accumulate distance when moving right
+    // Update maxPlayerX and playerDistanceWalked
+    if (!isInHouse) { // Only update distance if not inside a house
+      maxPlayerX = Math.max(maxPlayerX, player.x); // Store the maximum x-coordinate reached
     }
+    playerDistanceWalked = Math.floor(maxPlayerX / 10); // Display distance in meters based on max x
     
     // Clamp within world bounds (now only left side)
     if (player.x < 0) player.x = 0;
@@ -1107,7 +1135,7 @@
     // Jump input handling
     if (input.jump) {
       if (currentGameState === 'gameOver' && input.jump) { // Allow jump to restart game from Game Over screen
-        resetGame();
+        currentGameState = 'menu'; // Change to menu state instead of resetting game directly
         input.jump = false; // Consume the jump input
         return; // Skip remaining update logic for this frame to allow full reset
       } else if (player.onGround) {
@@ -1474,25 +1502,9 @@
     }
 
     // Game Over overlay
-    if (isGameOver) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent black overlay
-      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-      ctx.fillStyle = '#FFFFFF'; // White text
-      ctx.font = 'bold 48px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      const gameOverText = 'YOU DIED!';
-      const skullEmoji = '💀';
-
-      // Draw skull emoji
-      ctx.font = '96px Arial'; // Larger font for emoji
-      ctx.fillText(skullEmoji, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50);
-
-      // Draw 'YOU DIED!' text
-      ctx.font = 'bold 48px Arial';
-      ctx.fillText(gameOverText, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50);
+    if (currentGameState === 'gameOver') { // Changed from isGameOver to currentGameState
+      drawGameOverMenu(); // Call the new function to draw the game over menu
+      return; // Stop further rendering of game elements
     }
 
     // Draw counters for collected items in the upper left corner.
@@ -1540,6 +1552,49 @@
       ctx.lineWidth = 2;
       ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
     }
+  }
+
+  // Function to draw the Game Over menu with high scores and a restart button
+  function drawGameOverMenu() {
+    // Semi-transparent black overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Skull emoji
+    ctx.font = '80px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; // Ensure text is vertically centered
+    ctx.fillText('💀', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 100);
+
+    // YOU DIED! Text
+    ctx.fillStyle = 'red';
+    ctx.font = '60px Arial';
+    ctx.fillText('YOU DIED!', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
+
+    // Leaderboard Title
+    ctx.fillStyle = 'white';
+    ctx.font = '30px Arial';
+    ctx.fillText('High Scores', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50);
+
+    // Display top 10 high scores
+    ctx.font = '20px Arial';
+    let scoreY = GAME_HEIGHT / 2 + 90;
+    highScores.forEach((score, index) => {
+      ctx.fillText(`${index + 1}. ${score}m`, GAME_WIDTH / 2, scoreY);
+      scoreY += 25;
+    });
+
+    // Restart Button
+    const restartButtonWidth = 120; // Diminuído (match drawGameOverMenu)
+    const restartButtonHeight = 40; // Diminuído (match drawGameOverMenu)
+    const restartButtonX = GAME_WIDTH / 2 - restartButtonWidth / 2;
+    const restartButtonY = 10; // Mais próximo do topo (match drawGameOverMenu)
+
+    ctx.fillStyle = '#008CBA'; // Blue
+    ctx.fillRect(restartButtonX, restartButtonY, restartButtonWidth, restartButtonHeight);
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial'; // Fonte menor
+    ctx.fillText('Restart', restartButtonX + restartButtonWidth / 2, restartButtonY + restartButtonHeight / 2 + 5);
   }
 
   // Main game loop using requestAnimationFrame
