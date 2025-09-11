@@ -143,6 +143,14 @@
   let difficulty = 'normal'; // 'easy', 'normal'
   let highScores = JSON.parse(localStorage.getItem('highScores') || '[]'); // Load high scores from localStorage
 
+  // New: Variables for enemy proximity effect
+  let enemyPlayerDistance = Infinity; // Stores the calculated distance between enemy and player
+  const pulsationEffect = {
+    opacity: 0,
+    speed: 0,
+    normalizedDistance: 1 // New: Stores the normalized distance for border width calculation
+  }; // Stores opacity and speed for the pulsating border effect
+
   // Player state
   const player = {
     x: GAME_WIDTH / 2 - 25, // Centered horizontally using a direct value (50 / 2 = 25)
@@ -1036,6 +1044,8 @@
     player.jumpAccelerationFactor = 1.0;
     playerDistanceWalked = 0; // Reset player distance walked
     maxPlayerX = 0; // Reset maxPlayerX
+    noteCount = 0; // Reset note count
+    recordCount = 0; // Reset record count
 
     enemy.x = -enemy.width; // Start enemy off-screen to the left
     enemy.y = groundY - enemy.height;
@@ -1117,6 +1127,17 @@
         enemy.vx = 0;
       }
       enemy.x += enemy.vx * dt;
+
+      // Calculate distance between enemy and player for visual effect
+      enemyPlayerDistance = Math.abs(player.x - enemy.x);
+
+      // Map distance to opacity and pulsation speed
+      const maxEffectDistance = GAME_WIDTH / 2; // e.g., half screen width
+      const normalizedDistance = Math.min(1, enemyPlayerDistance / maxEffectDistance);
+
+      pulsationEffect.opacity = (1 - normalizedDistance) * 0.7; // Max opacity 70%
+      pulsationEffect.speed = 0.5 + (1 - normalizedDistance) * 1.5; // Speed from 0.5 (far) to 2 (close) - Slower pulse
+      pulsationEffect.normalizedDistance = normalizedDistance; // Store normalized distance for border width
 
       // Player-enemy collision detection (only outside house)
       const px1 = player.x;
@@ -1376,7 +1397,11 @@
     if (player.vx !== 0) { // Player is moving
       staminaBar.fill -= staminaBar.drainSpeed * dt;
     } else { // Player is idle
-      staminaBar.fill += staminaBar.recoverSpeed * dt;
+      let recoveryRate = staminaBar.recoverSpeed;
+      if (input.crouch) {
+        recoveryRate *= 2; // Double recovery rate if crouching
+      }
+      staminaBar.fill += recoveryRate * dt;
     }
     // Clamp stamina between 0 and 1
     staminaBar.fill = Math.max(0, Math.min(1, staminaBar.fill));
@@ -1421,8 +1446,8 @@
       lastGeneratedChunkX = scrollX + GAME_WIDTH + GENERATION_BUFFER + GAME_WIDTH;
     }
 
-    // Remove objects that are far behind the player
-    worldObjects = worldObjects.filter(obj => obj.x + (obj.width || 0) > scrollX - VIEW_RANGE);
+    // Remove objects that are far behind the player or have been collected
+    worldObjects = worldObjects.filter(obj => (obj.x + (obj.width || 0) > scrollX - VIEW_RANGE) && !obj.collected);
 
     // Check for collisions with collectibles.  When the player's
     // bounding box overlaps a collectible, mark it collected and
@@ -1569,6 +1594,9 @@
       // Draw the enemy (only when outside the house)
       drawEnemy(enemy, scrollX);
 
+      // Draw the pulsating proximity warning
+      drawProximityWarning(performance.now());
+
       // Draw collectibles that have not yet been collected from worldObjects
       for (const obj of worldObjects) {
         if (obj.type === 'collectible' && !obj.collected) {
@@ -1615,15 +1643,16 @@
     let offsetY = 10;
     ctx.fillStyle = '#ffffff';
     ctx.font = '18px Arial';
-    // Note counter
+
+    // Draw note count
     ctx.drawImage(images.note, 10, offsetY, iconSize, iconSize);
-    noteCount = worldObjects.filter(obj => obj.type === 'collectible' && obj.itemType === 'note' && !obj.collected).length;
     ctx.fillText('x ' + noteCount, 10 + iconSize + 4, offsetY + iconSize - 6);
-    offsetY += iconSize + 4;
-    // Record counter
+    offsetY += iconSize + 5;
+
+    // Draw record count
     ctx.drawImage(images.record, 10, offsetY, iconSize, iconSize);
-    recordCount = worldObjects.filter(obj => obj.type === 'collectible' && obj.itemType === 'record' && !obj.collected).length;
     ctx.fillText('x ' + recordCount, 10 + iconSize + 4, offsetY + iconSize - 6);
+    offsetY += iconSize + 5;
 
     // Draw distance walked counter
     ctx.fillText(`Distance: ${Math.floor(playerDistanceWalked / 10)}m`, GAME_WIDTH - 150, 30); // Display distance in meters
@@ -1640,20 +1669,19 @@
     ctx.strokeRect(staminaBar.x, staminaBar.y, staminaBar.width, staminaBar.height);
 
     // Draw animated bar if visible
-    if (animatedBar.isVisible) {
-      // Draw bar background
-      ctx.fillStyle = '#333333'; // Dark grey background
-      ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
+    // Removed animatedBar.isVisible condition to keep it always visible
+    // Draw bar background
+    ctx.fillStyle = '#333333'; // Dark grey background
+    ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
 
-      // Draw bar fill
-      ctx.fillStyle = animatedBar.color;
-      ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width * animatedBar.fill, animatedBar.height);
+    // Draw bar fill
+    ctx.fillStyle = animatedBar.color;
+    ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width * animatedBar.fill, animatedBar.height);
 
-      // Draw border for the bar
-      ctx.strokeStyle = '#FFFFFF'; // White border
-      ctx.lineWidth = 2;
-      ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
-    }
+    // Draw border for the bar
+    ctx.strokeStyle = '#FFFFFF'; // White border
+    ctx.lineWidth = 2;
+    ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
   }
 
   // Function to draw the Game Over menu with high scores and a restart button
@@ -1788,4 +1816,49 @@
   }).catch((err) => {
     console.error('Error loading images', err);
   });
+
+  // New: Function to draw the pulsating proximity warning
+  function drawProximityWarning(timestamp) {
+    if (pulsationEffect.opacity > 0) {
+      const pulse = Math.sin(timestamp / 100 * pulsationEffect.speed) * 0.5 + 0.5; // 0.0 to 1.0 pulse
+      const currentOpacity = pulsationEffect.opacity * pulse;
+      // Calculate border width dynamically based on enemy proximity
+      const minBorderWidth = 20; // Minimum border width
+      const maxBorderWidth = 80; // Maximum border width
+      const borderWidth = minBorderWidth + (1 - pulsationEffect.normalizedDistance) * (maxBorderWidth - minBorderWidth);
+
+      ctx.save();
+      ctx.globalAlpha = currentOpacity; // Apply the calculated opacity for the whole effect
+
+      // Top border
+      let gradient = ctx.createLinearGradient(0, 0, 0, borderWidth);
+      gradient.addColorStop(0, 'rgba(255, 0, 0, 1)');
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, GAME_WIDTH, borderWidth);
+
+      // Bottom border
+      gradient = ctx.createLinearGradient(0, GAME_HEIGHT - borderWidth, 0, GAME_HEIGHT);
+      gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 1)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, GAME_HEIGHT - borderWidth, GAME_WIDTH, borderWidth);
+
+      // Left border
+      gradient = ctx.createLinearGradient(0, 0, borderWidth, 0);
+      gradient.addColorStop(0, 'rgba(255, 0, 0, 1)');
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, borderWidth, GAME_HEIGHT);
+
+      // Right border
+      gradient = ctx.createLinearGradient(GAME_WIDTH - borderWidth, 0, GAME_WIDTH, 0);
+      gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 1)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(GAME_WIDTH - borderWidth, 0, borderWidth, GAME_HEIGHT);
+
+      ctx.restore();
+    }
+  }
 })();

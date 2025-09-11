@@ -126,30 +126,6 @@
       "deadlineTime": "14:00"
     },
     {
-      "name": "Cidadania",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Preparar documentos",
-          "timestamp": "2025-08-21T17:09:04.360Z"
-        }
-      ],
-      "rating": 4,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "id": "8eaxhdqzn3amelnp3sa",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-21T17:09:14.987Z",
-      "lastUpdated": "2025-09-09T17:12:09.528Z",
-      "activity": "Externa",
-      "order": 3,
-      "deadlineDate": "2025-08-29",
-      "deadlineTime": "08:30",
-      "duration": "Minutos",
-      "pulsingDisabled": true
-    },
-    {
       "name": "Agendar Exame Nícolas",
       "email": "",
       "phone": "",
@@ -171,55 +147,6 @@
       "duration": "Minutos",
       "deadlineDate": "2025-09-05",
       "deadlineTime": "17:00",
-      "pulsingDisabled": true
-    },
-    {
-      "name": "Microsoft",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Passar para o drive familiar",
-          "timestamp": "2025-08-21T18:46:11.231Z"
-        }
-      ],
-      "rating": 0,
-      "category": "Pessoal",
-      "assignedTo": "Diana",
-      "id": "e287gb6sgwmelr5td2",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-21T18:46:13.479Z",
-      "lastUpdated": "2025-08-26T12:16:59.209Z",
-      "activity": "Interna",
-      "order": 5
-    },
-    {
-      "name": "Bradesco",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Ir ao banco resolver pendência urgente",
-          "timestamp": "2025-08-25T13:57:56.305Z"
-        },
-        {
-          "text": "Tentei contato dia 01/09 novamente",
-          "timestamp": "2025-09-01T17:22:07.027Z"
-        }
-      ],
-      "rating": 4,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "address": "",
-      "id": "r8ewcmtcmxmer6mk8s",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-25T13:57:59.932Z",
-      "lastUpdated": "2025-09-09T17:12:13.290Z",
-      "order": 8,
-      "activity": "Externa",
-      "deadlineDate": "2025-09-02",
-      "deadlineTime": "10:00",
-      "duration": "Dia",
       "pulsingDisabled": true
     },
     {
@@ -296,40 +223,6 @@
       "pulsingDisabled": true
     },
     {
-      "name": "Contatar Vanessa Martin",
-      "email": "",
-      "phone": "15981794963",
-      "notes": [
-        {
-          "text": "Orçamento enviado",
-          "timestamp": "2025-08-26T12:42:58.508Z"
-        },
-        {
-          "text": "Entrar em contato para fechar o trabalho",
-          "timestamp": "2025-08-26T12:43:19.897Z"
-        },
-        {
-          "text": "de 'Feito' para 'Arquivados'.",
-          "timestamp": "2025-09-02T12:56:27.065Z"
-        },
-        {
-          "text": "de 'Arquivados' para 'Tarefas'.",
-          "timestamp": "2025-09-03T23:05:58.916Z"
-        }
-      ],
-      "rating": 3,
-      "category": "Pepper Hat",
-      "assignedTo": "Diana&Vinícius",
-      "id": "rqvxk0gtumomelo36b4",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-21T17:20:11.440Z",
-      "lastUpdated": "2025-09-03T23:05:58.916Z",
-      "activity": "Interna",
-      "order": 2,
-      "duration": "Minutos",
-      "pulsingDisabled": false
-    },
-    {
       "name": "Montar repertório show dia 06/09",
       "email": "",
       "phone": "",
@@ -349,20 +242,28 @@
         {
           "text": "de 'Fazendo' para 'Feito'.",
           "timestamp": "2025-09-05T22:07:35.126Z"
+        },
+        {
+          "text": "de 'Feito' para 'Arquivados'.",
+          "timestamp": "2025-09-11T13:59:22.970Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Descartados'.",
+          "timestamp": "2025-09-11T13:59:25.716Z"
         }
       ],
       "rating": 4,
       "category": "Pepper Hat",
       "assignedTo": "Vinícius",
       "id": "cb10ixl189memvobit",
-      "columnId": "feito",
+      "columnId": "descartados",
       "createdAt": "2025-08-22T13:40:21.461Z",
-      "lastUpdated": "2025-09-09T17:16:13.368Z",
+      "lastUpdated": "2025-09-11T13:59:25.716Z",
       "order": 3,
       "activity": "Interna",
       "duration": "Horas",
       "deadlineDate": "2025-09-04",
-      "pulsingDisabled": true,
+      "pulsingDisabled": false,
       "deadlineTime": "00:00"
     },
     {
@@ -429,6 +330,14 @@
         {
           "text": "de 'Fazendo' para 'Iniciar'.",
           "timestamp": "2025-09-03T23:54:42.221Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Arquivados'.",
+          "timestamp": "2025-09-11T14:30:20.396Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Iniciar'.",
+          "timestamp": "2025-09-11T14:30:29.916Z"
         }
       ],
       "rating": 4,
@@ -438,11 +347,11 @@
       "id": "ls2cm7i3czmer78dtd",
       "columnId": "iniciar",
       "createdAt": "2025-08-25T14:14:58.033Z",
-      "lastUpdated": "2025-09-09T17:12:33.069Z",
+      "lastUpdated": "2025-09-11T14:30:29.916Z",
       "order": 1,
       "activity": "Interna",
       "duration": "Dias",
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Mentoria",
@@ -483,59 +392,6 @@
       "pulsingDisabled": false
     },
     {
-      "name": "Levar Carro Mecânico",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Agendar troca de óleo",
-          "timestamp": "2025-08-25T14:49:25.190Z"
-        },
-        {
-          "text": "de 'Fazendo' para 'Feito'.",
-          "timestamp": "2025-09-03T23:12:30.814Z"
-        },
-        {
-          "text": "de 'Feito' para 'Arquivados'.",
-          "timestamp": "2025-09-03T23:12:32.417Z"
-        },
-        {
-          "text": "de 'Arquivados' para 'Tarefas'.",
-          "timestamp": "2025-09-03T23:12:35.520Z"
-        },
-        {
-          "text": "de 'Tarefas' para 'Iniciar'.",
-          "timestamp": "2025-09-05T22:07:47.496Z"
-        },
-        {
-          "text": "de 'Iniciar' para 'Fazendo'.",
-          "timestamp": "2025-09-08T13:19:18.528Z"
-        },
-        {
-          "text": "de 'Fazendo' para 'Feito'.",
-          "timestamp": "2025-09-09T17:13:27.361Z"
-        },
-        {
-          "text": "de 'Feito' para 'Tarefas'.",
-          "timestamp": "2025-09-09T17:15:44.750Z"
-        }
-      ],
-      "rating": 5,
-      "category": "Pessoal",
-      "assignedTo": "Vinícius",
-      "address": "",
-      "id": "r9qr6ecudtmer8hjvp",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-25T14:50:05.414Z",
-      "lastUpdated": "2025-09-09T17:17:25.471Z",
-      "order": 5,
-      "activity": "Externa",
-      "duration": "Minutos",
-      "pulsingDisabled": false,
-      "deadlineDate": "2025-10-21",
-      "deadlineTime": "08:00"
-    },
-    {
       "name": "Atualizar sistema Tarefas",
       "email": "",
       "phone": "",
@@ -573,54 +429,6 @@
       "activity": "Interna",
       "duration": "Horas",
       "pulsingDisabled": true
-    },
-    {
-      "name": "Energia Elétrica restituição",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Ligar para CPFL pra solicitar",
-          "timestamp": "2025-08-26T19:36:59.199Z"
-        }
-      ],
-      "rating": 4,
-      "category": "Pessoal",
-      "assignedTo": "Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-03",
-      "deadlineTime": "16:00",
-      "id": "61ki293mgcqmesy6dp1",
-      "columnId": "tarefas",
-      "createdAt": "2025-08-26T19:37:00.374Z",
-      "lastUpdated": "2025-09-09T17:12:17.599Z",
-      "order": 11,
-      "pulsingDisabled": true
-    },
-    {
-      "name": "Marcar Reumatologista",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Ligar para o SAC da HAPVIDA",
-          "timestamp": "2025-09-01T17:11:07.571Z"
-        }
-      ],
-      "rating": 4,
-      "category": "Pessoal",
-      "assignedTo": "Diana",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-04",
-      "deadlineTime": "16:00",
-      "duration": "Minutos",
-      "id": "krdefz3zkk8mf1dlxgw",
-      "columnId": "tarefas",
-      "createdAt": "2025-09-01T17:11:09.488Z",
-      "lastUpdated": "2025-09-01T17:11:09.488Z",
-      "order": 13
     },
     {
       "name": "Agendar reunião Vanessa Mutton",
@@ -867,6 +675,10 @@
         {
           "text": "de 'Descartados' para 'Feito'.",
           "timestamp": "2025-09-05T22:10:32.385Z"
+        },
+        {
+          "text": "de 'Feito' para 'Arquivados'.",
+          "timestamp": "2025-09-11T13:59:13.038Z"
         }
       ],
       "rating": 4,
@@ -877,39 +689,13 @@
       "deadlineDate": "2025-09-04",
       "deadlineTime": "11:30",
       "duration": "Horas",
-      "columnId": "feito",
+      "columnId": "arquivados",
       "isPulsing": true,
       "id": "hlo1qy2d9damf4mvbx8",
       "createdAt": "2025-09-03T23:53:43.197Z",
-      "lastUpdated": "2025-09-09T17:16:19.687Z",
+      "lastUpdated": "2025-09-11T13:59:13.038Z",
       "order": 18,
-      "pulsingDisabled": true
-    },
-    {
-      "name": "Fazer RX dente",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Fazer exames pra tratamento",
-          "timestamp": "2025-09-05T11:52:16.052Z"
-        }
-      ],
-      "rating": 4,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-10",
-      "deadlineTime": "16:30",
-      "duration": "Horas",
-      "columnId": "tarefas",
-      "isPulsing": true,
-      "id": "wuv6awa4dldmf6rzcb7",
-      "createdAt": "2025-09-05T11:52:20.756Z",
-      "lastUpdated": "2025-09-09T17:12:21.242Z",
-      "order": 17,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Finalizar contas mês",
@@ -927,6 +713,14 @@
         {
           "text": "de 'Tarefas' para 'Iniciar'.",
           "timestamp": "2025-09-05T22:10:05.370Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Feito'.",
+          "timestamp": "2025-09-11T14:28:11.756Z"
+        },
+        {
+          "text": "de 'Feito' para 'Arquivados'.",
+          "timestamp": "2025-09-11T14:28:14.181Z"
         }
       ],
       "rating": 4,
@@ -937,13 +731,13 @@
       "deadlineDate": "2025-09-08",
       "deadlineTime": "16:00",
       "duration": "Horas",
-      "columnId": "iniciar",
+      "columnId": "arquivados",
       "isPulsing": true,
       "id": "j5gnxfe39fhmf6uumb3",
       "createdAt": "2025-09-05T13:12:39.279Z",
-      "lastUpdated": "2025-09-09T17:12:53.163Z",
+      "lastUpdated": "2025-09-11T14:28:14.181Z",
       "order": 19,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Montar show Elvis Natural (Votorantim)",
@@ -983,6 +777,14 @@
         {
           "text": "Verificar com o Lucas, IPI da usina Araporã",
           "timestamp": "2025-09-08T13:37:32.026Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-11T13:58:41.058Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-11T13:58:43.469Z"
         }
       ],
       "rating": 4,
@@ -993,14 +795,14 @@
       "deadlineDate": "2025-09-09",
       "deadlineTime": "16:00",
       "duration": "Minutos",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "isPulsing": true,
       "link": "",
       "id": "3tlwc9ig7gmfb62b5t",
       "createdAt": "2025-09-08T13:37:38.561Z",
-      "lastUpdated": "2025-09-09T17:12:25.576Z",
+      "lastUpdated": "2025-09-11T13:58:43.469Z",
       "order": 18,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Estudar sobre auditoria Weiss",
@@ -1010,6 +812,14 @@
         {
           "text": "Estudar sobre o relatório de auditoria da Weiss",
           "timestamp": "2025-09-08T13:38:31.174Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-11T13:58:52.121Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-11T13:58:54.684Z"
         }
       ],
       "rating": 4,
@@ -1020,20 +830,29 @@
       "deadlineDate": "2025-09-09",
       "deadlineTime": "11:00",
       "duration": "Minutos",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "isPulsing": true,
       "link": "",
       "id": "q3gr4xf1ulmfb63jtd",
       "createdAt": "2025-09-08T13:38:36.433Z",
-      "lastUpdated": "2025-09-09T17:12:29.567Z",
+      "lastUpdated": "2025-09-11T13:58:54.684Z",
       "order": 19,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Equipamento Serra Negra Stylo",
       "email": "",
       "phone": "(19) 99628-7523",
-      "notes": [],
+      "notes": [
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-11T13:58:58.259Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-11T13:59:03.936Z"
+        }
+      ],
       "rating": 3,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
@@ -1042,12 +861,12 @@
       "deadlineDate": "2025-09-11",
       "deadlineTime": "13:00",
       "duration": "Minutos",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "isPulsing": true,
       "link": "https://stylosom.com.br/",
       "id": "v132vcfi5kbmfe3dj49",
       "createdAt": "2025-09-10T14:45:41.769Z",
-      "lastUpdated": "2025-09-10T14:51:21.856Z",
+      "lastUpdated": "2025-09-11T13:59:03.937Z",
       "order": 20,
       "pulsingDisabled": false
     },
@@ -1055,7 +874,16 @@
       "name": "Equipamento Serra Negra Creative360",
       "email": "",
       "phone": "19997023554",
-      "notes": [],
+      "notes": [
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-11T13:59:00.105Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-11T13:59:07.020Z"
+        }
+      ],
       "rating": 3,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
@@ -1064,12 +892,12 @@
       "deadlineDate": "2025-09-11",
       "deadlineTime": "13:00",
       "duration": "Minutos",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "isPulsing": true,
       "link": "https://www.instagram.com/_creative360/",
       "id": "ycb68p6vllmfe3keij",
       "createdAt": "2025-09-10T14:51:02.395Z",
-      "lastUpdated": "2025-09-10T14:56:40.494Z",
+      "lastUpdated": "2025-09-11T13:59:07.020Z",
       "order": 21,
       "pulsingDisabled": false
     },
@@ -1077,7 +905,16 @@
       "name": "Equipamento Serra Negra BL",
       "email": "",
       "phone": "19997815124",
-      "notes": [],
+      "notes": [
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-11T13:59:01.628Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-11T13:59:05.338Z"
+        }
+      ],
       "rating": 3,
       "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
@@ -1086,13 +923,408 @@
       "deadlineDate": "2025-09-11",
       "deadlineTime": "12:30",
       "duration": "Minutos",
-      "columnId": "tarefas",
+      "columnId": "fazendo",
       "isPulsing": true,
       "link": "https://www.instagram.com/bl.iluminacao.eventos/",
       "id": "magv8jo8m7rmfe3qwt5",
       "createdAt": "2025-09-10T14:56:06.041Z",
-      "lastUpdated": "2025-09-10T14:56:06.041Z",
-      "order": 22
+      "lastUpdated": "2025-09-11T13:59:05.338Z",
+      "order": 22,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Orçamento FIESP/SP Barbara",
+      "email": "",
+      "phone": "19 99825-6352",
+      "notes": [
+        {
+          "text": "Enviamos orçamento",
+          "timestamp": "2025-09-11T14:29:37.867Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-11",
+      "deadlineTime": "12:00",
+      "duration": "Minutos",
+      "columnId": "feito",
+      "isPulsing": true,
+      "link": "",
+      "id": "u4vhcqu97cmffi8tz6",
+      "createdAt": "2025-09-11T14:29:42.978Z",
+      "lastUpdated": "2025-09-11T14:29:42.978Z",
+      "order": 11
+    },
+    {
+      "name": "Levar Carro Mecânico",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Agendar troca de óleo",
+          "timestamp": "2025-08-25T14:49:25.190Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-03T23:12:30.814Z"
+        },
+        {
+          "text": "de 'Feito' para 'Arquivados'.",
+          "timestamp": "2025-09-03T23:12:32.417Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Tarefas'.",
+          "timestamp": "2025-09-03T23:12:35.520Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-05T22:07:47.496Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-08T13:19:18.528Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-09T17:13:27.361Z"
+        },
+        {
+          "text": "de 'Feito' para 'Tarefas'.",
+          "timestamp": "2025-09-09T17:15:44.750Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "id": "r9qr6ecudtmer8hjvp",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T14:50:05.414Z",
+      "lastUpdated": "2025-09-11T14:37:22.124Z",
+      "order": 1,
+      "activity": "Externa",
+      "duration": "Minutos",
+      "pulsingDisabled": false,
+      "deadlineDate": "2025-10-21",
+      "deadlineTime": "08:00"
+    },
+    {
+      "name": "Contatar Vanessa Martin",
+      "email": "",
+      "phone": "15981794963",
+      "notes": [
+        {
+          "text": "Orçamento enviado",
+          "timestamp": "2025-08-26T12:42:58.508Z"
+        },
+        {
+          "text": "Entrar em contato para fechar o trabalho",
+          "timestamp": "2025-08-26T12:43:19.897Z"
+        },
+        {
+          "text": "de 'Feito' para 'Arquivados'.",
+          "timestamp": "2025-09-02T12:56:27.065Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Tarefas'.",
+          "timestamp": "2025-09-03T23:05:58.916Z"
+        }
+      ],
+      "rating": 3,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "id": "rqvxk0gtumomelo36b4",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:20:11.440Z",
+      "lastUpdated": "2025-09-03T23:05:58.916Z",
+      "activity": "Interna",
+      "order": 2,
+      "duration": "Minutos",
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Cidadania",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Preparar documentos",
+          "timestamp": "2025-08-21T17:09:04.360Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "id": "8eaxhdqzn3amelnp3sa",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T17:09:14.987Z",
+      "lastUpdated": "2025-09-09T17:12:09.528Z",
+      "activity": "Externa",
+      "order": 3,
+      "deadlineDate": "2025-08-29",
+      "deadlineTime": "08:30",
+      "duration": "Minutos",
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Microsoft",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Passar para o drive familiar",
+          "timestamp": "2025-08-21T18:46:11.231Z"
+        }
+      ],
+      "rating": 0,
+      "category": "Pessoal",
+      "assignedTo": "Diana",
+      "id": "e287gb6sgwmelr5td2",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-21T18:46:13.479Z",
+      "lastUpdated": "2025-08-26T12:16:59.209Z",
+      "activity": "Interna",
+      "order": 4,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Bradesco",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ir ao banco resolver pendência urgente",
+          "timestamp": "2025-08-25T13:57:56.305Z"
+        },
+        {
+          "text": "Tentei contato dia 01/09 novamente",
+          "timestamp": "2025-09-01T17:22:07.027Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "id": "r8ewcmtcmxmer6mk8s",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-25T13:57:59.932Z",
+      "lastUpdated": "2025-09-09T17:12:13.290Z",
+      "order": 5,
+      "activity": "Externa",
+      "deadlineDate": "2025-09-02",
+      "deadlineTime": "10:00",
+      "duration": "Dia",
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Energia Elétrica restituição",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ligar para CPFL pra solicitar",
+          "timestamp": "2025-08-26T19:36:59.199Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pessoal",
+      "assignedTo": "Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-03",
+      "deadlineTime": "16:00",
+      "id": "61ki293mgcqmesy6dp1",
+      "columnId": "tarefas",
+      "createdAt": "2025-08-26T19:37:00.374Z",
+      "lastUpdated": "2025-09-09T17:12:17.599Z",
+      "order": 6,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Marcar Reumatologista",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Ligar para o SAC da HAPVIDA",
+          "timestamp": "2025-09-01T17:11:07.571Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pessoal",
+      "assignedTo": "Diana",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-04",
+      "deadlineTime": "16:00",
+      "duration": "Minutos",
+      "id": "krdefz3zkk8mf1dlxgw",
+      "columnId": "tarefas",
+      "createdAt": "2025-09-01T17:11:09.488Z",
+      "lastUpdated": "2025-09-01T17:11:09.488Z",
+      "order": 7,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Fazer RX dente",
+      "email": "",
+      "phone": "",
+      "notes": [
+        {
+          "text": "Fazer exames pra tratamento",
+          "timestamp": "2025-09-05T11:52:16.052Z"
+        }
+      ],
+      "rating": 4,
+      "category": "Pessoal",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-10",
+      "deadlineTime": "16:30",
+      "duration": "Horas",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "id": "wuv6awa4dldmf6rzcb7",
+      "createdAt": "2025-09-05T11:52:20.756Z",
+      "lastUpdated": "2025-09-09T17:12:21.242Z",
+      "order": 8,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Orçamento Amanda Casamento Mogi das Cruzes",
+      "email": "",
+      "phone": "11 954522859",
+      "notes": [
+        {
+          "text": "Amanda e Thiago noivos",
+          "timestamp": "2025-09-11T14:01:46.597Z"
+        },
+        {
+          "text": "solicitamos orçamentos de parceiros de som",
+          "timestamp": "2025-09-11T14:01:56.385Z"
+        },
+        {
+          "text": "Montar orçamento",
+          "timestamp": "2025-09-11T14:02:04.483Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-12",
+      "deadlineTime": "16:00",
+      "duration": "Horas",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "",
+      "id": "p3ug2jvih6mffh9n29",
+      "createdAt": "2025-09-11T14:02:21.057Z",
+      "lastUpdated": "2025-09-11T14:02:21.057Z",
+      "order": 9,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Orçamento Stefany casamento Serra Negra",
+      "email": "",
+      "phone": "11 99481-7383",
+      "notes": [
+        {
+          "text": "Pedimos orçamentos de parceiros para som e iluminação, aguardando retorno",
+          "timestamp": "2025-09-11T14:05:52.577Z"
+        },
+        {
+          "text": "Fazer orçamento e deixar pronto para enviar com anexos",
+          "timestamp": "2025-09-11T14:06:11.988Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-12",
+      "deadlineTime": "16:00",
+      "duration": "Horas",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "",
+      "id": "ibnxw3r6dimffhep8a",
+      "createdAt": "2025-09-11T14:06:17.147Z",
+      "lastUpdated": "2025-09-11T14:06:17.147Z",
+      "order": 10,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Orçamento Reveillon - Restaurante Woods",
+      "email": "",
+      "phone": "15 99788-5921",
+      "notes": [
+        {
+          "text": "Pepper Hat + Elvis",
+          "timestamp": "2025-09-11T14:14:15.415Z"
+        },
+        {
+          "text": "Woods Lago Azul",
+          "timestamp": "2025-09-11T14:14:29.644Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-11T14:40:30.827Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-11",
+      "deadlineTime": "17:00",
+      "duration": "Minutos",
+      "columnId": "iniciar",
+      "isPulsing": true,
+      "link": "",
+      "id": "4n9lutvtx4bmffhpc12",
+      "createdAt": "2025-09-11T14:14:33.254Z",
+      "lastUpdated": "2025-09-11T14:40:30.827Z",
+      "order": 11,
+      "pulsingDisabled": false
+    },
+    {
+      "name": "Orçamento Moacyr - Águas de Lindóia",
+      "email": "",
+      "phone": "15 99683-3727",
+      "notes": [
+        {
+          "text": "Montar orçamento com tudo incluso",
+          "timestamp": "2025-09-11T14:32:53.925Z"
+        },
+        {
+          "text": "hotel, alimentação, etc...",
+          "timestamp": "2025-09-11T14:36:58.748Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Pepper Hat",
+      "assignedTo": "Diana&Vinícius",
+      "address": "",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-11",
+      "deadlineTime": "16:30",
+      "duration": "Horas",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "",
+      "id": "5pesyw4cvymmffii8jy",
+      "createdAt": "2025-09-11T14:37:01.775Z",
+      "lastUpdated": "2025-09-11T14:37:01.775Z",
+      "order": 12,
+      "pulsingDisabled": false
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"
