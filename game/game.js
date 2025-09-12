@@ -948,7 +948,7 @@
         effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
       }
 
-      const tiltThreshold = 20; // Degrees to start moving
+      const tiltThreshold = 7; // Degrees to start moving (ajuste este valor para calibrar a sensibilidade)
       const maxTilt = 45; // Max tilt for full speed (e.g., 45 degrees)
 
       input.left = false;
