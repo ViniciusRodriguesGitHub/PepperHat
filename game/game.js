@@ -18,8 +18,8 @@
 
   // Fixed internal resolution.  The canvas will be scaled to fit the
   // browser window while maintaining aspect ratio.
-  const GAME_WIDTH = 800;
-  const GAME_HEIGHT = 450;
+  let GAME_WIDTH = 800;
+  let GAME_HEIGHT = 450;
 
   // Asset paths relative to this script.  In addition to the city
   // background and ground tile, we load a sequence of frames for the
@@ -231,20 +231,15 @@
     return Promise.all(promises);
   }
 
-  // Resize the canvas to maintain aspect ratio based on the window size
+  // Resize the canvas to fill the whole window
   function resize() {
-    const ratio = GAME_WIDTH / GAME_HEIGHT;
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-    if (w / h > ratio) {
-      w = h * ratio;
-    } else {
-      h = w / ratio;
-    }
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    canvas.width = GAME_WIDTH;
-    canvas.height = GAME_HEIGHT;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Update GAME_WIDTH and GAME_HEIGHT to reflect the new canvas dimensions
+    // This will ensure game elements scale correctly with the new canvas size
+    GAME_WIDTH = canvas.width;
+    GAME_HEIGHT = canvas.height;
   }
 
   // Function to generate world objects procedurally
@@ -1486,7 +1481,7 @@
     ctx.font = 'bold 60px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('PEPPER\'S ADVENTURE', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150);
+    ctx.fillText('Pepper Hat', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150);
 
     // Easy Button
     const easyButtonWidth = 200;
