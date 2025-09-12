@@ -54,8 +54,8 @@
   };
 
   const animatedBar = {
-    x: GAME_WIDTH / 2 - 100, // Centered horizontally
-    y: 50, // Positioned near the top
+    // x: GAME_WIDTH / 2 - 100, // Will be calculated in updateBarPositions
+    y: 50, // Positioned near the top (initial value, will be updated)
     width: 200,
     height: 20,
     fill: 0.0, // Current fill level (0.0 to 1.0)
@@ -66,8 +66,8 @@
   };
 
   const staminaBar = {
-    x: animatedBar.x, // Same horizontal position as animatedBar
-    y: animatedBar.y - animatedBar.height - 10, // 10 pixels above animatedBar
+    // x: animatedBar.x, // Will be calculated in updateBarPositions
+    // y: animatedBar.y - animatedBar.height - 10, // Will be calculated in updateBarPositions
     width: animatedBar.width,
     height: animatedBar.height,
     fill: 1.0, // Start fully filled
@@ -99,6 +99,9 @@
     { type: 'cabinet', minWidth: 60, maxWidth: 100, minHeight: 70, maxHeight: 100 },
     { type: 'table', minWidth: 80, maxWidth: 150, minHeight: 40, maxHeight: 60 },
     { type: 'television', minWidth: 50, maxWidth: 80, minHeight: 40, maxHeight: 60 },
+    { type: 'sofa', minWidth: 100, maxWidth: 180, minHeight: 30, maxHeight: 50 }, // New: Sofa
+    { type: 'plant', minWidth: 20, maxWidth: 40, minHeight: 50, maxHeight: 80 }, // New: Plant
+    { type: 'painting', minWidth: 30, maxWidth: 60, minHeight: 40, maxHeight: 70 }, // New: Painting
   ];
   const pastelDesaturatedColors = [
     '#90CAF9', // Desaturated Blue
@@ -211,6 +214,13 @@
   const GENERATION_BUFFER = GAME_WIDTH / 2; // How far past the view range to generate
   let lastGeneratedChunkX = 0; // Tracks the furthest X-coordinate generated
 
+  // Function to update the positions of the stamina and animated bars
+  function updateBarPositions() {
+    animatedBar.x = GAME_WIDTH / 2 - animatedBar.width / 2;
+    staminaBar.x = GAME_WIDTH / 2 - staminaBar.width / 2;
+    staminaBar.y = animatedBar.y - animatedBar.height - 10; // 10 pixels above animatedBar
+  }
+
   // Load all images and start the game loop once complete
   function loadImages() {
     const promises = Object.keys(assets).map(key => {
@@ -236,10 +246,15 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    // Log dimensions for debugging
+    console.log(`Resize: window.innerWidth=${window.innerWidth}, window.innerHeight=${window.innerHeight}`);
+    console.log(`Resize: canvas.width=${canvas.width}, canvas.height=${canvas.height}`);
+
     // Update GAME_WIDTH and GAME_HEIGHT to reflect the new canvas dimensions
     // This will ensure game elements scale correctly with the new canvas size
     GAME_WIDTH = canvas.width;
     GAME_HEIGHT = canvas.height;
+    updateBarPositions(); // Update bar positions on resize
   }
 
   // Function to generate world objects procedurally
@@ -348,6 +363,19 @@
     const interiorXStart = GAME_WIDTH * 0.2; // Start of the back wall
     const interiorWidth = GAME_WIDTH * 0.6; // Width of the back wall area
 
+    // Define the 'EXIT' door area for collision checking
+    const doorWidth = 60;
+    const doorHeight = 100;
+    const doorX = GAME_WIDTH / 2 - (doorWidth / 2);
+    const doorY = floorY - doorHeight;
+    const doorSafeZonePadding = 20; // Extra padding around the door
+    const exitDoorRect = {
+      x: doorX - doorSafeZonePadding,
+      y: doorY - doorSafeZonePadding, // Include space for 'EXIT' text
+      width: doorWidth + (doorSafeZonePadding * 2),
+      height: doorHeight + (doorSafeZonePadding * 2) + 20, // Add space for 'EXIT' text height
+    };
+
     // Helper function for AABB collision detection
     const checkCollision = (rect1, rect2) => {
       return rect1.x < rect2.x + rect2.width &&
@@ -381,16 +409,22 @@
         };
 
         let collision = false;
-        for (const existingItem of newFurniture) {
-          const existingRect = {
-            x: existingItem.x,
-            y: existingItem.y - existingItem.height,
-            width: existingItem.width,
-            height: existingItem.height,
-          };
-          if (checkCollision(newFurnitureRect, existingRect)) {
-            collision = true;
-            break;
+        if (checkCollision(newFurnitureRect, exitDoorRect)) {
+          collision = true; // Collision with exit door
+        }
+
+        if (!collision) {
+          for (const existingItem of newFurniture) {
+            const existingRect = {
+              x: existingItem.x,
+              y: existingItem.y - existingItem.height,
+              width: existingItem.width,
+              height: existingItem.height,
+            };
+            if (checkCollision(newFurnitureRect, existingRect)) {
+              collision = true;
+              break;
+            }
           }
         }
 
@@ -454,13 +488,19 @@
     const doorWidth = 60;
     const doorHeight = 100;
     const doorX = exitDoorX - (doorWidth / 2); // Center the door
-    const doorY = exitDoorY - doorHeight; // Position door above the floor
+    const doorY = floorY - doorHeight; // Position door on the floor level
     ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
 
     // Door frame (minimalist)
     ctx.strokeStyle = '#5A2D0C'; // Darker brown
     ctx.lineWidth = 3;
     ctx.strokeRect(doorX, doorY, doorWidth, doorHeight);
+
+    // EXIT text above the door
+    ctx.fillStyle = '#FFFFFF'; // White text
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('EXIT', doorX + (doorWidth / 2), doorY - 10); // 10 pixels above the door
   }
 
   // Function to draw minimalist furniture inside the house
@@ -495,6 +535,26 @@
         ctx.fillRect(drawX, drawY, width, height);
         // Screen
         ctx.fillStyle = '#2F4F4F'; // DarkSlateGrey
+        ctx.fillRect(drawX + 5, drawY + 5, width - 10, height - 10);
+        break;
+      case 'sofa':
+        ctx.fillRect(drawX, drawY + height / 3, width, height * 2 / 3); // Base of the sofa
+        ctx.fillRect(drawX, drawY, width / 5, height / 3); // Left armrest
+        ctx.fillRect(drawX + width * 4 / 5, drawY, width / 5, height / 3); // Right armrest
+        break;
+      case 'plant':
+        ctx.fillStyle = '#8B4513'; // Brown pot
+        ctx.fillRect(drawX + width / 4, drawY + height * 2 / 3, width / 2, height / 3);
+        ctx.fillStyle = '#228B22'; // ForestGreen leaves
+        ctx.beginPath();
+        ctx.arc(drawX + width / 2, drawY + height / 3, width / 3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 'painting':
+        ctx.strokeStyle = '#8B4513'; // Brown frame
+        ctx.lineWidth = 5;
+        ctx.strokeRect(drawX, drawY, width, height);
+        ctx.fillStyle = '#A9A9A9'; // Grey canvas
         ctx.fillRect(drawX + 5, drawY + 5, width - 10, height - 10);
         break;
       default:
@@ -663,27 +723,46 @@
       btn.style.cursor = 'grab'; // Indicate draggable
       return btn;
     }
-    const lockBtn = makeButton('🔒', 'lockBtn'); // New button for locking/unlocking controls
-    lockBtn.id = 'lockButton'; // Assign an ID for easy access
-    // Position buttons relative to the game resolution.  Since the canvas
-    // is scaled, absolute positions based on GAME_WIDTH/HEIGHT still
-    // align visually.
-    lockBtn.style.left = '10px'; // Position at top left
-    lockBtn.style.top = '10px';
-    lockBtn.style.width = '50px'; // Smaller button
-    lockBtn.style.height = '50px';
-    container.appendChild(lockBtn); // Add lock button to container
-    // Attach pointer listeners
+    // Existing makeButton function remains, but its usage will be for other buttons
+
+    // Create buttons for movement and actions
+    const leftBtn = makeButton('◀', 'leftBtn');
+    leftBtn.style.left = '10px';
+    leftBtn.style.bottom = '10px';
+    container.appendChild(leftBtn);
+
+    const rightBtn = makeButton('▶', 'rightBtn');
+    rightBtn.style.left = '90px';
+    rightBtn.style.bottom = '10px';
+    container.appendChild(rightBtn);
+
+    const jumpBtn = makeButton('A', 'jumpBtn');
+    jumpBtn.style.right = '10px';
+    jumpBtn.style.bottom = '90px';
+    container.appendChild(jumpBtn);
+
+    const crouchBtn = makeButton('B', 'crouchBtn');
+    crouchBtn.style.right = '10px';
+    crouchBtn.style.bottom = '10px';
+    container.appendChild(crouchBtn);
+
+    // Attach pointer listeners for game controls
     const set = (btn, prop) => {
       btn.addEventListener('pointerdown', () => { input[prop] = true; });
       btn.addEventListener('pointerup', () => { input[prop] = false; });
       btn.addEventListener('pointercancel', () => { input[prop] = false; });
       btn.addEventListener('pointerout', () => { input[prop] = false; });
     };
-    set(lockBtn, 'lockBtn');
-    // Lock button logic
-    let controlsLocked = false;
-    const controlButtons = [lockBtn]; // Only lockBtn remains
+
+    set(leftBtn, 'left');
+    set(rightBtn, 'right');
+    set(jumpBtn, 'jump');
+    set(crouchBtn, 'crouch');
+
+    // Drag functionality for buttons (simplified, no lock button)
+    const controlButtons = [leftBtn, rightBtn, jumpBtn, crouchBtn]; // Only game control buttons
+    let activeDragBtn = null;
+    let initialX, initialY;
 
     // Load saved positions if they exist
     const savedPositions = JSON.parse(localStorage.getItem('controlPositions') || '{}');
@@ -697,50 +776,19 @@
       });
     }
 
-    lockBtn.addEventListener('pointerdown', (e) => {
-      e.stopPropagation(); // Prevent drag from starting on lock button click
-      controlsLocked = !controlsLocked;
-      lockBtn.textContent = controlsLocked ? '🔒' : '🔓';
-      // Toggle draggable state
-      controlButtons.forEach(btn => {
-        if (btn.dataset.id !== 'lockBtn') { // Don't make the lock button itself draggable
-          btn.style.pointerEvents = controlsLocked ? 'auto' : 'auto'; // Allow pointer events on buttons even when dragging is enabled
-          btn.style.cursor = controlsLocked ? 'pointer' : 'grab';
-        }
-      });
-      // Save positions when locking
-      if (controlsLocked) {
-        const currentPositions = {};
-        controlButtons.forEach(btn => {
-          if (btn.dataset.id) {
-            currentPositions[btn.dataset.id] = { left: btn.style.left, top: btn.style.top };
-          }
-        });
-        localStorage.setItem('controlPositions', JSON.stringify(currentPositions));
-      }
-    });
-
-    // Drag functionality for buttons
-    let activeDragBtn = null;
-    let initialX, initialY;
-
     controlButtons.forEach(btn => {
-      if (btn.dataset.id === 'lockBtn') return; // Lock button is not draggable
-
       btn.addEventListener('pointerdown', (e) => {
-        if (controlsLocked) return; // Cannot drag if controls are locked
         activeDragBtn = btn;
         initialX = e.clientX - btn.getBoundingClientRect().left;
         initialY = e.clientY - btn.getBoundingClientRect().top;
         btn.style.zIndex = '11'; // Bring dragged button to front
         btn.setPointerCapture(e.pointerId);
-        // Prevent default pointer actions like text selection
         e.preventDefault();
-        e.stopPropagation(); // Prevent triggering other listeners on container
+        e.stopPropagation();
       });
 
       btn.addEventListener('pointermove', (e) => {
-        if (!activeDragBtn || activeDragBtn !== btn || controlsLocked) return;
+        if (!activeDragBtn || activeDragBtn !== btn) return;
 
         const newX = e.clientX - initialX;
         const newY = e.clientY - initialY;
@@ -755,7 +803,15 @@
         activeDragBtn.style.zIndex = '10';
         activeDragBtn.releasePointerCapture(e.pointerId);
         activeDragBtn = null;
-        e.stopPropagation(); // Prevent triggering other listeners on container
+        e.stopPropagation();
+        // Save positions after dragging any button (auto-save)
+        const currentPositions = {};
+        controlButtons.forEach(btn => {
+          if (btn.dataset.id) {
+            currentPositions[btn.dataset.id] = { left: btn.style.left, top: btn.style.top };
+          }
+        });
+        localStorage.setItem('controlPositions', JSON.stringify(currentPositions));
       });
 
       btn.addEventListener('pointercancel', (e) => {
@@ -1389,9 +1445,9 @@
     }
 
     // Update stamina bar
-    if (player.vx !== 0) { // Player is moving
+    if (player.vx !== 0 && !isInHouse) { // Player is moving and not in house
       staminaBar.fill -= staminaBar.drainSpeed * dt;
-    } else { // Player is idle
+    } else { // Player is idle or in house
       let recoveryRate = staminaBar.recoverSpeed;
       if (input.crouch) {
         recoveryRate *= 2; // Double recovery rate if crouching
@@ -1650,7 +1706,8 @@
     offsetY += iconSize + 5;
 
     // Draw distance walked counter
-    ctx.fillText(`Distance: ${Math.floor(playerDistanceWalked / 10)}m`, GAME_WIDTH - 150, 30); // Display distance in meters
+    ctx.textAlign = 'center'; // Center the text horizontally
+    ctx.fillText(`Distance: ${Math.floor(playerDistanceWalked / 10)}m`, GAME_WIDTH / 2, animatedBar.y + animatedBar.height + 20); // Position below animatedBar with padding
 
     // Draw stamina bar
     ctx.fillStyle = '#333333'; // Dark grey background
@@ -1805,6 +1862,8 @@
     setupMenuInput(); // Call the new function to set up menu input
     setupAccelerometerControls(); // Setup accelerometer controls
     setupGameTouchControls(); // Setup game touch controls for jump/crouch
+
+    updateBarPositions(); // Initialize bar positions
 
     // Start the loop
     requestAnimationFrame(gameLoop);
