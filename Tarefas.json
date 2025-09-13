@@ -286,6 +286,10 @@
         {
           "text": "de 'Iniciar' para 'Fazendo'.",
           "timestamp": "2025-09-04T20:38:58.068Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-12T18:35:40.979Z"
         }
       ],
       "rating": 4,
@@ -296,11 +300,11 @@
       "deadlineDate": "2025-08-26",
       "deadlineTime": "11:00",
       "id": "5cpeggvxqdemesjw5v7",
-      "columnId": "fazendo",
+      "columnId": "feito",
       "createdAt": "2025-08-26T12:57:09.044Z",
-      "lastUpdated": "2025-09-09T17:16:05.529Z",
+      "lastUpdated": "2025-09-12T18:35:40.979Z",
       "order": 11,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Financeiro",
@@ -338,6 +342,10 @@
         {
           "text": "de 'Arquivados' para 'Iniciar'.",
           "timestamp": "2025-09-11T14:30:29.916Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Tarefas'.",
+          "timestamp": "2025-09-12T18:36:17.632Z"
         }
       ],
       "rating": 4,
@@ -345,9 +353,9 @@
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "ls2cm7i3czmer78dtd",
-      "columnId": "iniciar",
+      "columnId": "tarefas",
       "createdAt": "2025-08-25T14:14:58.033Z",
-      "lastUpdated": "2025-09-11T14:30:29.916Z",
+      "lastUpdated": "2025-09-12T18:36:17.632Z",
       "order": 1,
       "activity": "Interna",
       "duration": "Dias",
@@ -495,6 +503,10 @@
         {
           "text": "de 'Feito' para 'Arquivados'.",
           "timestamp": "2025-09-04T20:25:57.207Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Descartados'.",
+          "timestamp": "2025-09-12T14:30:25.740Z"
         }
       ],
       "rating": 4,
@@ -506,11 +518,11 @@
       "deadlineTime": "17:00",
       "duration": "Minutos",
       "id": "4lkn34jxrplmf1dwtgh",
-      "columnId": "arquivados",
+      "columnId": "descartados",
       "createdAt": "2025-09-01T17:19:37.505Z",
-      "lastUpdated": "2025-09-09T17:16:29.075Z",
+      "lastUpdated": "2025-09-12T14:30:25.740Z",
       "order": 15,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Marcar Dermato Nícolas",
@@ -532,6 +544,10 @@
         {
           "text": "de 'Feito' para 'Arquivados'.",
           "timestamp": "2025-09-05T22:07:12.017Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Descartados'.",
+          "timestamp": "2025-09-12T14:30:21.996Z"
         }
       ],
       "rating": 4,
@@ -542,13 +558,13 @@
       "deadlineDate": "2025-09-06",
       "deadlineTime": "12:00",
       "duration": "Minutos",
-      "columnId": "arquivados",
+      "columnId": "descartados",
       "isPulsing": true,
       "id": "fu09lmha8u4mf4ee5jn",
       "createdAt": "2025-09-03T19:56:24.851Z",
-      "lastUpdated": "2025-09-09T17:16:24.285Z",
+      "lastUpdated": "2025-09-12T14:30:21.997Z",
       "order": 14,
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Agendar dermato Nícolas",
@@ -679,6 +695,10 @@
         {
           "text": "de 'Feito' para 'Arquivados'.",
           "timestamp": "2025-09-11T13:59:13.038Z"
+        },
+        {
+          "text": "de 'Arquivados' para 'Descartados'.",
+          "timestamp": "2025-09-12T14:30:16.565Z"
         }
       ],
       "rating": 4,
@@ -689,54 +709,12 @@
       "deadlineDate": "2025-09-04",
       "deadlineTime": "11:30",
       "duration": "Horas",
-      "columnId": "arquivados",
+      "columnId": "descartados",
       "isPulsing": true,
       "id": "hlo1qy2d9damf4mvbx8",
       "createdAt": "2025-09-03T23:53:43.197Z",
-      "lastUpdated": "2025-09-11T13:59:13.038Z",
+      "lastUpdated": "2025-09-12T14:30:16.565Z",
       "order": 18,
-      "pulsingDisabled": false
-    },
-    {
-      "name": "Finalizar contas mês",
-      "email": "",
-      "phone": "",
-      "notes": [
-        {
-          "text": "Fazer pagamentos restantes",
-          "timestamp": "2025-09-05T12:37:34.817Z"
-        },
-        {
-          "text": "lançar na planilha",
-          "timestamp": "2025-09-05T12:37:43.627Z"
-        },
-        {
-          "text": "de 'Tarefas' para 'Iniciar'.",
-          "timestamp": "2025-09-05T22:10:05.370Z"
-        },
-        {
-          "text": "de 'Iniciar' para 'Feito'.",
-          "timestamp": "2025-09-11T14:28:11.756Z"
-        },
-        {
-          "text": "de 'Feito' para 'Arquivados'.",
-          "timestamp": "2025-09-11T14:28:14.181Z"
-        }
-      ],
-      "rating": 4,
-      "category": "Pessoal",
-      "assignedTo": "Diana&Vinícius",
-      "address": "",
-      "activity": "Interna",
-      "deadlineDate": "2025-09-08",
-      "deadlineTime": "16:00",
-      "duration": "Horas",
-      "columnId": "arquivados",
-      "isPulsing": true,
-      "id": "j5gnxfe39fhmf6uumb3",
-      "createdAt": "2025-09-05T13:12:39.279Z",
-      "lastUpdated": "2025-09-11T14:28:14.181Z",
-      "order": 19,
       "pulsingDisabled": false
     },
     {
@@ -1053,15 +1031,19 @@
         {
           "text": "Preparar documentos",
           "timestamp": "2025-08-21T17:09:04.360Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-12T14:29:22.599Z"
         }
       ],
       "rating": 4,
       "category": "Pessoal",
       "assignedTo": "Diana&Vinícius",
       "id": "8eaxhdqzn3amelnp3sa",
-      "columnId": "tarefas",
+      "columnId": "iniciar",
       "createdAt": "2025-08-21T17:09:14.987Z",
-      "lastUpdated": "2025-09-09T17:12:09.528Z",
+      "lastUpdated": "2025-09-12T14:29:22.599Z",
       "activity": "Externa",
       "order": 3,
       "deadlineDate": "2025-08-29",
@@ -1093,7 +1075,7 @@
     {
       "name": "Bradesco",
       "email": "",
-      "phone": "",
+      "phone": "0800 727 9933",
       "notes": [
         {
           "text": "Ir ao banco resolver pendência urgente",
@@ -1102,21 +1084,61 @@
         {
           "text": "Tentei contato dia 01/09 novamente",
           "timestamp": "2025-09-01T17:22:07.027Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-12T14:24:06.601Z"
+        },
+        {
+          "text": "fiz reclamação no SAC protocolo 341435151 falei com Leiliane",
+          "timestamp": "2025-09-12T14:26:26.497Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-12T14:26:33.934Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-12T14:26:39.449Z"
+        },
+        {
+          "text": "whats app q entrará em contato 11960573787",
+          "timestamp": "2025-09-12T14:27:39.438Z"
+        },
+        {
+          "text": "11916472709",
+          "timestamp": "2025-09-12T14:27:53.584Z"
+        },
+        {
+          "text": "1133302610",
+          "timestamp": "2025-09-12T14:28:15.722Z"
+        },
+        {
+          "text": "1133202910",
+          "timestamp": "2025-09-12T14:28:26.237Z"
+        },
+        {
+          "text": "1133309102",
+          "timestamp": "2025-09-12T14:28:39.471Z"
+        },
+        {
+          "text": "de 'Feito' para 'Tarefas'.",
+          "timestamp": "2025-09-12T18:34:11.315Z"
         }
       ],
-      "rating": 4,
-      "category": "Pessoal",
+      "rating": 5,
+      "category": "Pepper Hat",
       "assignedTo": "Diana&Vinícius",
       "address": "",
       "id": "r8ewcmtcmxmer6mk8s",
       "columnId": "tarefas",
       "createdAt": "2025-08-25T13:57:59.932Z",
-      "lastUpdated": "2025-09-09T17:12:13.290Z",
+      "lastUpdated": "2025-09-12T18:34:11.315Z",
       "order": 5,
-      "activity": "Externa",
-      "deadlineDate": "2025-09-02",
-      "deadlineTime": "10:00",
-      "duration": "Dia",
+      "activity": "Interna",
+      "deadlineDate": "2025-09-22",
+      "deadlineTime": "15:00",
+      "duration": "Horas",
       "pulsingDisabled": false
     },
     {
@@ -1210,6 +1232,10 @@
         {
           "text": "Montar orçamento",
           "timestamp": "2025-09-11T14:02:04.483Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-12T14:29:39.531Z"
         }
       ],
       "rating": 5,
@@ -1220,12 +1246,12 @@
       "deadlineDate": "2025-09-12",
       "deadlineTime": "16:00",
       "duration": "Horas",
-      "columnId": "tarefas",
+      "columnId": "iniciar",
       "isPulsing": true,
       "link": "",
       "id": "p3ug2jvih6mffh9n29",
       "createdAt": "2025-09-11T14:02:21.057Z",
-      "lastUpdated": "2025-09-11T14:02:21.057Z",
+      "lastUpdated": "2025-09-12T14:29:39.531Z",
       "order": 9,
       "pulsingDisabled": false
     },
@@ -1241,6 +1267,10 @@
         {
           "text": "Fazer orçamento e deixar pronto para enviar com anexos",
           "timestamp": "2025-09-11T14:06:11.988Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-12T14:29:33.943Z"
         }
       ],
       "rating": 5,
@@ -1251,12 +1281,12 @@
       "deadlineDate": "2025-09-12",
       "deadlineTime": "16:00",
       "duration": "Horas",
-      "columnId": "tarefas",
+      "columnId": "iniciar",
       "isPulsing": true,
       "link": "",
       "id": "ibnxw3r6dimffhep8a",
       "createdAt": "2025-09-11T14:06:17.147Z",
-      "lastUpdated": "2025-09-11T14:06:17.147Z",
+      "lastUpdated": "2025-09-12T14:29:33.943Z",
       "order": 10,
       "pulsingDisabled": false
     },
@@ -1276,6 +1306,14 @@
         {
           "text": "de 'Tarefas' para 'Iniciar'.",
           "timestamp": "2025-09-11T14:40:30.827Z"
+        },
+        {
+          "text": "de 'Iniciar' para 'Fazendo'.",
+          "timestamp": "2025-09-12T18:35:47.498Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-12T20:15:39.471Z"
         }
       ],
       "rating": 5,
@@ -1286,12 +1324,12 @@
       "deadlineDate": "2025-09-11",
       "deadlineTime": "17:00",
       "duration": "Minutos",
-      "columnId": "iniciar",
+      "columnId": "feito",
       "isPulsing": true,
       "link": "",
       "id": "4n9lutvtx4bmffhpc12",
       "createdAt": "2025-09-11T14:14:33.254Z",
-      "lastUpdated": "2025-09-11T14:40:30.827Z",
+      "lastUpdated": "2025-09-12T20:15:39.477Z",
       "order": 11,
       "pulsingDisabled": false
     },
@@ -1307,6 +1345,10 @@
         {
           "text": "hotel, alimentação, etc...",
           "timestamp": "2025-09-11T14:36:58.748Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Iniciar'.",
+          "timestamp": "2025-09-12T14:29:37.264Z"
         }
       ],
       "rating": 5,
@@ -1317,12 +1359,12 @@
       "deadlineDate": "2025-09-11",
       "deadlineTime": "16:30",
       "duration": "Horas",
-      "columnId": "tarefas",
+      "columnId": "iniciar",
       "isPulsing": true,
       "link": "",
       "id": "5pesyw4cvymmffii8jy",
       "createdAt": "2025-09-11T14:37:01.775Z",
-      "lastUpdated": "2025-09-11T14:37:01.775Z",
+      "lastUpdated": "2025-09-12T14:29:37.264Z",
       "order": 12,
       "pulsingDisabled": false
     }

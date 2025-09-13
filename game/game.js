@@ -126,6 +126,7 @@
   let houseFurniture = []; // Stores furniture objects when inside a house
   let isInHouse = false; // New state to track if player is inside a house
   let lastEntranceDoor = null; // Stores the door object the player last entered through
+  let isAccelerometerEnabled = false; // New global variable to control accelerometer movement
 
   // Enemy state
   const enemy = {
@@ -719,26 +720,25 @@
       btn.style.border = '2px solid #fff';
       btn.style.userSelect = 'none';
       btn.style.zIndex = '10';
-      btn.style.pointerEvents = 'auto';
-      btn.style.cursor = 'grab'; // Indicate draggable
+      btn.style.pointerEvents = 'auto'; // Allow interaction
+      // Removed cursor: 'grab' as buttons are no longer draggable
       return btn;
     }
-    // Existing makeButton function remains, but its usage will be for other buttons
 
-    // Create buttons for movement and actions
+    // Create buttons for movement and actions, fixed in position
     const leftBtn = makeButton('◀', 'leftBtn');
     leftBtn.style.left = '10px';
     leftBtn.style.bottom = '10px';
     container.appendChild(leftBtn);
 
     const rightBtn = makeButton('▶', 'rightBtn');
-    rightBtn.style.left = '90px';
+    rightBtn.style.left = '90px'; // Positioned next to leftBtn
     rightBtn.style.bottom = '10px';
     container.appendChild(rightBtn);
 
     const jumpBtn = makeButton('A', 'jumpBtn');
-    jumpBtn.style.right = '10px';
-    jumpBtn.style.bottom = '90px';
+    jumpBtn.style.right = '90px'; // Positioned next to crouchBtn
+    jumpBtn.style.bottom = '10px';
     container.appendChild(jumpBtn);
 
     const crouchBtn = makeButton('B', 'crouchBtn');
@@ -759,69 +759,8 @@
     set(jumpBtn, 'jump');
     set(crouchBtn, 'crouch');
 
-    // Drag functionality for buttons (simplified, no lock button)
-    const controlButtons = [leftBtn, rightBtn, jumpBtn, crouchBtn]; // Only game control buttons
-    let activeDragBtn = null;
-    let initialX, initialY;
-
-    // Load saved positions if they exist
-    const savedPositions = JSON.parse(localStorage.getItem('controlPositions') || '{}');
-    if (Object.keys(savedPositions).length > 0) {
-      controlButtons.forEach(btn => {
-        const pos = savedPositions[btn.dataset.id];
-        if (pos) {
-          btn.style.left = pos.left;
-          btn.style.top = pos.top;
-        }
-      });
-    }
-
-    controlButtons.forEach(btn => {
-      btn.addEventListener('pointerdown', (e) => {
-        activeDragBtn = btn;
-        initialX = e.clientX - btn.getBoundingClientRect().left;
-        initialY = e.clientY - btn.getBoundingClientRect().top;
-        btn.style.zIndex = '11'; // Bring dragged button to front
-        btn.setPointerCapture(e.pointerId);
-        e.preventDefault();
-        e.stopPropagation();
-      });
-
-      btn.addEventListener('pointermove', (e) => {
-        if (!activeDragBtn || activeDragBtn !== btn) return;
-
-        const newX = e.clientX - initialX;
-        const newY = e.clientY - initialY;
-
-        activeDragBtn.style.left = `${newX}px`;
-        activeDragBtn.style.top = `${newY}px`;
-        e.preventDefault();
-      });
-
-      btn.addEventListener('pointerup', (e) => {
-        if (!activeDragBtn || activeDragBtn !== btn) return;
-        activeDragBtn.style.zIndex = '10';
-        activeDragBtn.releasePointerCapture(e.pointerId);
-        activeDragBtn = null;
-        e.stopPropagation();
-        // Save positions after dragging any button (auto-save)
-        const currentPositions = {};
-        controlButtons.forEach(btn => {
-          if (btn.dataset.id) {
-            currentPositions[btn.dataset.id] = { left: btn.style.left, top: btn.style.top };
-          }
-        });
-        localStorage.setItem('controlPositions', JSON.stringify(currentPositions));
-      });
-
-      btn.addEventListener('pointercancel', (e) => {
-        if (!activeDragBtn || activeDragBtn !== btn) return;
-        activeDragBtn.style.zIndex = '10';
-        activeDragBtn.releasePointerCapture(e.pointerId);
-        activeDragBtn = null;
-        e.stopPropagation();
-      });
-    });
+    // Removed drag functionality: buttons are now fixed in position.
+    // Removed localStorage saving/loading for control positions.
   }
 
   // Keyboard controls
@@ -932,6 +871,11 @@
           }
           resetGame(); // Starts the game in normal mode
         }
+        // Check if Inclination Movement button clicked/touched
+        else if (x >= inclinationButtonX && x <= inclinationButtonX + inclinationButtonWidth &&
+                 y >= inclinationButtonY && y <= inclinationButtonY + inclinationButtonHeight) {
+          isAccelerometerEnabled = !isAccelerometerEnabled; // Toggle accelerometer state
+        }
       }
       // Check for Restart button click/touch if in game over state
       else if (currentGameState === 'gameOver') {
@@ -956,70 +900,100 @@
     canvas.addEventListener('touchstart', handleMenuInteraction, false);
   }
 
+  // Handle device orientation events for accelerometer input
+  function handleOrientation(event) {
+    lastDeviceOrientationEvent = event; // Store the latest orientation event
+    const currentGamma = event.gamma;
+    const currentBeta = event.beta;
+
+    // Calculate tilt relative to the neutral point established at game start
+    const relativeGamma = currentGamma - neutralGamma;
+    const relativeBeta = currentBeta - neutralBeta;
+
+    // Determine if the device is more horizontal or vertical for movement control
+    // We'll use the larger absolute tilt value for horizontal movement
+    let effectiveTilt = 0;
+    if (Math.abs(relativeGamma) > Math.abs(relativeBeta)) {
+      effectiveTilt = relativeGamma;
+    } else {
+      effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
+    }
+
+    const tiltThreshold = 7; // Degrees to start moving (ajuste este valor para calibrar a sensibilidade)
+    const maxTilt = 45; // Max tilt for full speed (e.g., 45 degrees)
+
+    input.left = false;
+    input.right = false;
+    input.accelerometerSpeedFactor = 0;
+
+    if (effectiveTilt > tiltThreshold) {
+      // Tilt right
+      input.right = true;
+      // No need for tiltFactor here, as we want full speed
+      input.accelerometerSpeedFactor = 1; // Always full speed
+    } else if (effectiveTilt < -tiltThreshold) {
+      // Tilt left
+      input.left = true;
+      // No need for tiltFactor here, as we want full speed
+      input.accelerometerSpeedFactor = 1; // Always full speed
+    } else {
+      // Neutral position, input.left/right are already false, speedFactor is 0
+    }
+  }
+
   // Setup accelerometer controls for mobile devices
   function setupAccelerometerControls() {
-    if (window.DeviceOrientationEvent) {
-      // Request permission for iOS 13+ devices
-      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') {
-              window.addEventListener('deviceorientation', handleOrientation);
-              input.accelerometerActive = true; // Set flag when accelerometer is active
-            } else {
-              console.warn('Permission for device orientation not granted.');
-              input.accelerometerActive = false; // Ensure flag is false if permission denied
-            }
-          })
-          .catch(error => {
-            console.error('Error requesting device orientation permission:', error);
-            input.accelerometerActive = false;
-          });
+    // Function to enable/disable accelerometer based on isAccelerometerEnabled
+    const toggleAccelerometer = () => {
+      if (isAccelerometerEnabled) {
+        if (window.DeviceOrientationEvent) {
+          // Request permission for iOS 13+ devices
+          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+              .then(permissionState => {
+                if (permissionState === 'granted') {
+                  window.addEventListener('deviceorientation', handleOrientation);
+                  input.accelerometerActive = true; // Set flag when accelerometer is active
+                } else {
+                  console.warn('Permission for device orientation not granted.');
+                  input.accelerometerActive = false; // Ensure flag is false if permission denied
+                }
+              })
+              .catch(error => {
+                console.error('Error requesting device orientation permission:', error);
+                input.accelerometerActive = false;
+              });
+          } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+            input.accelerometerActive = true; // Set flag for older browsers/Android
+          }
+        }
       } else {
-        window.addEventListener('deviceorientation', handleOrientation);
-        input.accelerometerActive = true; // Set flag for older browsers/Android
+        window.removeEventListener('deviceorientation', handleOrientation);
+        input.accelerometerActive = false; // Ensure flag is false if accelerometer is disabled
+        // Reset input to avoid residual movement
+        input.left = false;
+        input.right = false;
+        input.accelerometerSpeedFactor = 0;
       }
-    }
+    };
 
-    function handleOrientation(event) {
-      lastDeviceOrientationEvent = event; // Store the latest orientation event
-      const currentGamma = event.gamma;
-      const currentBeta = event.beta;
+    // Initial call to set up accelerometer based on current state
+    toggleAccelerometer();
 
-      // Calculate tilt relative to the neutral point established at game start
-      const relativeGamma = currentGamma - neutralGamma;
-      const relativeBeta = currentBeta - neutralBeta;
-
-      // Determine if the device is more horizontal or vertical for movement control
-      // We'll use the larger absolute tilt value for horizontal movement
-      let effectiveTilt = 0;
-      if (Math.abs(relativeGamma) > Math.abs(relativeBeta)) {
-        effectiveTilt = relativeGamma;
-      } else {
-        effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
+    // Listen for changes in isAccelerometerEnabled (e.g., from menu click)
+    // This is a simplified approach; in a larger app, you might use a more robust state management.
+    // We are now calling toggleAccelerometer directly when isAccelerometerEnabled is changed in setupMenuInput.
+    // Therefore, this Object.defineProperty is no longer needed.
+    /*
+    Object.defineProperty(input, 'accelerometerEnabledState', {
+      get: function() { return isAccelerometerEnabled; },
+      set: function(value) {
+        isAccelerometerEnabled = value;
+        toggleAccelerometer(); // Re-toggle accelerometer when state changes
       }
-
-      const tiltThreshold = 7; // Degrees to start moving (ajuste este valor para calibrar a sensibilidade)
-      const maxTilt = 45; // Max tilt for full speed (e.g., 45 degrees)
-
-      input.left = false;
-      input.right = false;
-      input.accelerometerSpeedFactor = 0;
-
-      if (effectiveTilt > tiltThreshold) {
-        // Tilt right
-        input.right = true;
-        // No need for tiltFactor here, as we want full speed
-        input.accelerometerSpeedFactor = 1; // Always full speed
-      } else if (effectiveTilt < -tiltThreshold) {
-        // Tilt left
-        input.left = true;
-        // No need for tiltFactor here, as we want full speed
-        input.accelerometerSpeedFactor = 1; // Always full speed
-      } else {
-        // Neutral position, input.left/right are already false, speedFactor is 0
-      }
-    }
+    });
+    */
   }
 
   // Setup touch controls for jumping and crouching on the game canvas
@@ -1115,6 +1089,13 @@
     input.right = false;
     input.jump = false;
     input.crouch = false;
+    isAccelerometerEnabled = false; // Reset accelerometer state
+    input.accelerometerActive = false; // Ensure accelerometer is not active
+    // Call toggleAccelerometer to ensure the event listener is removed if it was active
+    // and the game is being reset with accelerometer disabled.
+    if (typeof toggleAccelerometer === 'function') {
+      toggleAccelerometer();
+    }
   }
 
   // Game update loop
@@ -1145,11 +1126,11 @@
 
     player.vx = 0;
     if (!input.crouch) { // Only allow horizontal movement if not crouching
-      // Prioritize accelerometer input if it's active and detecting movement
-      if (input.accelerometerActive && input.accelerometerSpeedFactor > 0) {
+      if (isAccelerometerEnabled && input.accelerometerActive && input.accelerometerSpeedFactor > 0) {
+        // Prioritize accelerometer input if enabled, active, and detecting movement
         if (input.left) player.vx = -moveSpeed;
         else if (input.right) player.vx = moveSpeed;
-      } else { // Fallback to keyboard/gamepad
+      } else { // Fallback to keyboard/gamepad if accelerometer is disabled or not active
         if (input.left && !input.right) player.vx = -moveSpeed;
         if (input.right && !input.left) player.vx = moveSpeed;
       }
@@ -1570,6 +1551,22 @@
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 30px Arial';
     ctx.fillText('NORMAL', GAME_WIDTH / 2, normalButtonY + normalButtonHeight / 2);
+
+    // Inclination Movement Button
+    const inclinationButtonWidth = 200;
+    const inclinationButtonHeight = 60;
+    const inclinationButtonX = GAME_WIDTH / 2 - inclinationButtonWidth / 2;
+    const inclinationButtonY = normalButtonY + normalButtonHeight + 30; // 30 pixels below Normal button
+
+    ctx.fillStyle = '#3498db'; // Blue for Inclination
+    ctx.fillRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
+    ctx.strokeStyle = '#ecf0f1';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
+
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = 'bold 25px Arial'; // Slightly smaller font to fit text
+    ctx.fillText(`Inclination: ${isAccelerometerEnabled ? 'Enabled' : 'Disabled'}`, GAME_WIDTH / 2, inclinationButtonY + inclinationButtonHeight / 2);
   }
 
   // Main drawing loop
