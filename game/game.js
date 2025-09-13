@@ -215,8 +215,52 @@
   const GENERATION_BUFFER = GAME_WIDTH / 2; // How far past the view range to generate
   let lastGeneratedChunkX = 0; // Tracks the furthest X-coordinate generated
 
+  // Global objects to store UI button positions and dimensions for responsive layout
+  const menuButtons = { easy: {}, normal: {}, inclination: {} };
+  const gameOverButtons = { restart: {} };
+
+  // Function to layout UI elements responsively
+  function layoutUI() {
+    // Recalculate bar positions based on current GAME_WIDTH and GAME_HEIGHT
+    animatedBar.x = GAME_WIDTH / 2 - animatedBar.width / 2;
+    staminaBar.x = GAME_WIDTH / 2 - staminaBar.width / 2;
+    staminaBar.y = animatedBar.y - animatedBar.height - 10; // 10 pixels above animatedBar
+
+    // Menu button positions (relative to GAME_WIDTH/GAME_HEIGHT)
+    const easyButtonWidth = 200; // Define width for layout calculations
+    const easyButtonHeight = 60; // Define height for layout calculations
+    menuButtons.easy.x = GAME_WIDTH / 2 - easyButtonWidth / 2;
+    menuButtons.easy.y = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
+    menuButtons.easy.width = easyButtonWidth;
+    menuButtons.easy.height = easyButtonHeight;
+
+    const normalButtonWidth = 200;
+    const normalButtonHeight = 60;
+    menuButtons.normal.x = GAME_WIDTH / 2 - normalButtonWidth / 2;
+    menuButtons.normal.y = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
+    menuButtons.normal.width = normalButtonWidth;
+    menuButtons.normal.height = normalButtonHeight;
+
+    const inclinationButtonWidth = 200;
+    const inclinationButtonHeight = 60;
+    menuButtons.inclination.x = GAME_WIDTH / 2 - inclinationButtonWidth / 2;
+    menuButtons.inclination.y = menuButtons.normal.y + normalButtonHeight + 30;
+    menuButtons.inclination.width = inclinationButtonWidth;
+    menuButtons.inclination.height = inclinationButtonHeight;
+
+    // Game Over Restart Button position
+    const restartButtonWidth = 120;
+    const restartButtonHeight = 40;
+    gameOverButtons.restart.x = GAME_WIDTH / 2 - restartButtonWidth / 2;
+    gameOverButtons.restart.y = 10; // Positioned near the top
+    gameOverButtons.restart.width = restartButtonWidth;
+    gameOverButtons.restart.height = restartButtonHeight;
+  }
+
   // Function to update the positions of the stamina and animated bars
   function updateBarPositions() {
+    // This function will now be largely replaced by layoutUI for bars
+    // Keeping it for now, but will likely be removed or integrated fully into layoutUI
     animatedBar.x = GAME_WIDTH / 2 - animatedBar.width / 2;
     staminaBar.x = GAME_WIDTH / 2 - staminaBar.width / 2;
     staminaBar.y = animatedBar.y - animatedBar.height - 10; // 10 pixels above animatedBar
@@ -244,11 +288,20 @@
 
   // Resize the canvas to fill the whole window
   function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Use visualViewport if available for more accurate dimensions on mobile
+    if (window.visualViewport) {
+      canvas.width = window.visualViewport.width;
+      canvas.height = window.visualViewport.height;
+    } else {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
 
     // Log dimensions for debugging
     console.log(`Resize: window.innerWidth=${window.innerWidth}, window.innerHeight=${window.innerHeight}`);
+    if (window.visualViewport) {
+      console.log(`Resize: visualViewport.width=${window.visualViewport.width}, visualViewport.height=${window.visualViewport.height}`);
+    }
     console.log(`Resize: canvas.width=${canvas.width}, canvas.height=${canvas.height}`);
 
     // Update GAME_WIDTH and GAME_HEIGHT to reflect the new canvas dimensions
@@ -256,6 +309,7 @@
     GAME_WIDTH = canvas.width;
     GAME_HEIGHT = canvas.height;
     updateBarPositions(); // Update bar positions on resize
+    layoutUI(); // Update UI element positions on resize
   }
 
   // Function to generate world objects procedurally
@@ -840,20 +894,17 @@
 
       if (currentGameState === 'menu') {
         // Easy Button coordinates (defined in drawMenu)
-        const easyButtonWidth = 200;
-        const easyButtonHeight = 60;
-        const easyButtonX = GAME_WIDTH / 2 - easyButtonWidth / 2;
-        const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
+        const easyButton = menuButtons.easy;
 
         // Normal Button coordinates (defined in drawMenu)
-        const normalButtonWidth = 200;
-        const normalButtonHeight = 60;
-        const normalButtonX = GAME_WIDTH / 2 - normalButtonWidth / 2;
-        const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
+        const normalButton = menuButtons.normal;
+
+        // Inclination Movement Button coordinates (defined in drawMenu)
+        const inclinationButton = menuButtons.inclination;
 
         // Check if Easy button clicked/touched
-        if (x >= easyButtonX && x <= easyButtonX + easyButtonWidth &&
-            y >= easyButtonY && y <= easyButtonY + easyButtonHeight) {
+        if (x >= easyButton.x && x <= easyButton.x + easyButton.width &&
+            y >= easyButton.y && y <= easyButton.y + easyButton.height) {
           difficulty = 'easy';
           if (lastDeviceOrientationEvent) {
             neutralGamma = lastDeviceOrientationEvent.gamma;
@@ -862,8 +913,8 @@
           resetGame(); // Starts the game in easy mode
         }
         // Check if Normal button clicked/touched
-        else if (x >= normalButtonX && x <= normalButtonX + normalButtonWidth &&
-                 y >= normalButtonY && y <= normalButtonY + normalButtonHeight) {
+        else if (x >= normalButton.x && x <= normalButton.x + normalButton.width &&
+                 y >= normalButton.y && y <= normalButton.y + normalButton.height) {
           difficulty = 'normal';
           if (lastDeviceOrientationEvent) {
             neutralGamma = lastDeviceOrientationEvent.gamma;
@@ -872,26 +923,22 @@
           resetGame(); // Starts the game in normal mode
         }
         // Check if Inclination Movement button clicked/touched
-        else if (x >= inclinationButtonX && x <= inclinationButtonX + inclinationButtonWidth &&
-                 y >= inclinationButtonY && y <= inclinationButtonY + inclinationButtonHeight) {
+        else if (x >= inclinationButton.x && x <= inclinationButton.x + inclinationButton.width &&
+                 y >= inclinationButton.y && y <= inclinationButton.y + inclinationButton.height) {
           isAccelerometerEnabled = !isAccelerometerEnabled; // Toggle accelerometer state
         }
       }
       // Check for Restart button click/touch if in game over state
       else if (currentGameState === 'gameOver') {
         // Restart Button coordinates (defined in drawGameOverMenu)
-        // Removed scoreY calculation as it's not needed for the restart button's fixed position
-        const restartButtonWidth = 120; // Diminuído (match drawGameOverMenu)
-        const restartButtonHeight = 40; // Diminuído (match drawGameOverMenu)
-        const restartButtonX = GAME_WIDTH / 2 - restartButtonWidth / 2;
-        const restartButtonY = 10; // Mais próximo do topo (match drawGameOverMenu)
+        const restartButton = gameOverButtons.restart;
 
         // Debugging: Log click coordinates and button bounds
         console.log(`Click: x=${x}, y=${y}`);
-        console.log(`Restart Button: x=${restartButtonX}, y=${restartButtonY}, width=${restartButtonWidth}, height=${restartButtonHeight}`);
+        console.log(`Restart Button: x=${restartButton.x}, y=${restartButton.y}, width=${restartButton.width}, height=${restartButton.height}`);
 
-        if (x >= restartButtonX && x <= restartButtonX + restartButtonWidth &&
-            y >= restartButtonY && y <= restartButtonY + restartButtonHeight) {
+        if (x >= restartButton.x && x <= restartButton.x + restartButton.width &&
+            y >= restartButton.y && y <= restartButton.y + restartButton.height) {
           currentGameState = 'menu'; // Change to menu state
         }
       }
@@ -1227,7 +1274,7 @@
               isInHouse = true;
               // Reposition player inside the house, in front of the exit door
               player.x = GAME_WIDTH / 2;
-              player.y = groundY - player.initialHeight; // Ensure player is on the ground inside
+              player.y = (GAME_HEIGHT / 2) - player.initialHeight; // Ensure player is on the ground inside, using floorY
               input.crouch = false; // Reset crouch input to prevent immediate re-entry/exit
               return; // Exit update early to prevent further movement/animation issues
             }
@@ -1308,9 +1355,10 @@
     // Apply vertical velocity
     player.y += player.vy * dt;
     // Ground collision
+    const currentGroundY = isInHouse ? (GAME_HEIGHT / 2) : groundY; // Use floorY if in house, otherwise groundY
     const groundTolerance = 1; // Small tolerance for ground detection
-    if (player.y + player.height >= groundY - groundTolerance) {
-      player.y = groundY - player.height; // Snap to ground
+    if (player.y + player.height >= currentGroundY - groundTolerance) {
+      player.y = currentGroundY - player.height; // Snap to ground
       player.vy = 0;
       // Reset accelerated jump state if landing on ground
       if (!player.onGround && player.isAcceleratedJump) { // Only reset if just landed and was in accelerated jump
@@ -1323,7 +1371,7 @@
     }
 
     // Debugging: Log player.onGround, player.y, and groundY state
-    console.log(`Player y: ${player.y.toFixed(2)}, Ground y: ${groundY.toFixed(2)}, On Ground: ${player.onGround}`);
+    console.log(`Player y: ${player.y.toFixed(2)}, Ground y: ${currentGroundY.toFixed(2)}, On Ground: ${player.onGround}`);
 
     // Determine facing direction for drawing
     if (player.vx < 0) player.facingRight = false;
@@ -1521,52 +1569,40 @@
     ctx.fillText('Pepper Hat', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150);
 
     // Easy Button
-    const easyButtonWidth = 200;
-    const easyButtonHeight = 60;
-    const easyButtonX = GAME_WIDTH / 2 - easyButtonWidth / 2;
-    const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
-
+    const easyButton = menuButtons.easy;
     ctx.fillStyle = '#27ae60'; // Green for Easy
-    ctx.fillRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
+    ctx.fillRect(easyButton.x, easyButton.y, easyButton.width, easyButton.height);
     ctx.strokeStyle = '#ecf0f1';
     ctx.lineWidth = 3;
-    ctx.strokeRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
+    ctx.strokeRect(easyButton.x, easyButton.y, easyButton.width, easyButton.height);
 
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 30px Arial';
-    ctx.fillText('EASY', GAME_WIDTH / 2, easyButtonY + easyButtonHeight / 2);
+    ctx.fillText('EASY', easyButton.x + easyButton.width / 2, easyButton.y + easyButton.height / 2);
 
     // Normal Button
-    const normalButtonWidth = 200;
-    const normalButtonHeight = 60;
-    const normalButtonX = GAME_WIDTH / 2 - normalButtonWidth / 2;
-    const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
-
+    const normalButton = menuButtons.normal;
     ctx.fillStyle = '#e74c3c'; // Red for Normal
-    ctx.fillRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
+    ctx.fillRect(normalButton.x, normalButton.y, normalButton.width, normalButton.height);
     ctx.strokeStyle = '#ecf0f1';
     ctx.lineWidth = 3;
-    ctx.strokeRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
+    ctx.strokeRect(normalButton.x, normalButton.y, normalButton.width, normalButton.height);
 
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 30px Arial';
-    ctx.fillText('NORMAL', GAME_WIDTH / 2, normalButtonY + normalButtonHeight / 2);
+    ctx.fillText('NORMAL', normalButton.x + normalButton.width / 2, normalButton.y + normalButton.height / 2);
 
     // Inclination Movement Button
-    const inclinationButtonWidth = 200;
-    const inclinationButtonHeight = 60;
-    const inclinationButtonX = GAME_WIDTH / 2 - inclinationButtonWidth / 2;
-    const inclinationButtonY = normalButtonY + normalButtonHeight + 30; // 30 pixels below Normal button
-
+    const inclinationButton = menuButtons.inclination;
     ctx.fillStyle = '#3498db'; // Blue for Inclination
-    ctx.fillRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
+    ctx.fillRect(inclinationButton.x, inclinationButton.y, inclinationButton.width, inclinationButton.height);
     ctx.strokeStyle = '#ecf0f1';
     ctx.lineWidth = 3;
-    ctx.strokeRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
+    ctx.strokeRect(inclinationButton.x, inclinationButton.y, inclinationButton.width, inclinationButton.height);
 
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 25px Arial'; // Slightly smaller font to fit text
-    ctx.fillText(`Inclination: ${isAccelerometerEnabled ? 'Enabled' : 'Disabled'}`, GAME_WIDTH / 2, inclinationButtonY + inclinationButtonHeight / 2);
+    ctx.fillText(`Inclination: ${isAccelerometerEnabled ? 'Enabled' : 'Disabled'}`, inclinationButton.x + inclinationButton.width / 2, inclinationButton.y + inclinationButton.height / 2);
   }
 
   // Main drawing loop
@@ -1764,16 +1800,12 @@
     });
 
     // Restart Button
-    const restartButtonWidth = 120; // Diminuído (match drawGameOverMenu)
-    const restartButtonHeight = 40; // Diminuído (match drawGameOverMenu)
-    const restartButtonX = GAME_WIDTH / 2 - restartButtonWidth / 2;
-    const restartButtonY = 10; // Mais próximo do topo (match drawGameOverMenu)
-
+    const restartButton = gameOverButtons.restart;
     ctx.fillStyle = '#008CBA'; // Blue
-    ctx.fillRect(restartButtonX, restartButtonY, restartButtonWidth, restartButtonHeight);
+    ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial'; // Fonte menor
-    ctx.fillText('Restart', restartButtonX + restartButtonWidth / 2, restartButtonY + restartButtonHeight / 2 + 5);
+    ctx.fillText('Restart', restartButton.x + restartButton.width / 2, restartButton.y + restartButton.height / 2 + 5);
   }
 
   // Main game loop using requestAnimationFrame
@@ -1861,6 +1893,7 @@
     setupGameTouchControls(); // Setup game touch controls for jump/crouch
 
     updateBarPositions(); // Initialize bar positions
+    layoutUI(); // Initialize UI element positions
 
     // Start the loop
     requestAnimationFrame(gameLoop);
