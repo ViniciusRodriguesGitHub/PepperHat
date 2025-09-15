@@ -22,6 +22,7 @@
   let GAME_HEIGHT = 450;
 
   let isAccelerometerEnabled = false; // Declared globally
+  let currentZoomLevel = 1.0; // New global variable for zoom level
 
   // Define all game constants within a single configuration object for better organization
   const GameConfig = {
@@ -161,6 +162,9 @@
       PARALLAX_FACTOR_BACKGROUND: 0.2,
       PARALLAX_FACTOR_CITY: 0.1,
       PARALLAX_FACTOR_LAYER_BACKGROUND: 0.5,
+      MIN_ZOOM_LEVEL: 0.5, // Minimum zoom level
+      MAX_ZOOM_LEVEL: 2.0, // Maximum zoom level
+      ZOOM_STEP: 0.1, // Increment/decrement for zoom
     },
 
     // Menu Constants
@@ -347,7 +351,7 @@
   function updateBarPositions() {
     animatedBar.x = GAME_WIDTH / 2 - animatedBar.width / 2;
     staminaBar.x = GAME_WIDTH / 2 - staminaBar.width / 2;
-    staminaBar.y = animatedBar.y + animatedBar.height + GameConfig.BAR_VERTICAL_SPACING; // 10 pixels below animatedBar
+    staminaBar.y = animatedBar.y - staminaBar.height - GameConfig.BAR_VERTICAL_SPACING; // Position staminaBar above animatedBar
   }
 
   // Load all images and start the game loop once complete
@@ -378,6 +382,7 @@
     // Log dimensions for debugging
     console.log(`Resize: window.innerWidth=${window.innerWidth}, window.innerHeight=${window.innerHeight}`);
     console.log(`Resize: canvas.width=${canvas.width}, canvas.height=${canvas.height}`);
+    console.log(`Resize: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`); // Added for debugging
 
     // Update GAME_WIDTH and GAME_HEIGHT to reflect the new canvas dimensions
     // This will ensure game elements scale correctly with the new canvas size
@@ -922,6 +927,17 @@
     crouchBtn.style.bottom = '10px';
     container.appendChild(crouchBtn);
 
+    // Create Zoom buttons
+    const zoomOutBtn = makeButton('-', 'zoomOutBtn');
+    zoomOutBtn.style.right = '90px';
+    zoomOutBtn.style.top = '10px';
+    container.appendChild(zoomOutBtn);
+
+    const zoomInBtn = makeButton('+', 'zoomInBtn');
+    zoomInBtn.style.right = '10px';
+    zoomInBtn.style.top = '10px';
+    container.appendChild(zoomInBtn);
+
     // Attach pointer listeners for game controls
     const set = (btn, prop) => {
       btn.addEventListener('pointerdown', () => { input[prop] = true; });
@@ -934,6 +950,16 @@
     set(rightBtn, 'right');
     set(jumpBtn, 'jump');
     set(crouchBtn, 'crouch');
+
+    // Attach listeners for zoom buttons
+    zoomOutBtn.addEventListener('pointerdown', () => {
+      currentZoomLevel = Math.max(GameConfig.RENDER.MIN_ZOOM_LEVEL, currentZoomLevel - GameConfig.RENDER.ZOOM_STEP);
+      resize(); // Trigger resize to apply new zoom level
+    });
+    zoomInBtn.addEventListener('pointerdown', () => {
+      currentZoomLevel = Math.min(GameConfig.RENDER.MAX_ZOOM_LEVEL, currentZoomLevel + GameConfig.RENDER.ZOOM_STEP);
+      resize(); // Trigger resize to apply new zoom level
+    });
 
     // Removed drag functionality: buttons are now fixed in position.
     // Removed localStorage saving/loading for control positions.
@@ -1353,12 +1379,12 @@
       enemyPlayerDistance = Math.abs(player.x - enemy.x);
 
       // Map distance to opacity and pulsation speed
-      const maxEffectDistance = GAME_WIDTH / 2; // e.g., half screen width
-      const normalizedDistance = Math.min(1, enemyPlayerDistance / maxEffectDistance);
+      // const maxEffectDistance = GAME_WIDTH / 2; // e.g., half screen width
+      // const normalizedDistance = Math.min(1, enemyPlayerDistance / maxEffectDistance);
 
-      pulsationEffect.opacity = (1 - normalizedDistance) * 0.7; // Max opacity 70%
-      pulsationEffect.speed = 0.5 + (1 - normalizedDistance) * 1.5; // Speed from 0.5 (far) to 2 (close) - Slower pulse
-      pulsationEffect.normalizedDistance = normalizedDistance; // Store normalized distance for border width
+      // pulsationEffect.opacity = (1 - normalizedDistance) * 0.7; // Max opacity 70%
+      // pulsationEffect.speed = 0.5 + (1 - normalizedDistance) * 1.5; // Speed from 0.5 (far) to 2 (close) - Slower pulse
+      // pulsationEffect.normalizedDistance = normalizedDistance; // Store normalized distance for border width
 
       // Player-enemy collision detection (only outside house)
       const px1 = player.x;
@@ -1766,8 +1792,20 @@
     // Clear the canvas
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    ctx.save(); // Save the original canvas state for transformations
+
+    // Apply zoom transformation
+    const scaledWidth = GAME_WIDTH * currentZoomLevel;
+    const scaledHeight = GAME_HEIGHT * currentZoomLevel;
+    const offsetX = (GAME_WIDTH - scaledWidth) / 2; // Center horizontally
+    const offsetY = (GAME_HEIGHT - scaledHeight) / 2; // Center vertically
+
+    ctx.translate(offsetX, offsetY); // Translate to center for scaling
+    ctx.scale(currentZoomLevel, currentZoomLevel); // Apply zoom
+
     if (currentGameState === 'menu') {
       drawMenu();
+      ctx.restore(); // Restore before returning from menu
       return; // Stop rendering game elements if in menu
     }
 
@@ -1840,9 +1878,6 @@
       // Draw the enemy (only when outside the house)
       drawEnemy(enemy, scrollX);
 
-      // Draw the pulsating proximity warning
-      drawProximityWarning(performance.now());
-
       // Draw collectibles that have not yet been collected from worldObjects
       for (const obj of worldObjects) {
         if (obj.type === 'collectible' && !obj.collected) {
@@ -1880,25 +1915,26 @@
     // Game Over overlay
     if (currentGameState === 'gameOver') { // Changed from isGameOver to currentGameState
       drawGameOverMenu(); // Call the new function to draw the game over menu
+      ctx.restore(); // Restore before returning from game over
       return; // Stop further rendering of game elements
     }
 
     // Draw counters for collected items in the upper left corner.
     // We draw the icon at a small size followed by the count text.
     const iconSize = 24;
-    let offsetY = 10;
+    var uiOffsetY = 10;
     ctx.fillStyle = '#ffffff';
     ctx.font = '18px Arial';
 
     // Draw note count
-    ctx.drawImage(images.note, 10, offsetY, iconSize, iconSize);
-    ctx.fillText('x ' + noteCount, 10 + iconSize + 4, offsetY + iconSize - 6);
-    offsetY += iconSize + 5;
+    ctx.drawImage(images.note, 10, uiOffsetY, iconSize, iconSize);
+    ctx.fillText('x ' + noteCount, 10 + iconSize + 4, uiOffsetY + iconSize - 6);
+    uiOffsetY += iconSize + 5;
 
     // Draw record count
-    ctx.drawImage(images.record, 10, offsetY, iconSize, iconSize);
-    ctx.fillText('x ' + recordCount, 10 + iconSize + 4, offsetY + iconSize - 6);
-    offsetY += iconSize + 5;
+    ctx.drawImage(images.record, 10, uiOffsetY, iconSize, iconSize);
+    ctx.fillText('x ' + recordCount, 10 + iconSize + 4, uiOffsetY + iconSize - 6);
+    uiOffsetY += iconSize + 5;
 
     // Draw distance walked counter
     ctx.textAlign = 'center'; // Center the text horizontally
@@ -1929,6 +1965,8 @@
     ctx.strokeStyle = '#FFFFFF'; // White border
     ctx.lineWidth = 2;
     ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
+
+    ctx.restore(); // Restore the original canvas state
   }
 
   // Function to draw the Game Over menu with high scores and a restart button
@@ -1955,7 +1993,7 @@
 
     // Display top 10 high scores
     ctx.font = '20px Arial';
-    let scoreY = GAME_HEIGHT / 2 + 90;
+    var scoreY = GAME_HEIGHT / 2 + 90;
     highScores.forEach((score, index) => {
       ctx.fillText(`${index + 1}. ${score}m`, GAME_WIDTH / 2, scoreY);
       scoreY += 25;
@@ -1978,6 +2016,8 @@
   function gameLoop(timestamp) {
     const dt = (timestamp - lastTime) / 1000 || 0;
     lastTime = timestamp;
+    // Log key values for debugging mobile landscape issue
+    console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
     // Reset one‑frame inputs
     // We do not reset left/right here because they can remain pressed
     pollGamepad();
@@ -2065,51 +2105,6 @@
   }).catch((err) => {
     console.error('Error loading images', err);
   });
-
-  // New: Function to draw the pulsating proximity warning
-  function drawProximityWarning(timestamp) {
-    if (pulsationEffect.opacity > 0) {
-      const pulse = Math.sin(timestamp / 100 * pulsationEffect.speed) * 0.5 + 0.5; // 0.0 to 1.0 pulse
-      const currentOpacity = pulsationEffect.opacity * pulse;
-      // Calculate border width dynamically based on enemy proximity
-      const minBorderWidth = 20; // Minimum border width
-      const maxBorderWidth = 80; // Maximum border width
-      const borderWidth = minBorderWidth + (1 - pulsationEffect.normalizedDistance) * (maxBorderWidth - minBorderWidth);
-
-      ctx.save();
-      ctx.globalAlpha = currentOpacity; // Apply the calculated opacity for the whole effect
-
-      // Top border
-      let gradient = ctx.createLinearGradient(0, 0, 0, borderWidth);
-      gradient.addColorStop(0, 'rgba(255, 0, 0, 1)');
-      gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, GAME_WIDTH, borderWidth);
-
-      // Bottom border
-      gradient = ctx.createLinearGradient(0, GAME_HEIGHT - borderWidth, 0, GAME_HEIGHT);
-      gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
-      gradient.addColorStop(1, 'rgba(255, 0, 0, 1)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, GAME_HEIGHT - borderWidth, GAME_WIDTH, borderWidth);
-
-      // Left border
-      gradient = ctx.createLinearGradient(0, 0, borderWidth, 0);
-      gradient.addColorStop(0, 'rgba(255, 0, 0, 1)');
-      gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, borderWidth, GAME_HEIGHT);
-
-      // Right border
-      gradient = ctx.createLinearGradient(GAME_WIDTH - borderWidth, 0, GAME_WIDTH, 0);
-      gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
-      gradient.addColorStop(1, 'rgba(255, 0, 0, 1)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(GAME_WIDTH - borderWidth, 0, borderWidth, GAME_HEIGHT);
-
-      ctx.restore();
-    }
-  }
 
   // Function to draw a streetlight
   function drawStreetlight(x, y, width, height, color, lightColor, parallaxScrollX) {
