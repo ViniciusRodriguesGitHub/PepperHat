@@ -21,48 +21,185 @@
   let GAME_WIDTH = 800;
   let GAME_HEIGHT = 450;
 
-  // Asset paths relative to this script.  In addition to the city
-  // background and ground tile, we load a sequence of frames for the
-  // pepper's idle animation.  Additional animations (walk, jump) can
-  // easily be added later by including more frames here and pushing
-  // them into the appropriate player.animations arrays.
-  const assets = {
-    ground: 'ground_tile.png',
-    // An unused single frame is kept for backwards compatibility but
-    // won't be drawn once animations are in place.
-    pepper: 'pepper.png',
-    pepper_idle_0: 'pepper_idle_0.png',
-    pepper_idle_1: 'pepper_idle_1.png',
-    pepper_idle_2: 'pepper_idle_2.png',
-    pepper_idle_3: 'pepper_idle_3.png',
-    pepper_idle_4: 'pepper_idle_4.png',
-    pepper_idle_5: 'pepper_idle_5.png',
-    wk1: 'wk1.png',
-    wk2: 'wk2.png',
-    wk3: 'wk3.png',
-    wk4: 'wk4.png',
-    subindo: '1subindo.png',
-    desacelerando: '2desacelerando.png',
-    caindo: '3caindo.png',
-    parado: 'parado.png',
-    abaixar1: 'l0_abaixar1.png',
-    abaixar2: 'l0_abaixar2.png',
-    abaixar3: 'l0_abaixar3.png',
-    note: 'note.png',
-    record: 'record.png',
-    ground_tile: 'ground_tile.png'
+  let isAccelerometerEnabled = false; // Declared globally
+
+  // Define all game constants within a single configuration object for better organization
+  const GameConfig = {
+    // Assets
+    ASSETS: {
+      ground: 'ground_tile.png',
+      pepper: 'pepper.png',
+      pepper_idle_0: 'pepper_idle_0.png',
+      pepper_idle_1: 'pepper_idle_1.png',
+      pepper_idle_2: 'pepper_idle_2.png',
+      pepper_idle_3: 'pepper_idle_3.png',
+      pepper_idle_4: 'pepper_idle_4.png',
+      pepper_idle_5: 'pepper_idle_5.png',
+      wk1: 'wk1.png',
+      wk2: 'wk2.png',
+      wk3: 'wk3.png',
+      wk4: 'wk4.png',
+      subindo: '1subindo.png',
+      desacelerando: '2desacelerando.png',
+      caindo: '3caindo.png',
+      parado: 'parado.png',
+      abaixar1: 'l0_abaixar1.png',
+      abaixar2: 'l0_abaixar2.png',
+      abaixar3: 'l0_abaixar3.png',
+      note: 'note.png',
+      record: 'record.png',
+      ground_tile: 'ground_tile.png'
+    },
+
+    // Bar Constants
+    ANIMATED_BAR: {
+      Y_OFFSET: 50,
+      WIDTH: 200,
+      HEIGHT: 20,
+      SPEED: 2.0,
+      RED_THRESHOLD: 0.9,
+      GREEN_COLOR: '#00FF00',
+      RED_COLOR: '#FF0000',
+    },
+    STAMINA_BAR: {
+      DRAIN_SPEED: 0.2,
+      RECOVER_SPEED: 0.2,
+      COLOR: '#FFA500',
+    },
+    BAR_VERTICAL_SPACING: 10,
+
+    // Enemy Constants
+    ENEMY: {
+      INITIAL_X_OFFSET: 50,
+      WIDTH: 40,
+      HEIGHT: 40,
+      SPEED: 150,
+      HITBOX_OFFSET: 10,
+    },
+
+    // Player Constants
+    PLAYER: {
+      INITIAL_X_OFFSET: 25,
+      WIDTH: 50,
+      INITIAL_HEIGHT: 60,
+      CROUCH_HEIGHT: 30,
+      BASE_MOVE_SPEED: 200,
+      COLLISION_VIEW_RANGE: 100,
+    },
+
+    // Color Palettes
+    COLORS: {
+      PASTEL_LIGHT: [
+        '#B3E5FC', '#C8E6C9', '#FFF9C4', '#FFCCBC', '#F8BBD0',
+      ],
+      SOFT_PASTEL_LIGHT: [
+        '#FDFD96', '#84B6F4', '#FF6961', '#77DD77', '#FFD1DC', '#B19CD9',
+      ],
+      PASTEL_DESATURATED: [
+        '#90CAF9', '#A5D6A7', '#FFECB3', '#FFAB91', '#F48FB1',
+      ],
+      WINDOW: [
+        '#E3F2FD', '#BBDEFB',
+      ],
+      DOOR: [
+        '#D7CCC8', '#BCAAA4',
+      ],
+    },
+
+    // Furniture Types
+    FURNITURE_TYPES: [
+      { type: 'refrigerator', minWidth: 40, maxWidth: 50, minHeight: 90, maxHeight: 120 },
+      { type: 'cabinet', minWidth: 60, maxWidth: 100, minHeight: 70, maxHeight: 100 },
+      { type: 'table', minWidth: 80, maxWidth: 150, minHeight: 40, maxHeight: 60 },
+      { type: 'television', minWidth: 50, maxWidth: 80, minHeight: 40, maxHeight: 60 },
+      { type: 'sofa', minWidth: 100, maxWidth: 180, minHeight: 30, maxHeight: 50 },
+      { type: 'plant', minWidth: 20, maxWidth: 40, minHeight: 50, maxHeight: 80 },
+      { type: 'painting', minWidth: 30, maxWidth: 60, minHeight: 40, maxHeight: 70 },
+      { type: 'bookshelf', minWidth: 60, maxWidth: 100, minHeight: 80, maxHeight: 110 },
+      { type: 'chair', minWidth: 30, maxWidth: 50, minHeight: 50, maxHeight: 70 },
+    ],
+
+    // Procedural Generation Parameters
+    GENERATION: {
+      VIEW_RANGE: 1.5, // Multiplied by GAME_WIDTH
+      BUFFER: 0.5, // Multiplied by GAME_WIDTH
+      PROB_HOUSE: 0.4,
+      PROB_TREE: 0.3,
+      PROB_STREETLIGHT: 0.1,
+      PROB_FENCE: 0.1,
+      PROB_BUSH: 0.05,
+      PROB_POLE: 0.05,
+      PROB_BACKGROUND_HOUSE: 0.3,
+      PROB_HAS_WINDOW: 0.7,
+      PROB_HAS_DOOR: 0.8,
+      PROB_HAS_ROOF: 0.9,
+      PROB_COLLECTIBLE: 0.2,
+      PROB_NOTE_COLLECTIBLE: 0.5,
+      SEGMENT_WIDTH: 200,
+    },
+
+    // Physics Constants
+    PHYSICS: {
+      GRAVITY: 1200,
+      STAMINA_LOW_SPEED_FACTOR: 0.5,
+      JUMP_IMPULSE: -600,
+      ACCELERATED_JUMP_FACTOR: 1.8,
+      ACCELERATED_JUMP_DECAY_RATE: 0.8,
+      GROUND_TOLERANCE: 1,
+    },
+
+    // Animation Constants
+    ANIMATION: {
+      SPEED: 0.15,
+      JUMP_ASCENDING_INDEX: 0,
+      JUMP_DECELERATING_INDEX: 1,
+      JUMP_DESCENDING_INDEX: 2,
+    },
+
+    // Render Constants
+    RENDER: {
+      PARALLAX_FACTOR_BACKGROUND: 0.2,
+      PARALLAX_FACTOR_CITY: 0.1,
+      PARALLAX_FACTOR_LAYER_BACKGROUND: 0.5,
+    },
+
+    // Menu Constants
+    MENU: {
+      TITLE_Y_OFFSET: -150,
+      BUTTON_WIDTH: 200,
+      BUTTON_HEIGHT: 60,
+      BUTTON_SPACING_Y: 30,
+      EASY_BUTTON_Y_OFFSET: -30,
+      NORMAL_BUTTON_Y_OFFSET: 60,
+      INCLINATION_BUTTON_Y_OFFSET: 60 + 60 + 30, // Direct calculation: NORMAL_BUTTON_Y_OFFSET + BUTTON_HEIGHT + BUTTON_SPACING_Y
+    },
+
+    // Game Over Menu Constants
+    GAME_OVER_MENU: {
+      RESTART_BUTTON_WIDTH: 120,
+      RESTART_BUTTON_HEIGHT: 40,
+      RESTART_BUTTON_Y_OFFSET: 10,
+    },
+
+    // Accelerometer Constants
+    ACCELEROMETER: {
+      TILT_THRESHOLD: 7,
+      MAX_TILT: 45,
+    },
   };
+
+  let images = {};
 
   const animatedBar = {
     // x: GAME_WIDTH / 2 - 100, // Will be calculated in updateBarPositions
-    y: 50, // Positioned near the top (initial value, will be updated)
-    width: 200,
-    height: 20,
+    y: GameConfig.ANIMATED_BAR.Y_OFFSET, // Positioned near the top (initial value, will be updated)
+    width: GameConfig.ANIMATED_BAR.WIDTH,
+    height: GameConfig.ANIMATED_BAR.HEIGHT,
     fill: 0.0, // Current fill level (0.0 to 1.0)
     fillDirection: 1, // 1 for increasing, -1 for decreasing
-    speed: 2.0, // How fast it oscillates (0.5 * 4 = 2.0)
+    speed: GameConfig.ANIMATED_BAR.SPEED, // How fast it oscillates (0.5 * 4 = 2.0)
     isVisible: false,
-    color: '#00FF00', // Default to green
+    color: GameConfig.ANIMATED_BAR.GREEN_COLOR, // Default to green
   };
 
   const staminaBar = {
@@ -71,78 +208,24 @@
     width: animatedBar.width,
     height: animatedBar.height,
     fill: 1.0, // Start fully filled
-    drainSpeed: 0.2, // Speed at which stamina drains (per second)
-    recoverSpeed: 0.2, // Speed at which stamina recovers (per second)
-    color: '#FFA500', // Orange
+    drainSpeed: GameConfig.STAMINA_BAR.DRAIN_SPEED, // Speed at which stamina drains (per second)
+    recoverSpeed: GameConfig.STAMINA_BAR.RECOVER_SPEED, // Speed at which stamina recovers (per second)
+    color: GameConfig.STAMINA_BAR.COLOR, // Orange
   };
-
-  let images = {};
-
-  // Pastel color palettes
-  const pastelLightColors = [
-    '#B3E5FC', // Light Blue
-    '#C8E6C9', // Light Green
-    '#FFF9C4', // Light Yellow
-    '#FFCCBC', // Light Orange
-    '#F8BBD0', // Light Pink
-  ];
-  const softPastelLightColors = [
-    '#FDFD96', // Light Yellow
-    '#84B6F4', // Light Blue
-    '#FF6961', // Light Red
-    '#77DD77', // Light Green
-    '#FFD1DC', // Light Pink
-    '#B19CD9', // Light Purple
-  ];
-  const furnitureTypes = [
-    { type: 'refrigerator', minWidth: 40, maxWidth: 50, minHeight: 90, maxHeight: 120 },
-    { type: 'cabinet', minWidth: 60, maxWidth: 100, minHeight: 70, maxHeight: 100 },
-    { type: 'table', minWidth: 80, maxWidth: 150, minHeight: 40, maxHeight: 60 },
-    { type: 'television', minWidth: 50, maxWidth: 80, minHeight: 40, maxHeight: 60 },
-    { type: 'sofa', minWidth: 100, maxWidth: 180, minHeight: 30, maxHeight: 50 }, // New: Sofa
-    { type: 'plant', minWidth: 20, maxWidth: 40, minHeight: 50, maxHeight: 80 }, // New: Plant
-    { type: 'painting', minWidth: 30, maxWidth: 60, minHeight: 40, maxHeight: 70 }, // New: Painting
-    { type: 'bookshelf', minWidth: 60, maxWidth: 100, minHeight: 80, maxHeight: 110 }, // New: Bookshelf
-    { type: 'chair', minWidth: 30, maxWidth: 50, minHeight: 50, maxHeight: 70 }, // New: Chair
-  ];
-  const pastelDesaturatedColors = [
-    '#90CAF9', // Desaturated Blue
-    '#A5D6A7', // Desaturated Green
-    '#FFECB3', // Desaturated Yellow
-    '#FFAB91', // Desaturated Orange
-    '#F48FB1', // Desaturated Pink
-  ];
-  const windowColors = [
-    '#E3F2FD', // Very Light Blue
-    '#BBDEFB', // Light Blue
-  ];
-  const doorColors = [
-    '#D7CCC8', // Light Brown
-    '#BCAAA4', // Medium Brown
-  ];
-
-  let noteCount = 0; // Redeclare noteCount as a global variable
-  let recordCount = 0; // Redeclare recordCount as a global variable
-  let playerDistanceWalked = 0; // New global variable to track player's distance walked
-  let maxPlayerX = 0; // New global variable to store the maximum x-coordinate reached by the player
-  let houseFurniture = []; // Stores furniture objects when inside a house
-  let isInHouse = false; // New state to track if player is inside a house
-  let lastEntranceDoor = null; // Stores the door object the player last entered through
-  let isAccelerometerEnabled = false; // New global variable to control accelerometer movement
 
   // Enemy state
   const enemy = {
-    x: GAME_WIDTH - 50, // Initial position on the right side of the screen
+    x: GAME_WIDTH - GameConfig.ENEMY.INITIAL_X_OFFSET, // Initial position on the right side of the screen
     y: 0, // Will be set correctly after groundY is calculated
-    width: 40,
-    height: 40,
+    width: GameConfig.ENEMY.WIDTH,
+    height: GameConfig.ENEMY.HEIGHT,
     vx: 0,
     vy: 0,
-    speed: 150, // Slightly slower than player's moveSpeed (200) - Adjusted from 180
+    speed: GameConfig.ENEMY.SPEED, // Slightly slower than player's moveSpeed (200) - Adjusted from 180
     onGround: false,
   };
 
-  const enemyHitboxOffset = 10; // Offset to reduce the enemy's collision box size
+  const enemyHitboxOffset = GameConfig.ENEMY.HITBOX_OFFSET; // Offset to reduce the enemy's collision box size
 
   let isGameOver = false; // New global variable to track game over state
   let currentGameState = 'menu'; // 'menu', 'playing', 'gameOver'
@@ -159,12 +242,12 @@
 
   // Player state
   const player = {
-    x: GAME_WIDTH / 2 - 25, // Centered horizontally using a direct value (50 / 2 = 25)
+    x: GAME_WIDTH / 2 - GameConfig.PLAYER.INITIAL_X_OFFSET, // Centered horizontally using a direct value (50 / 2 = 25)
     y: 0, // Will be set correctly after groundY is calculated
-    width: 50, // Reduced from 100 to 50
-    initialHeight: 60, // Store initial height
-    crouchHeight: 30, // Crouching height (half of initialHeight)
-    height: 60, // Reduced from 120 to 60. This will change when crouching.
+    width: GameConfig.PLAYER.WIDTH, // Reduced from 100 to 50
+    initialHeight: GameConfig.PLAYER.INITIAL_HEIGHT, // Store initial height
+    crouchHeight: GameConfig.PLAYER.CROUCH_HEIGHT, // Crouching height (half of initialHeight)
+    height: GameConfig.PLAYER.INITIAL_HEIGHT, // Reduced from 120 to 60. This will change when crouching.
     vx: 0,
     vy: 0,
     onGround: false,
@@ -185,7 +268,7 @@
     idleTime: 0, // Time spent idle for potential future mechanics
     isAcceleratedJump: false, // Tracks if player is in an accelerated jump
     jumpAccelerationFactor: 1.0, // Factor to multiply player.vx during accelerated jump
-    baseMoveSpeed: 200, // pixels per second - Moved to player object
+    baseMoveSpeed: GameConfig.PLAYER.BASE_MOVE_SPEED, // pixels per second - Moved to player object
   };
 
   // Input state
@@ -213,30 +296,73 @@
   let scrollX = 0;
 
   // Procedural generation parameters
-  const VIEW_RANGE = GAME_WIDTH * 1.5; // How far ahead/behind the player to generate/keep objects
-  const GENERATION_BUFFER = GAME_WIDTH / 2; // How far past the view range to generate
+  const VIEW_RANGE = GameConfig.GENERATION.VIEW_RANGE * GAME_WIDTH; // How far ahead/behind the player to generate/keep objects
+  const GENERATION_BUFFER = GameConfig.GENERATION.BUFFER * GAME_WIDTH; // How far past the view range to generate
   let lastGeneratedChunkX = 0; // Tracks the furthest X-coordinate generated
+
+  // Physics Constants
+  const GRAVITY = GameConfig.PHYSICS.GRAVITY; // pixels per second squared
+
+  // Game Physics & Player Movement Constants
+  const STAMINA_LOW_SPEED_FACTOR = GameConfig.PHYSICS.STAMINA_LOW_SPEED_FACTOR; // Factor when stamina is low
+  const JUMP_IMPULSE = GameConfig.PHYSICS.JUMP_IMPULSE; // Player's jump impulse (pixels/second)
+  const ACCELERATED_JUMP_FACTOR = GameConfig.PHYSICS.ACCELERATED_JUMP_FACTOR; // Initial acceleration factor for jump
+  const ACCELERATED_JUMP_DECAY_RATE = GameConfig.PHYSICS.ACCELERATED_JUMP_DECAY_RATE; // Rate at which jump acceleration decays
+  const GROUND_TOLERANCE = GameConfig.PHYSICS.GROUND_TOLERANCE; // Small tolerance for ground detection
+
+  // Animation Constants
+  const ANIMATION_SPEED = GameConfig.ANIMATION.SPEED; // seconds per frame
+  const JUMP_ANIM_ASCENDING_INDEX = GameConfig.ANIMATION.JUMP_ASCENDING_INDEX; // Index for 1subindo.png
+  const JUMP_ANIM_DECELERATING_INDEX = GameConfig.ANIMATION.JUMP_DECELERATING_INDEX; // Index for 2desacelerando.png
+  const JUMP_ANIM_DESCENDING_INDEX = GameConfig.ANIMATION.JUMP_DESCENDING_INDEX; // Index for 3caindo.png
+
+  // Render Constants
+  const PARALLAX_FACTOR_BACKGROUND = GameConfig.RENDER.PARALLAX_FACTOR_BACKGROUND; // 20% scroll speed for main background
+  const PARALLAX_FACTOR_CITY = GameConfig.RENDER.PARALLAX_FACTOR_CITY; // 10% scroll speed for distant city
+  const PARALLAX_FACTOR_LAYER_BACKGROUND = GameConfig.RENDER.PARALLAX_FACTOR_LAYER_BACKGROUND; // 50% parallax for background layer objects
+
+  // Menu Constants
+  const MENU_TITLE_Y_OFFSET = GameConfig.MENU.TITLE_Y_OFFSET;
+  const BUTTON_WIDTH = GameConfig.MENU.BUTTON_WIDTH;
+  const BUTTON_HEIGHT = GameConfig.MENU.BUTTON_HEIGHT;
+  const BUTTON_SPACING_Y = GameConfig.MENU.BUTTON_SPACING_Y; // Spacing between buttons
+
+  const EASY_BUTTON_Y_OFFSET = GameConfig.MENU.EASY_BUTTON_Y_OFFSET;
+  const NORMAL_BUTTON_Y_OFFSET = GameConfig.MENU.NORMAL_BUTTON_Y_OFFSET;
+  const INCLINATION_BUTTON_Y_OFFSET = NORMAL_BUTTON_Y_OFFSET + BUTTON_HEIGHT + BUTTON_SPACING_Y; // Based on Normal button's position
+
+  const RESTART_BUTTON_WIDTH = GameConfig.GAME_OVER_MENU.RESTART_BUTTON_WIDTH;
+  const RESTART_BUTTON_HEIGHT = GameConfig.GAME_OVER_MENU.RESTART_BUTTON_HEIGHT;
+  const RESTART_BUTTON_Y_OFFSET_GAME_OVER = GameConfig.GAME_OVER_MENU.RESTART_BUTTON_Y_OFFSET; // Position from top in Game Over screen
+
+  // Accelerometer Constants
+  const ACCELEROMETER_TILT_THRESHOLD = GameConfig.ACCELEROMETER.TILT_THRESHOLD; // Degrees to start moving
+  const ACCELEROMETER_MAX_TILT = GameConfig.ACCELEROMETER.MAX_TILT; // Max tilt for full speed
+
+  let houseFurniture = []; // Stores furniture objects when inside a house
+  let isInHouse = false; // New state to track if player is inside a house
+  let lastEntranceDoor = null; // Stores the door object the player last entered through
 
   // Function to update the positions of the stamina and animated bars
   function updateBarPositions() {
     animatedBar.x = GAME_WIDTH / 2 - animatedBar.width / 2;
     staminaBar.x = GAME_WIDTH / 2 - staminaBar.width / 2;
-    staminaBar.y = animatedBar.y - animatedBar.height - 10; // 10 pixels above animatedBar
+    staminaBar.y = animatedBar.y + animatedBar.height + GameConfig.BAR_VERTICAL_SPACING; // 10 pixels below animatedBar
   }
 
   // Load all images and start the game loop once complete
   function loadImages() {
-    const promises = Object.keys(assets).map(key => {
+    const promises = Object.keys(GameConfig.ASSETS).map(key => {
       return new Promise((resolve, reject) => {
         const img = new Image();
-        img.src = assets[key];
+        img.src = GameConfig.ASSETS[key];
         img.onload = () => {
           images[key] = img;
-          console.log(`Image loaded: ${key} -> ${assets[key]}`); // Log image loading
+          console.log(`Image loaded: ${key} -> ${GameConfig.ASSETS[key]}`); // Log image loading
           resolve();
         };
         img.onerror = (err) => {
-          console.error(`Error loading image: ${key} -> ${assets[key]}`, err); // Log image loading errors
+          console.error(`Error loading image: ${key} -> ${GameConfig.ASSETS[key]}`, err); // Log image loading errors
           reject(err);
         };
       });
@@ -262,33 +388,33 @@
 
   // Function to generate world objects procedurally
   function generateWorldObjects(startX, endX) {
-    const segmentWidth = 200; // Average spacing between objects
+    const segmentWidth = GameConfig.GENERATION.SEGMENT_WIDTH; // Average spacing between objects
     let currentX = startX;
     while (currentX < endX) {
       const rand = Math.random();
-      if (rand < 0.4) { // 40% chance for a house (structure)
-        const isBackground = Math.random() < 0.3; // 30% chance to be a background house
+      if (rand < GameConfig.GENERATION.PROB_HOUSE) { // House (structure)
+        const isBackground = Math.random() < GameConfig.GENERATION.PROB_BACKGROUND_HOUSE; // 30% chance to be a background house
         const scale = isBackground ? 0.6 + Math.random() * 0.2 : 1; // Smaller for background
         const houseWidth = (150 + Math.random() * 100) * scale; // Random width between 150-250, scaled
         const houseHeight = (100 + Math.random() * 100) * scale; // Random height between 100-200, scaled
-        const hasWindow = Math.random() > 0.3;
-        const hasDoor = Math.random() > 0.2;
-        const hasRoof = Math.random() > 0.1;
+        const hasWindow = Math.random() > GameConfig.GENERATION.PROB_HAS_WINDOW;
+        const hasDoor = Math.random() > GameConfig.GENERATION.PROB_HAS_DOOR;
+        const hasRoof = Math.random() > GameConfig.GENERATION.PROB_HAS_ROOF;
 
-        const bodyColors = isBackground ? pastelDesaturatedColors : pastelLightColors;
+        const bodyColors = isBackground ? GameConfig.COLORS.PASTEL_DESATURATED : GameConfig.COLORS.PASTEL_LIGHT;
         const selectedBodyColor = bodyColors[Math.floor(Math.random() * bodyColors.length)];
-        const selectedWindowColor = hasWindow ? windowColors[Math.floor(Math.random() * windowColors.length)] : null;
-        const selectedDoorColor = hasDoor ? doorColors[Math.floor(Math.random() * doorColors.length)] : null;
+        const selectedWindowColor = hasWindow ? GameConfig.COLORS.WINDOW[Math.floor(Math.random() * GameConfig.COLORS.WINDOW.length)] : null;
+        const selectedDoorColor = hasDoor ? GameConfig.COLORS.DOOR[Math.floor(Math.random() * GameConfig.COLORS.DOOR.length)] : null;
 
-        const doorWidth_val = houseWidth / 4;
-        const doorHeight_val = houseHeight / 2;
-        let doorX_offset_val;
+        const doorWidth = houseWidth / 4;
+        const doorHeight = houseHeight / 2;
+        let doorXOffset;
         if (hasWindow) {
-          doorX_offset_val = houseWidth - doorWidth_val - (houseWidth / 8);
+          doorXOffset = houseWidth - doorWidth - (houseWidth / 8);
         } else {
-          doorX_offset_val = (houseWidth / 2) - (doorWidth_val / 2);
+          doorXOffset = (houseWidth / 2) - (doorWidth / 2);
         }
-        const doorY_offset_val = houseHeight - doorHeight_val;
+        const doorYOffset = houseHeight - doorHeight;
 
         worldObjects.push({
           type: 'structure',
@@ -303,14 +429,14 @@
           layer: isBackground ? 'background' : 'foreground',
           // Add door collision area if it has a door
           doorArea: hasDoor ? {
-            x_offset: doorX_offset_val,
-            y_offset: doorY_offset_val,
-            width: doorWidth_val,
-            height: doorHeight_val,
+            x_offset: doorXOffset,
+            y_offset: doorYOffset,
+            width: doorWidth,
+            height: doorHeight,
           } : null,
           houseInterior: hasDoor ? null : null, // New: Stores generated furniture for this house
         });
-      } else if (rand < 0.7) { // 30% chance for a tree
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_TREE)) { // Tree
         const trunkHeight = 80 + Math.random() * 70; // Random height between 80-150
         const canopyRadius = 50 + Math.random() * 50; // Random radius between 50-100
         worldObjects.push({
@@ -322,7 +448,7 @@
           trunkColor: '#8B4513',
           canopyColor: '#' + Math.floor(Math.random() * 16777215).toString(16) // Random green shade
         });
-      } else if (rand < 0.8) { // 10% chance for a streetlight
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_TREE + GameConfig.GENERATION.PROB_STREETLIGHT)) { // Streetlight
         const poleHeight = 150 + Math.random() * 50; // Random height between 150-200
         const poleWidth = 10; // Fixed width
         worldObjects.push({
@@ -335,7 +461,7 @@
           lightColor: '#FFD700', // Gold light
           layer: 'foreground',
         });
-      } else if (rand < 0.9) { // 10% chance for a fence
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_TREE + GameConfig.GENERATION.PROB_STREETLIGHT + GameConfig.GENERATION.PROB_FENCE)) { // Fence
         const fenceHeight = 40; // Fixed height
         const fenceWidth = 80 + Math.random() * 40; // Random width
         worldObjects.push({
@@ -347,7 +473,7 @@
           color: '#A0522D', // Sienna
           layer: 'foreground',
         });
-      } else if (rand < 0.95) { // 5% chance for a bush
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_TREE + GameConfig.GENERATION.PROB_STREETLIGHT + GameConfig.GENERATION.PROB_FENCE + GameConfig.GENERATION.PROB_BUSH)) { // Bush
         const bushSize = 30 + Math.random() * 20; // Random size
         worldObjects.push({
           type: 'bush',
@@ -357,7 +483,7 @@
           color: '#228B22', // ForestGreen
           layer: 'foreground',
         });
-      } else { // 5% chance for a pole
+      } else { // Pole (remaining chance)
         const poleHeight = 40 + Math.random() * 20; // Smaller poles, random height between 40-60
         const poleWidth = 10; // Fixed width for poles
         worldObjects.push({
@@ -374,8 +500,8 @@
       currentX += segmentWidth + Math.random() * 100; // Advance position with some randomness
 
       // 20% chance to place a collectible
-      if (Math.random() < 0.2) {
-        const itemType = Math.random() < 0.5 ? 'note' : 'record';
+      if (Math.random() < GameConfig.GENERATION.PROB_COLLECTIBLE) {
+        const itemType = Math.random() < GameConfig.GENERATION.PROB_NOTE_COLLECTIBLE ? 'note' : 'record';
         const itemSize = 24; // Standard size for collectibles
         worldObjects.push({
           type: 'collectible',
@@ -423,8 +549,8 @@
     };
 
     for (let i = 0; i < numFurniture; i++) {
-      const furnitureType = furnitureTypes[Math.floor(Math.random() * furnitureTypes.length)];
-      const color = softPastelLightColors[Math.floor(Math.random() * softPastelLightColors.length)];
+      const furnitureType = GameConfig.FURNITURE_TYPES[Math.floor(Math.random() * GameConfig.FURNITURE_TYPES.length)];
+      const color = GameConfig.COLORS.SOFT_PASTEL_LIGHT[Math.floor(Math.random() * GameConfig.COLORS.SOFT_PASTEL_LIGHT.length)];
 
       const width = furnitureType.minWidth + Math.random() * (furnitureType.maxWidth - furnitureType.minWidth);
       const height = furnitureType.minHeight + Math.random() * (furnitureType.maxHeight - furnitureType.minHeight);
@@ -820,23 +946,28 @@
         case 'ArrowLeft':
         case 'KeyA':
           input.left = true;
+          e.preventDefault(); // Prevent default browser action
           break;
         case 'ArrowRight':
         case 'KeyD':
           input.right = true;
+          e.preventDefault(); // Prevent default browser action
           break;
         case 'Space':
         case 'ArrowUp':
         case 'KeyW':
           input.jump = true;
+          e.preventDefault(); // Prevent default browser action
           break;
         case 'ControlLeft': // New case for 'Ctrl' key for crouching
         case 'ControlRight':
         case 'KeyS': // New case for 'S' key for crouching
           input.crouch = true;
+          e.preventDefault(); // Prevent default browser action
           break;
         case 'ArrowDown': // New case for 'ArrowDown' key for crouching
           input.crouch = true;
+          e.preventDefault(); // Prevent default browser action
           break;
       }
     });
@@ -890,16 +1021,22 @@
 
       if (currentGameState === 'menu') {
         // Easy Button coordinates (defined in drawMenu)
-        const easyButtonWidth = 200;
-        const easyButtonHeight = 60;
+        const easyButtonWidth = BUTTON_WIDTH;
+        const easyButtonHeight = BUTTON_HEIGHT;
         const easyButtonX = GAME_WIDTH / 2 - easyButtonWidth / 2;
-        const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
+        const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 + EASY_BUTTON_Y_OFFSET;
 
         // Normal Button coordinates (defined in drawMenu)
-        const normalButtonWidth = 200;
-        const normalButtonHeight = 60;
+        const normalButtonWidth = BUTTON_WIDTH;
+        const normalButtonHeight = BUTTON_HEIGHT;
         const normalButtonX = GAME_WIDTH / 2 - normalButtonWidth / 2;
-        const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
+        const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + NORMAL_BUTTON_Y_OFFSET;
+
+        // Inclination Movement Button coordinates
+        const inclinationButtonWidth = BUTTON_WIDTH;
+        const inclinationButtonHeight = BUTTON_HEIGHT;
+        const inclinationButtonX = GAME_WIDTH / 2 - inclinationButtonWidth / 2;
+        const inclinationButtonY = GAME_HEIGHT / 2 - inclinationButtonHeight / 2 + INCLINATION_BUTTON_Y_OFFSET;
 
         // Check if Easy button clicked/touched
         if (x >= easyButtonX && x <= easyButtonX + easyButtonWidth &&
@@ -925,20 +1062,21 @@
         else if (x >= inclinationButtonX && x <= inclinationButtonX + inclinationButtonWidth &&
                  y >= inclinationButtonY && y <= inclinationButtonY + inclinationButtonHeight) {
           isAccelerometerEnabled = !isAccelerometerEnabled; // Toggle accelerometer state
+          // Call toggleAccelerometer directly here to update event listener immediately
+          toggleAccelerometer();
         }
       }
       // Check for Restart button click/touch if in game over state
       else if (currentGameState === 'gameOver') {
         // Restart Button coordinates (defined in drawGameOverMenu)
-        // Removed scoreY calculation as it's not needed for the restart button's fixed position
-        const restartButtonWidth = 120; // Diminuído (match drawGameOverMenu)
-        const restartButtonHeight = 40; // Diminuído (match drawGameOverMenu)
+        const restartButtonWidth = RESTART_BUTTON_WIDTH;
+        const restartButtonHeight = RESTART_BUTTON_HEIGHT;
         const restartButtonX = GAME_WIDTH / 2 - restartButtonWidth / 2;
-        const restartButtonY = 10; // Mais próximo do topo (match drawGameOverMenu)
+        const restartButtonY = RESTART_BUTTON_Y_OFFSET_GAME_OVER; // Position from top
 
         // Debugging: Log click coordinates and button bounds
-        console.log(`Click: x=${x}, y=${y}`);
-        console.log(`Restart Button: x=${restartButtonX}, y=${restartButtonY}, width=${restartButtonWidth}, height=${restartButtonHeight}`);
+        // console.log(`Click: x=${x}, y=${y}`); // Removed console.log
+        // console.log(`Restart Button: x=${restartButtonX}, y=${restartButtonY}, width=${restartButtonWidth}, height=${restartButtonHeight}`); // Removed console.log
 
         if (x >= restartButtonX && x <= restartButtonX + restartButtonWidth &&
             y >= restartButtonY && y <= restartButtonY + restartButtonHeight) {
@@ -953,6 +1091,12 @@
   // Handle device orientation events for accelerometer input
   function handleOrientation(event) {
     lastDeviceOrientationEvent = event; // Store the latest orientation event
+    // Ensure gamma and beta are available and are numbers
+    if (event.gamma === null || isNaN(event.gamma) || event.beta === null || isNaN(event.beta)) {
+      console.warn('Device orientation event data is incomplete or invalid.');
+      return; // Exit if data is not valid
+    }
+
     const currentGamma = event.gamma;
     const currentBeta = event.beta;
 
@@ -969,65 +1113,60 @@
       effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
     }
 
-    const tiltThreshold = 7; // Degrees to start moving (ajuste este valor para calibrar a sensibilidade)
-    const maxTilt = 45; // Max tilt for full speed (e.g., 45 degrees)
-
     input.left = false;
     input.right = false;
     input.accelerometerSpeedFactor = 0;
 
-    if (effectiveTilt > tiltThreshold) {
+    // Apply a dead zone and scale speed based on tilt beyond the threshold
+    if (effectiveTilt > ACCELEROMETER_TILT_THRESHOLD) {
       // Tilt right
       input.right = true;
-      // No need for tiltFactor here, as we want full speed
-      input.accelerometerSpeedFactor = 1; // Always full speed
-    } else if (effectiveTilt < -tiltThreshold) {
+      // Scale speed factor: 0 at threshold, 1 at maxTilt
+      input.accelerometerSpeedFactor = Math.min(1, (effectiveTilt - ACCELEROMETER_TILT_THRESHOLD) / (ACCELEROMETER_MAX_TILT - ACCELEROMETER_TILT_THRESHOLD));
+    } else if (effectiveTilt < -ACCELEROMETER_TILT_THRESHOLD) {
       // Tilt left
       input.left = true;
-      // No need for tiltFactor here, as we want full speed
-      input.accelerometerSpeedFactor = 1; // Always full speed
-    } else {
-      // Neutral position, input.left/right are already false, speedFactor is 0
+      // Scale speed factor: 0 at threshold, 1 at maxTilt (absolute values)
+      input.accelerometerSpeedFactor = Math.min(1, (Math.abs(effectiveTilt) - ACCELEROMETER_TILT_THRESHOLD) / (ACCELEROMETER_MAX_TILT - ACCELEROMETER_TILT_THRESHOLD));
     }
   }
 
   // Setup accelerometer controls for mobile devices
-  function setupAccelerometerControls() {
-    // Function to enable/disable accelerometer based on isAccelerometerEnabled
-    const toggleAccelerometer = () => {
-      if (isAccelerometerEnabled) {
-        if (window.DeviceOrientationEvent) {
-          // Request permission for iOS 13+ devices
-          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-              .then(permissionState => {
-                if (permissionState === 'granted') {
-                  window.addEventListener('deviceorientation', handleOrientation);
-                  input.accelerometerActive = true; // Set flag when accelerometer is active
-                } else {
-                  console.warn('Permission for device orientation not granted.');
-                  input.accelerometerActive = false; // Ensure flag is false if permission denied
-                }
-              })
-              .catch(error => {
-                console.error('Error requesting device orientation permission:', error);
-                input.accelerometerActive = false;
-              });
-          } else {
-            window.addEventListener('deviceorientation', handleOrientation);
-            input.accelerometerActive = true; // Set flag for older browsers/Android
-          }
+  const toggleAccelerometer = () => {
+    if (isAccelerometerEnabled) {
+      if (window.DeviceOrientationEvent) {
+        // Request permission for iOS 13+ devices
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          DeviceOrientationEvent.requestPermission()
+            .then(permissionState => {
+              if (permissionState === 'granted') {
+                window.addEventListener('deviceorientation', handleOrientation);
+                input.accelerometerActive = true; // Set flag when accelerometer is active
+              } else {
+                console.warn('Permission for device orientation not granted.');
+                input.accelerometerActive = false; // Ensure flag is false if permission denied
+              }
+            })
+            .catch(error => {
+              console.error('Error requesting device orientation permission:', error);
+              input.accelerometerActive = false;
+            });
+        } else {
+          window.addEventListener('deviceorientation', handleOrientation);
+          input.accelerometerActive = true; // Set flag for older browsers/Android
         }
-      } else {
-        window.removeEventListener('deviceorientation', handleOrientation);
-        input.accelerometerActive = false; // Ensure flag is false if accelerometer is disabled
-        // Reset input to avoid residual movement
-        input.left = false;
-        input.right = false;
-        input.accelerometerSpeedFactor = 0;
       }
-    };
+    } else {
+      window.removeEventListener('deviceorientation', handleOrientation);
+      input.accelerometerActive = false; // Ensure flag is false if accelerometer is disabled
+      // Reset input to avoid residual movement
+      input.left = false;
+      input.right = false;
+      input.accelerometerSpeedFactor = 0;
+    }
+  };
 
+  function setupAccelerometerControls() {
     // Initial call to set up accelerometer based on current state
     toggleAccelerometer();
 
@@ -1105,7 +1244,7 @@
     isInHouse = false; // Ensure player is outside house
     lastEntranceDoor = null;
 
-    player.x = GAME_WIDTH / 2 - player.width / 2; // Center player horizontally
+    player.x = GAME_WIDTH / 2 - GameConfig.PLAYER.INITIAL_X_OFFSET; // Center player horizontally
     player.y = groundY - player.initialHeight;
     player.vx = 0;
     player.vy = 0;
@@ -1156,13 +1295,13 @@
 
     // dt is delta time in seconds
     // Horizontal movement
-    const baseMoveSpeed = 200; // pixels per second
-    let moveSpeed = baseMoveSpeed; // Initialize with base speed
-    const gravity = 1200; // pixels per second squared
+    // const baseMoveSpeed = GameConfig.PLAYER.BASE_MOVE_SPEED; // pixels per second - Redundant, now using player.baseMoveSpeed directly
+    let moveSpeed = player.baseMoveSpeed; // Initialize with base speed
+    const gravity = GRAVITY; // pixels per second squared
 
     // Adjust move speed based on stamina
     if (staminaBar.fill < 1.0) {
-      moveSpeed = player.baseMoveSpeed * (0.5 + 0.5 * staminaBar.fill); // Scales from 50% to 100% of baseMoveSpeed
+      moveSpeed = player.baseMoveSpeed * (STAMINA_LOW_SPEED_FACTOR + STAMINA_LOW_SPEED_FACTOR * staminaBar.fill); // Scales from 50% to 100% of baseMoveSpeed
     } else {
       moveSpeed = player.baseMoveSpeed; // Use baseMoveSpeed if stamina is full
     }
@@ -1171,7 +1310,7 @@
     if (player.isAcceleratedJump) {
       moveSpeed *= player.jumpAccelerationFactor;
       // Gradually decay the acceleration factor
-      player.jumpAccelerationFactor = Math.max(1.0, player.jumpAccelerationFactor - (0.8 * dt)); // Decay from 1.8 to 1.0 over time
+      player.jumpAccelerationFactor = Math.max(1.0, player.jumpAccelerationFactor - (ACCELERATED_JUMP_DECAY_RATE * dt)); // Decay from 1.8 to 1.0 over time
     }
 
     player.vx = 0;
@@ -1342,15 +1481,15 @@
         input.jump = false; // Consume the jump input
         return; // Skip remaining update logic for this frame to allow full reset
       } else if (player.onGround) {
-        player.vy = -600; // jump impulse
+        player.vy = JUMP_IMPULSE; // jump impulse
         player.onGround = false;
         // Reset jump flag so holding the button doesn't cause repeated jumps
         input.jump = false;
 
         // Check for accelerated jump condition (red animated bar)
-        if (animatedBar.fill > 0.9) {
+        if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
           player.isAcceleratedJump = true;
-          player.jumpAccelerationFactor = 1.8; // Initial acceleration factor
+          player.jumpAccelerationFactor = ACCELERATED_JUMP_FACTOR; // Initial acceleration factor
         }
       }
     }
@@ -1358,7 +1497,7 @@
     // Apply vertical velocity
     player.y += player.vy * dt;
     // Ground collision
-    const groundTolerance = 1; // Small tolerance for ground detection
+    const groundTolerance = GROUND_TOLERANCE; // Small tolerance for ground detection
     if (player.y + player.height >= groundY - groundTolerance) {
       player.y = groundY - player.height; // Snap to ground
       player.vy = 0;
@@ -1381,7 +1520,10 @@
 
     // Check for collisions with collidable world objects (e.g., poles)
     for (const obj of worldObjects) {
-      if (obj.type === 'pole' && obj.collidable) {
+      // Only check for collisions with objects within a certain range of the player
+      if (obj.type === 'pole' && obj.collidable &&
+          obj.x + (obj.width || 0) > player.x - GameConfig.PLAYER.COLLISION_VIEW_RANGE &&
+          obj.x < player.x + player.width + GameConfig.PLAYER.COLLISION_VIEW_RANGE) {
         // Simple AABB collision detection
         const px1 = player.x;
         const py1 = player.y;
@@ -1432,13 +1574,13 @@
     } else { // Not on ground, must be jumping/falling
       if (player.vy < 0) {
         player.currentAnim = 'jump';
-        player.animIndex = 0; // 1subindo.png
+        player.animIndex = JUMP_ANIM_ASCENDING_INDEX; // 1subindo.png
       } else if (player.vy >= 200 && player.vy <= 400) { // Adjusted from === 0 to a range around 0
         player.currentAnim = 'jump';
-        player.animIndex = 1; // 2desacelerando.png
+        player.animIndex = JUMP_ANIM_DECELERATING_INDEX; // 2desacelerando.png
       } else {
         player.currentAnim = 'jump';
-        player.animIndex = 2; // 3caindo.png
+        player.animIndex = JUMP_ANIM_DESCENDING_INDEX; // 3caindo.png
       }
     }
 
@@ -1468,10 +1610,10 @@
       }
 
       // Set color based on fill level
-      if (animatedBar.fill > 0.9) {
-        animatedBar.color = '#FF0000'; // Red
+      if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
+        animatedBar.color = GameConfig.ANIMATED_BAR.RED_COLOR; // Red
       } else {
-        animatedBar.color = '#00FF00'; // Green
+        animatedBar.color = GameConfig.ANIMATED_BAR.GREEN_COLOR; // Green
       }
     }
 
@@ -1495,7 +1637,7 @@
     const frames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
       ? player.animations[player.currentAnim]
       : player.animations.idle;
-    const animSpeed = 0.15; // Doubled animation speed (reduced from 0.3 to 0.15 seconds per frame)
+    const animSpeed = ANIMATION_SPEED; // Doubled animation speed (reduced from 0.3 to 0.15 seconds per frame)
 
     player.animTimer += dt;
     if (player.animTimer >= animSpeed) {
@@ -1568,13 +1710,13 @@
     ctx.font = 'bold 60px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Pepper Hat', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 150);
+    ctx.fillText('Pepper Hat', GAME_WIDTH / 2, GAME_HEIGHT / 2 + MENU_TITLE_Y_OFFSET);
 
     // Easy Button
-    const easyButtonWidth = 200;
-    const easyButtonHeight = 60;
+    const easyButtonWidth = BUTTON_WIDTH;
+    const easyButtonHeight = BUTTON_HEIGHT;
     const easyButtonX = GAME_WIDTH / 2 - easyButtonWidth / 2;
-    const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 - 30;
+    const easyButtonY = GAME_HEIGHT / 2 - easyButtonHeight / 2 + EASY_BUTTON_Y_OFFSET;
 
     ctx.fillStyle = '#27ae60'; // Green for Easy
     ctx.fillRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
@@ -1587,10 +1729,10 @@
     ctx.fillText('EASY', GAME_WIDTH / 2, easyButtonY + easyButtonHeight / 2);
 
     // Normal Button
-    const normalButtonWidth = 200;
-    const normalButtonHeight = 60;
+    const normalButtonWidth = BUTTON_WIDTH;
+    const normalButtonHeight = BUTTON_HEIGHT;
     const normalButtonX = GAME_WIDTH / 2 - normalButtonWidth / 2;
-    const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + 60;
+    const normalButtonY = GAME_HEIGHT / 2 - normalButtonHeight / 2 + NORMAL_BUTTON_Y_OFFSET;
 
     ctx.fillStyle = '#e74c3c'; // Red for Normal
     ctx.fillRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
@@ -1603,10 +1745,10 @@
     ctx.fillText('NORMAL', GAME_WIDTH / 2, normalButtonY + normalButtonHeight / 2);
 
     // Inclination Movement Button
-    const inclinationButtonWidth = 200;
-    const inclinationButtonHeight = 60;
+    const inclinationButtonWidth = BUTTON_WIDTH;
+    const inclinationButtonHeight = BUTTON_HEIGHT;
     const inclinationButtonX = GAME_WIDTH / 2 - inclinationButtonWidth / 2;
-    const inclinationButtonY = normalButtonY + normalButtonHeight + 30; // 30 pixels below Normal button
+    const inclinationButtonY = GAME_HEIGHT / 2 - inclinationButtonHeight / 2 + INCLINATION_BUTTON_Y_OFFSET; // 30 pixels below Normal button
 
     ctx.fillStyle = '#3498db'; // Blue for Inclination
     ctx.fillRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
@@ -1630,8 +1772,8 @@
     }
 
     // Calculate parallax scroll for background
-    const parallaxScrollX = -player.x * 0.2; // 20% scroll speed
-    const cityParallaxScrollX = -player.x * 0.1; // 10% scroll speed for distant city
+    const parallaxScrollX = -player.x * PARALLAX_FACTOR_BACKGROUND; // 20% scroll speed
+    const cityParallaxScrollX = -player.x * PARALLAX_FACTOR_CITY; // 10% scroll speed for distant city
 
     if (isInHouse) {
       // Draw house interior
@@ -1647,7 +1789,7 @@
         ? player.animations[player.currentAnim]
         : player.animations.idle;
       const frameImage = activeFrames[player.animIndex % activeFrames.length];
-      console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`);
+      // console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`); // Removed console.log
       ctx.save();
       const drawX = player.x; // No scrollX when inside
       const drawY = player.y;
@@ -1677,7 +1819,7 @@
           continue; // Only draw objects within the view range
         }
 
-        const parallaxFactor = obj.layer === 'background' ? 0.5 : 1; // Adjust parallax for background
+        const parallaxFactor = obj.layer === 'background' ? PARALLAX_FACTOR_LAYER_BACKGROUND : 1; // Adjust parallax for background
         const effectiveScrollX = scrollX * parallaxFactor;
 
         if (obj.type === 'structure') {
@@ -1707,7 +1849,7 @@
           if (obj.x + (obj.size || 0) < scrollX - VIEW_RANGE || obj.x > scrollX + GAME_WIDTH + VIEW_RANGE) {
             continue; // Only draw objects within the view range
           }
-          const parallaxFactor = obj.layer === 'background' ? 0.5 : 1; // Adjust parallax for background
+          const parallaxFactor = obj.layer === 'background' ? PARALLAX_FACTOR_LAYER_BACKGROUND : 1; // Adjust parallax for background
           const effectiveScrollX = scrollX * parallaxFactor;
           drawCollectible(obj.x, obj.y, obj.size, obj.itemType, effectiveScrollX);
         }
@@ -1721,7 +1863,7 @@
         ? player.animations[player.currentAnim]
         : player.animations.idle;
       const frameImage = activeFrames[player.animIndex % activeFrames.length];
-      console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`); // Log current animation frame
+      // console.log(`Rendering: Anim=${player.currentAnim}, Index=${player.animIndex}, FrameSrc=${frameImage ? frameImage.src : 'N/A'}`); // Removed console.log
       ctx.save();
       const drawX = player.x - scrollX;
       const drawY = player.y;
@@ -1820,10 +1962,10 @@
     });
 
     // Restart Button
-    const restartButtonWidth = 120; // Diminuído (match drawGameOverMenu)
-    const restartButtonHeight = 40; // Diminuído (match drawGameOverMenu)
+    const restartButtonWidth = RESTART_BUTTON_WIDTH;
+    const restartButtonHeight = RESTART_BUTTON_HEIGHT;
     const restartButtonX = GAME_WIDTH / 2 - restartButtonWidth / 2;
-    const restartButtonY = 10; // Mais próximo do topo (match drawGameOverMenu)
+    const restartButtonY = RESTART_BUTTON_Y_OFFSET_GAME_OVER; // Position from top
 
     ctx.fillStyle = '#008CBA'; // Blue
     ctx.fillRect(restartButtonX, restartButtonY, restartButtonWidth, restartButtonHeight);
@@ -1850,8 +1992,8 @@
     groundY = GAME_HEIGHT - images.ground.height;
 
     // Set initial player and enemy Y positions now that groundY is known
-    player.y = groundY - player.height;
-    player.x = GAME_WIDTH / 2 - player.width / 2; // Center player horizontally
+    player.y = groundY - player.initialHeight; // Use player.initialHeight
+    player.x = GAME_WIDTH / 2 - GameConfig.PLAYER.INITIAL_X_OFFSET; // Center player horizontally
     enemy.y = groundY - enemy.height; // Set enemy on the ground
     enemy.x = -enemy.width; // Start enemy off-screen to the left
 
