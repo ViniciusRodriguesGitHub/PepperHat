@@ -23,33 +23,34 @@
 
   let isAccelerometerEnabled = false; // Declared globally
   let currentZoomLevel = 1.0; // New global variable for zoom level
+  let isRightLocked = false; // New global variable for locking right movement
 
   // Define all game constants within a single configuration object for better organization
   const GameConfig = {
     // Assets
     ASSETS: {
-      ground: 'ground_tile.png',
-      pepper: 'pepper.png',
-      pepper_idle_0: 'pepper_idle_0.png',
-      pepper_idle_1: 'pepper_idle_1.png',
-      pepper_idle_2: 'pepper_idle_2.png',
-      pepper_idle_3: 'pepper_idle_3.png',
-      pepper_idle_4: 'pepper_idle_4.png',
-      pepper_idle_5: 'pepper_idle_5.png',
-      wk1: 'wk1.png',
-      wk2: 'wk2.png',
-      wk3: 'wk3.png',
-      wk4: 'wk4.png',
-      subindo: '1subindo.png',
-      desacelerando: '2desacelerando.png',
-      caindo: '3caindo.png',
-      parado: 'parado.png',
-      abaixar1: 'l0_abaixar1.png',
-      abaixar2: 'l0_abaixar2.png',
-      abaixar3: 'l0_abaixar3.png',
-      note: 'note.png',
-      record: 'record.png',
-      ground_tile: 'ground_tile.png'
+    ground: 'ground_tile.png',
+    pepper: 'pepper.png',
+    pepper_idle_0: 'pepper_idle_0.png',
+    pepper_idle_1: 'pepper_idle_1.png',
+    pepper_idle_2: 'pepper_idle_2.png',
+    pepper_idle_3: 'pepper_idle_3.png',
+    pepper_idle_4: 'pepper_idle_4.png',
+    pepper_idle_5: 'pepper_idle_5.png',
+    wk1: 'wk1.png',
+    wk2: 'wk2.png',
+    wk3: 'wk3.png',
+    wk4: 'wk4.png',
+    subindo: '1subindo.png',
+    desacelerando: '2desacelerando.png',
+    caindo: '3caindo.png',
+    parado: 'parado.png',
+    abaixar1: 'l0_abaixar1.png',
+    abaixar2: 'l0_abaixar2.png',
+    abaixar3: 'l0_abaixar3.png',
+    note: 'note.png',
+    record: 'record.png',
+    ground_tile: 'ground_tile.png'
     },
 
     // Bar Constants
@@ -173,9 +174,10 @@
       BUTTON_WIDTH: 200,
       BUTTON_HEIGHT: 60,
       BUTTON_SPACING_Y: 30,
-      EASY_BUTTON_Y_OFFSET: -30,
-      NORMAL_BUTTON_Y_OFFSET: 60,
-      INCLINATION_BUTTON_Y_OFFSET: 60 + 60 + 30, // Direct calculation: NORMAL_BUTTON_Y_OFFSET + BUTTON_HEIGHT + BUTTON_SPACING_Y
+      EASY_BUTTON_Y_OFFSET: -60, // Adjusted to be higher
+      NORMAL_BUTTON_Y_OFFSET: 0, // Centered at the height of the previous button
+      INCLINATION_BUTTON_Y_OFFSET: 60, // Based on the new spacing
+      LOCK_RIGHT_BUTTON_Y_OFFSET: 120, // Based on the new spacing
     },
 
     // Game Over Menu Constants
@@ -233,6 +235,7 @@
 
   let isGameOver = false; // New global variable to track game over state
   let currentGameState = 'menu'; // 'menu', 'playing', 'gameOver'
+  let selectedMenuItem = 0; // 0: Easy, 1: Normal, 2: Inclination, 3: Lock Right - for keyboard/gamepad navigation
   let difficulty = 'normal'; // 'easy', 'normal'
   let highScores = JSON.parse(localStorage.getItem('highScores') || '[]'); // Load high scores from localStorage
 
@@ -333,7 +336,8 @@
 
   const EASY_BUTTON_Y_OFFSET = GameConfig.MENU.EASY_BUTTON_Y_OFFSET;
   const NORMAL_BUTTON_Y_OFFSET = GameConfig.MENU.NORMAL_BUTTON_Y_OFFSET;
-  const INCLINATION_BUTTON_Y_OFFSET = NORMAL_BUTTON_Y_OFFSET + BUTTON_HEIGHT + BUTTON_SPACING_Y; // Based on Normal button's position
+  const INCLINATION_BUTTON_Y_OFFSET = GameConfig.MENU.INCLINATION_BUTTON_Y_OFFSET;
+  const LOCK_RIGHT_BUTTON_Y_OFFSET = GameConfig.MENU.LOCK_RIGHT_BUTTON_Y_OFFSET;
 
   const RESTART_BUTTON_WIDTH = GameConfig.GAME_OVER_MENU.RESTART_BUTTON_WIDTH;
   const RESTART_BUTTON_HEIGHT = GameConfig.GAME_OVER_MENU.RESTART_BUTTON_HEIGHT;
@@ -388,6 +392,25 @@
     // This will ensure game elements scale correctly with the new canvas size
     GAME_WIDTH = canvas.width;
     GAME_HEIGHT = canvas.height;
+
+    // Log dimensions for debugging AFTER updating GAME_WIDTH and GAME_HEIGHT
+    console.log(`Resize: new GAME_WIDTH=${GAME_WIDTH}, new GAME_HEIGHT=${GAME_HEIGHT}`);
+    console.log(`Resize: groundY before=${groundY}, player.y before=${player.y}`);
+
+    // Recalculate groundY based on the new GAME_HEIGHT
+    if (images.ground) {
+      groundY = GAME_HEIGHT - images.ground.height;
+    }
+
+    // Adjust player and enemy Y positions to stay on the new groundY if they were on ground
+    if (player.onGround) {
+      player.y = groundY - player.height;
+    }
+    if (enemy.onGround) {
+      enemy.y = groundY - enemy.height;
+    }
+    console.log(`Resize: groundY after=${groundY}, player.y after=${player.y}`);
+
     updateBarPositions(); // Update bar positions on resize
   }
 
@@ -407,7 +430,9 @@
         const hasRoof = Math.random() > GameConfig.GENERATION.PROB_HAS_ROOF;
 
         const bodyColors = isBackground ? GameConfig.COLORS.PASTEL_DESATURATED : GameConfig.COLORS.PASTEL_LIGHT;
-        const selectedBodyColor = bodyColors[Math.floor(Math.random() * bodyColors.length)];
+        const skyColor = '#87CEEB'; // Define sky color for exclusion
+        const filteredBodyColors = bodyColors.filter(color => color !== skyColor);
+        const selectedBodyColor = filteredBodyColors[Math.floor(Math.random() * filteredBodyColors.length)];
         const selectedWindowColor = hasWindow ? GameConfig.COLORS.WINDOW[Math.floor(Math.random() * GameConfig.COLORS.WINDOW.length)] : null;
         const selectedDoorColor = hasDoor ? GameConfig.COLORS.DOOR[Math.floor(Math.random() * GameConfig.COLORS.DOOR.length)] : null;
 
@@ -432,6 +457,8 @@
           doorColor: selectedDoorColor,
           hasRoof: hasRoof,
           layer: isBackground ? 'background' : 'foreground',
+          isWalkable: true, // Allow player to walk on top of the structure
+          walkableSurfaceY: groundY - houseHeight, // The top of the house
           // Add door collision area if it has a door
           doorArea: hasDoor ? {
             x_offset: doorXOffset,
@@ -477,6 +504,8 @@
           height: fenceHeight,
           color: '#A0522D', // Sienna
           layer: 'foreground',
+          isWalkable: true, // Allow player to walk on top of the fence
+          walkableSurfaceY: groundY - fenceHeight, // The top of the fence
         });
       } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_TREE + GameConfig.GENERATION.PROB_STREETLIGHT + GameConfig.GENERATION.PROB_FENCE + GameConfig.GENERATION.PROB_BUSH)) { // Bush
         const bushSize = 30 + Math.random() * 20; // Random size
@@ -583,16 +612,16 @@
         }
 
         if (!collision) {
-          for (const existingItem of newFurniture) {
-            const existingRect = {
-              x: existingItem.x,
-              y: existingItem.y - existingItem.height,
-              width: existingItem.width,
-              height: existingItem.height,
-            };
-            if (checkCollision(newFurnitureRect, existingRect)) {
-              collision = true;
-              break;
+        for (const existingItem of newFurniture) {
+          const existingRect = {
+            x: existingItem.x,
+            y: existingItem.y - existingItem.height,
+            width: existingItem.width,
+            height: existingItem.height,
+          };
+          if (checkCollision(newFurnitureRect, existingRect)) {
+            collision = true;
+            break;
             }
           }
         }
@@ -896,7 +925,7 @@
       btn.style.display = 'flex';
       btn.style.alignItems = 'center';
       btn.style.justifyContent = 'center';
-      btn.style.fontSize = '32px';
+      btn.style.fontSize = '24px'; // Reduced font size
       btn.style.borderRadius = '8px';
       btn.style.border = '2px solid #fff';
       btn.style.userSelect = 'none';
@@ -968,33 +997,73 @@
   // Keyboard controls
   function setupKeyboard() {
     window.addEventListener('keydown', (e) => {
+      if (currentGameState === 'menu') {
+        switch (e.code) {
+          case 'ArrowUp':
+            selectedMenuItem = (selectedMenuItem - 1 + 4) % 4; // Cycle through 4 menu items
+            e.preventDefault();
+            break;
+          case 'ArrowDown':
+            selectedMenuItem = (selectedMenuItem + 1) % 4; // Cycle through 4 menu items
+            e.preventDefault();
+            break;
+          case 'Enter':
+          case 'Space':
+            e.preventDefault();
+            // Simulate a click on the currently selected item
+            // This logic will be moved to a helper function later, for now we simulate
+            // For now, we'll directly apply the action based on selectedMenuItem
+            if (selectedMenuItem === 0) { // Easy button
+              difficulty = 'easy';
+              if (lastDeviceOrientationEvent) {
+                neutralGamma = lastDeviceOrientationEvent.gamma;
+                neutralBeta = lastDeviceOrientationEvent.beta;
+              }
+              resetGame(); // Starts the game in easy mode
+            } else if (selectedMenuItem === 1) { // Normal button
+              difficulty = 'normal';
+              if (lastDeviceOrientationEvent) {
+                neutralGamma = lastDeviceOrientationEvent.gamma;
+                neutralBeta = lastDeviceOrientationEvent.beta;
+              }
+              resetGame(); // Starts the game in normal mode
+            } else if (selectedMenuItem === 2) { // Inclination button
+              isAccelerometerEnabled = !isAccelerometerEnabled; // Toggle accelerometer state
+              toggleAccelerometer();
+            } else if (selectedMenuItem === 3) { // Lock Right button
+              isRightLocked = !isRightLocked; // Toggle lock right state
+            }
+            break;
+        }
+      } else if (currentGameState === 'playing') {
       switch (e.code) {
         case 'ArrowLeft':
         case 'KeyA':
           input.left = true;
-          e.preventDefault(); // Prevent default browser action
+            e.preventDefault(); // Prevent default browser action
           break;
         case 'ArrowRight':
         case 'KeyD':
           input.right = true;
-          e.preventDefault(); // Prevent default browser action
+            e.preventDefault(); // Prevent default browser action
           break;
         case 'Space':
         case 'ArrowUp':
         case 'KeyW':
           input.jump = true;
-          e.preventDefault(); // Prevent default browser action
+            e.preventDefault(); // Prevent default browser action
           break;
         case 'ControlLeft': // New case for 'Ctrl' key for crouching
         case 'ControlRight':
         case 'KeyS': // New case for 'S' key for crouching
           input.crouch = true;
-          e.preventDefault(); // Prevent default browser action
+            e.preventDefault(); // Prevent default browser action
           break;
         case 'ArrowDown': // New case for 'ArrowDown' key for crouching
           input.crouch = true;
-          e.preventDefault(); // Prevent default browser action
+            e.preventDefault(); // Prevent default browser action
           break;
+        }
       }
     });
     window.addEventListener('keyup', (e) => {
@@ -1064,9 +1133,16 @@
         const inclinationButtonX = GAME_WIDTH / 2 - inclinationButtonWidth / 2;
         const inclinationButtonY = GAME_HEIGHT / 2 - inclinationButtonHeight / 2 + INCLINATION_BUTTON_Y_OFFSET;
 
+        // Lock Right Movement Button coordinates (declared here for access in this scope)
+        const lockRightButtonWidth = BUTTON_WIDTH;
+        const lockRightButtonHeight = BUTTON_HEIGHT;
+        const lockRightButtonX = GAME_WIDTH / 2 - lockRightButtonWidth / 2;
+        const lockRightButtonY = GAME_HEIGHT / 2 - lockRightButtonHeight / 2 + LOCK_RIGHT_BUTTON_Y_OFFSET;
+
         // Check if Easy button clicked/touched
         if (x >= easyButtonX && x <= easyButtonX + easyButtonWidth &&
             y >= easyButtonY && y <= easyButtonY + easyButtonHeight) {
+          selectedMenuItem = 0; // Update selected item
           difficulty = 'easy';
           if (lastDeviceOrientationEvent) {
             neutralGamma = lastDeviceOrientationEvent.gamma;
@@ -1077,6 +1153,7 @@
         // Check if Normal button clicked/touched
         else if (x >= normalButtonX && x <= normalButtonX + normalButtonWidth &&
                  y >= normalButtonY && y <= normalButtonY + normalButtonHeight) {
+          selectedMenuItem = 1; // Update selected item
           difficulty = 'normal';
           if (lastDeviceOrientationEvent) {
             neutralGamma = lastDeviceOrientationEvent.gamma;
@@ -1087,9 +1164,16 @@
         // Check if Inclination Movement button clicked/touched
         else if (x >= inclinationButtonX && x <= inclinationButtonX + inclinationButtonWidth &&
                  y >= inclinationButtonY && y <= inclinationButtonY + inclinationButtonHeight) {
+          selectedMenuItem = 2; // Update selected item
           isAccelerometerEnabled = !isAccelerometerEnabled; // Toggle accelerometer state
           // Call toggleAccelerometer directly here to update event listener immediately
           toggleAccelerometer();
+        }
+        // Check if Lock Right Movement button clicked/touched
+        else if (x >= lockRightButtonX && x <= lockRightButtonX + lockRightButtonWidth &&
+                 y >= lockRightButtonY && y <= lockRightButtonY + lockRightButtonHeight) {
+          selectedMenuItem = 3; // Update selected item
+          isRightLocked = !isRightLocked; // Toggle lock right state
         }
       }
       // Check for Restart button click/touch if in game over state
@@ -1115,43 +1199,43 @@
   }
 
   // Handle device orientation events for accelerometer input
-  function handleOrientation(event) {
-    lastDeviceOrientationEvent = event; // Store the latest orientation event
+    function handleOrientation(event) {
+      lastDeviceOrientationEvent = event; // Store the latest orientation event
     // Ensure gamma and beta are available and are numbers
     if (event.gamma === null || isNaN(event.gamma) || event.beta === null || isNaN(event.beta)) {
-      console.warn('Device orientation event data is incomplete or invalid.');
+      console.error('Device orientation event data is incomplete or invalid.', event); // Log the full event object
       return; // Exit if data is not valid
     }
 
-    const currentGamma = event.gamma;
-    const currentBeta = event.beta;
+      const currentGamma = event.gamma;
+      const currentBeta = event.beta;
 
-    // Calculate tilt relative to the neutral point established at game start
-    const relativeGamma = currentGamma - neutralGamma;
-    const relativeBeta = currentBeta - neutralBeta;
+      // Calculate tilt relative to the neutral point established at game start
+      const relativeGamma = currentGamma - neutralGamma;
+      const relativeBeta = currentBeta - neutralBeta;
 
-    // Determine if the device is more horizontal or vertical for movement control
-    // We'll use the larger absolute tilt value for horizontal movement
-    let effectiveTilt = 0;
-    if (Math.abs(relativeGamma) > Math.abs(relativeBeta)) {
-      effectiveTilt = relativeGamma;
-    } else {
-      effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
-    }
+      // Determine if the device is more horizontal or vertical for movement control
+      // We'll use the larger absolute tilt value for horizontal movement
+      let effectiveTilt = 0;
+      if (Math.abs(relativeGamma) > Math.abs(relativeBeta)) {
+        effectiveTilt = relativeGamma;
+      } else {
+        effectiveTilt = relativeBeta; // Assuming positive beta means tilt right in landscape
+      }
 
-    input.left = false;
-    input.right = false;
-    input.accelerometerSpeedFactor = 0;
+      input.left = false;
+      input.right = false;
+      input.accelerometerSpeedFactor = 0;
 
     // Apply a dead zone and scale speed based on tilt beyond the threshold
     if (effectiveTilt > ACCELEROMETER_TILT_THRESHOLD) {
-      // Tilt right
-      input.right = true;
+        // Tilt right
+        input.right = true;
       // Scale speed factor: 0 at threshold, 1 at maxTilt
       input.accelerometerSpeedFactor = Math.min(1, (effectiveTilt - ACCELEROMETER_TILT_THRESHOLD) / (ACCELEROMETER_MAX_TILT - ACCELEROMETER_TILT_THRESHOLD));
     } else if (effectiveTilt < -ACCELEROMETER_TILT_THRESHOLD) {
-      // Tilt left
-      input.left = true;
+        // Tilt left
+        input.left = true;
       // Scale speed factor: 0 at threshold, 1 at maxTilt (absolute values)
       input.accelerometerSpeedFactor = Math.min(1, (Math.abs(effectiveTilt) - ACCELEROMETER_TILT_THRESHOLD) / (ACCELEROMETER_MAX_TILT - ACCELEROMETER_TILT_THRESHOLD));
     }
@@ -1168,7 +1252,7 @@
               if (permissionState === 'granted') {
                 window.addEventListener('deviceorientation', handleOrientation);
                 input.accelerometerActive = true; // Set flag when accelerometer is active
-              } else {
+      } else {
                 console.warn('Permission for device orientation not granted.');
                 input.accelerometerActive = false; // Ensure flag is false if permission denied
               }
@@ -1306,6 +1390,7 @@
     input.crouch = false;
     isAccelerometerEnabled = false; // Reset accelerometer state
     input.accelerometerActive = false; // Ensure accelerometer is not active
+    isRightLocked = false; // Reset lock right movement state
     // Call toggleAccelerometer to ensure the event listener is removed if it was active
     // and the game is being reset with accelerometer disabled.
     if (typeof toggleAccelerometer === 'function') {
@@ -1341,7 +1426,9 @@
 
     player.vx = 0;
     if (!input.crouch) { // Only allow horizontal movement if not crouching
-      if (isAccelerometerEnabled && input.accelerometerActive && input.accelerometerSpeedFactor > 0) {
+      if (isRightLocked) {
+        player.vx = moveSpeed; // Force movement right if locked
+      } else if (isAccelerometerEnabled && input.accelerometerActive && input.accelerometerSpeedFactor > 0) {
         // Prioritize accelerometer input if enabled, active, and detecting movement
         if (input.left) player.vx = -moveSpeed;
         else if (input.right) player.vx = moveSpeed;
@@ -1547,9 +1634,33 @@
     // Check for collisions with collidable world objects (e.g., poles)
     for (const obj of worldObjects) {
       // Only check for collisions with objects within a certain range of the player
-      if (obj.type === 'pole' && obj.collidable &&
-          obj.x + (obj.width || 0) > player.x - GameConfig.PLAYER.COLLISION_VIEW_RANGE &&
+      // and if not in house
+      if (!isInHouse && obj.x + (obj.width || 0) > player.x - GameConfig.PLAYER.COLLISION_VIEW_RANGE &&
           obj.x < player.x + player.width + GameConfig.PLAYER.COLLISION_VIEW_RANGE) {
+
+        // --- Collision for walkable surfaces (structures and fences) ---
+        if (obj.isWalkable) {
+          const platformTop = obj.walkableSurfaceY;
+          const platformBottom = platformTop + 10; // Small thickness for the walkable surface
+          const platformLeft = obj.x;
+          const platformRight = obj.x + obj.width;
+
+          // Check if player's feet are above the platform and player is falling
+          if (player.y + player.height <= platformTop + GameConfig.PHYSICS.GROUND_TOLERANCE && // Player is above or just at the platform
+              player.y + player.height + player.vy * dt > platformTop - GameConfig.PHYSICS.GROUND_TOLERANCE && // Player will land on the platform
+              player.x + player.width > platformLeft &&
+              player.x < platformRight) {
+
+            if (player.vy > 0) { // Only apply if player is falling
+              player.y = platformTop - player.height; // Snap player to the top of the platform
+              player.vy = 0; // Stop vertical movement
+              player.onGround = true; // Player is on the ground (of the platform)
+            }
+          }
+        }
+
+        // --- Existing Collision for poles (full AABB collision) ---
+      if (obj.type === 'pole' && obj.collidable) {
         // Simple AABB collision detection
         const px1 = player.x;
         const py1 = player.y;
@@ -1581,6 +1692,7 @@
             } else if (player.vy < 0) { // Player jumping into pole from below
               player.y += overlapY;
               player.vy = 0;
+              }
             }
           }
         }
@@ -1746,8 +1858,8 @@
 
     ctx.fillStyle = '#27ae60'; // Green for Easy
     ctx.fillRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
-    ctx.strokeStyle = '#ecf0f1';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = (selectedMenuItem === 0) ? '#FFFF00' : '#ecf0f1'; // Highlight if selected
+    ctx.lineWidth = (selectedMenuItem === 0) ? 5 : 3;
     ctx.strokeRect(easyButtonX, easyButtonY, easyButtonWidth, easyButtonHeight);
 
     ctx.fillStyle = '#ecf0f1';
@@ -1762,8 +1874,8 @@
 
     ctx.fillStyle = '#e74c3c'; // Red for Normal
     ctx.fillRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
-    ctx.strokeStyle = '#ecf0f1';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = (selectedMenuItem === 1) ? '#FFFF00' : '#ecf0f1'; // Highlight if selected
+    ctx.lineWidth = (selectedMenuItem === 1) ? 5 : 3;
     ctx.strokeRect(normalButtonX, normalButtonY, normalButtonWidth, normalButtonHeight);
 
     ctx.fillStyle = '#ecf0f1';
@@ -1778,13 +1890,29 @@
 
     ctx.fillStyle = '#3498db'; // Blue for Inclination
     ctx.fillRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
-    ctx.strokeStyle = '#ecf0f1';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = (selectedMenuItem === 2) ? '#FFFF00' : '#ecf0f1'; // Highlight if selected
+    ctx.lineWidth = (selectedMenuItem === 2) ? 5 : 3;
     ctx.strokeRect(inclinationButtonX, inclinationButtonY, inclinationButtonWidth, inclinationButtonHeight);
 
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 25px Arial'; // Slightly smaller font to fit text
     ctx.fillText(`Inclination: ${isAccelerometerEnabled ? 'Enabled' : 'Disabled'}`, GAME_WIDTH / 2, inclinationButtonY + inclinationButtonHeight / 2);
+
+    // Lock Right Movement Button
+    const lockRightButtonWidth = BUTTON_WIDTH;
+    const lockRightButtonHeight = BUTTON_HEIGHT;
+    const lockRightButtonX = GAME_WIDTH / 2 - lockRightButtonWidth / 2;
+    const lockRightButtonY = GAME_HEIGHT / 2 - lockRightButtonHeight / 2 + LOCK_RIGHT_BUTTON_Y_OFFSET; // Below Inclination button
+
+    ctx.fillStyle = '#f1c40f'; // Yellow for Lock Right
+    ctx.fillRect(lockRightButtonX, lockRightButtonY, lockRightButtonWidth, lockRightButtonHeight);
+    ctx.strokeStyle = (selectedMenuItem === 3) ? '#FFFF00' : '#ecf0f1'; // Highlight if selected
+    ctx.lineWidth = (selectedMenuItem === 3) ? 5 : 3;
+    ctx.strokeRect(lockRightButtonX, lockRightButtonY, lockRightButtonWidth, lockRightButtonHeight);
+
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = 'bold 25px Arial'; // Slightly smaller font to fit text
+    ctx.fillText(`Lock Right: ${isRightLocked ? 'Enabled' : 'Disabled'}`, GAME_WIDTH / 2, lockRightButtonY + lockRightButtonHeight / 2);
   }
 
   // Main drawing loop

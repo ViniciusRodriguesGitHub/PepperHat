@@ -423,6 +423,10 @@
         {
           "text": "atualizado",
           "timestamp": "2025-09-03T23:55:37.651Z"
+        },
+        {
+          "text": "de 'Fazendo' para 'Feito'.",
+          "timestamp": "2025-09-15T19:19:01.133Z"
         }
       ],
       "rating": 4,
@@ -430,13 +434,13 @@
       "assignedTo": "Vinícius",
       "address": "",
       "id": "09vsnnqaqrgmer8sks2",
-      "columnId": "fazendo",
+      "columnId": "feito",
       "createdAt": "2025-08-25T14:58:39.795Z",
-      "lastUpdated": "2025-09-09T17:13:33.279Z",
+      "lastUpdated": "2025-09-15T19:19:01.133Z",
       "order": 6,
       "activity": "Interna",
       "duration": "Horas",
-      "pulsingDisabled": true
+      "pulsingDisabled": false
     },
     {
       "name": "Agendar reunião Vanessa Mutton",
@@ -1149,6 +1153,14 @@
         {
           "text": "Ligar para CPFL pra solicitar",
           "timestamp": "2025-08-26T19:36:59.199Z"
+        },
+        {
+          "text": "de 'Tarefas' para 'Descartados'.",
+          "timestamp": "2025-09-15T19:12:05.345Z"
+        },
+        {
+          "text": "Será feita de forma automática na conta",
+          "timestamp": "2025-09-15T19:12:26.473Z"
         }
       ],
       "rating": 4,
@@ -1159,9 +1171,9 @@
       "deadlineDate": "2025-09-03",
       "deadlineTime": "16:00",
       "id": "61ki293mgcqmesy6dp1",
-      "columnId": "tarefas",
+      "columnId": "descartados",
       "createdAt": "2025-08-26T19:37:00.374Z",
-      "lastUpdated": "2025-09-09T17:12:17.599Z",
+      "lastUpdated": "2025-09-15T19:12:27.601Z",
       "order": 6,
       "pulsingDisabled": false
     },
