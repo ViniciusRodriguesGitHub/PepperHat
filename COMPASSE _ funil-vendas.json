@@ -48,7 +48,10 @@
       "Vinícius",
       "Diana&Vinícius"
     ],
-    "activityOptions": ["Interna", "Externa"],
+    "activityOptions": [
+      "Interna",
+      "Externa"
+    ],
     "columnsLocked": false,
     "hiddenColumns": {
       "arquivados": true,
@@ -115,6 +118,53 @@
       "deadlineDate": "",
       "deadlineTime": "",
       "duration": ""
+    },
+    {
+      "name": "Transertão",
+      "email": "",
+      "phone": "1833215758",
+      "notes": [],
+      "rating": 3,
+      "category": "Sem Contrato",
+      "assignedTo": "Diana",
+      "address": "",
+      "activity": "",
+      "deadlineDate": "2025-11-10",
+      "deadlineTime": "16:34",
+      "duration": "",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "",
+      "id": "lmxjxgchvhmhtjvt5a",
+      "createdAt": "2025-11-10T19:43:45.742Z",
+      "lastUpdated": "2025-11-10T19:43:45.744Z",
+      "order": 2
+    },
+    {
+      "name": "Pampas Alimentos",
+      "email": "",
+      "phone": "(11) 94349-5661",
+      "notes": [
+        {
+          "text": "Tentei contato chamou até o fim",
+          "timestamp": "2025-11-18T18:52:32.935Z"
+        }
+      ],
+      "rating": 3,
+      "category": "Sem Contrato",
+      "assignedTo": "Diana",
+      "address": "",
+      "activity": "",
+      "deadlineDate": "2025-11-18",
+      "deadlineTime": "15:45",
+      "duration": "",
+      "columnId": "tarefas",
+      "isPulsing": true,
+      "link": "https://pampasalimentos.com.br/",
+      "id": "dn8mj8atlm9mi6b72fv",
+      "createdAt": "2025-11-19T18:01:34.747Z",
+      "lastUpdated": "2025-11-19T18:01:34.747Z",
+      "order": 3
     }
   ],
   "userId": "01iw83g6hiq3mek411sl"

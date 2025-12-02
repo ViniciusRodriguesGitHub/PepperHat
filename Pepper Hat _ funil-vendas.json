@@ -77,6 +77,10 @@
         {
           "text": "https://pousadaaratinga.com.br/",
           "timestamp": "2025-09-08T11:47:15.299Z"
+        },
+        {
+          "text": "Enviei mensagem ",
+          "timestamp": "2025-11-10T19:20:14.529Z"
         }
       ],
       "rating": 5,
@@ -92,7 +96,7 @@
       "link": "https://www.instagram.com/frankpilot75/",
       "id": "tomj29puvv8mfb22f6z",
       "createdAt": "2025-09-08T11:45:45.323Z",
-      "lastUpdated": "2025-09-09T01:04:33.274Z",
+      "lastUpdated": "2025-11-10T21:10:04.833Z",
       "order": 1,
       "pulsingDisabled": false
     },
@@ -100,7 +104,16 @@
       "name": "Bruna Bastos",
       "email": "",
       "phone": "+55 15 99720-0086",
-      "notes": [],
+      "notes": [
+        {
+          "text": "mandei mensagem via whats",
+          "timestamp": "2025-11-10T19:25:49.612Z"
+        },
+        {
+          "text": "marcamos reunião pra dia 24",
+          "timestamp": "2025-11-17T19:13:48.616Z"
+        }
+      ],
       "rating": 3,
       "category": "Cerimonialista",
       "assignedTo": "Vinícius",
@@ -114,8 +127,9 @@
       "link": "https://www.instagram.com/brunabastos.oficial",
       "id": "vxsn3tp9nhqmfb2cmj2",
       "createdAt": "2025-09-08T11:53:41.390Z",
-      "lastUpdated": "2025-09-08T11:53:41.390Z",
-      "order": 2
+      "lastUpdated": "2025-11-17T19:13:52.868Z",
+      "order": 2,
+      "pulsingDisabled": false
     },
     {
       "name": "Karen Kortz",
@@ -811,6 +825,45 @@
       "createdAt": "2025-09-09T15:15:48.805Z",
       "lastUpdated": "2025-09-09T15:15:48.805Z",
       "order": 30
+    },
+    {
+      "name": "Sesc Santo André",
+      "email": "nucleoartistico.santoandre@sescsp.org.br",
+      "phone": "(11) 4469-1200",
+      "notes": [
+        {
+          "text": "Cristiane Ferrari, era citada como contato, porém falei com a aatendente e ela me passou a secretária da Cristiane que se chama Valéria",
+          "timestamp": "2025-09-23T14:16:13.861Z"
+        },
+        {
+          "text": "É para falar com a Mariana sobre as contratações musicais",
+          "timestamp": "2025-09-23T14:16:33.773Z"
+        },
+        {
+          "text": "Telefone direto com a Mariana (11) 4469-1234",
+          "timestamp": "2025-09-23T14:17:02.625Z"
+        },
+        {
+          "text": "Enviei e-mail comercial",
+          "timestamp": "2025-11-17T17:25:20.556Z"
+        }
+      ],
+      "rating": 5,
+      "category": "Serviço Social",
+      "assignedTo": "Diana",
+      "address": "",
+      "activity": "",
+      "deadlineDate": "2025-09-23",
+      "deadlineTime": "10:58",
+      "duration": "",
+      "columnId": "contatos",
+      "isPulsing": true,
+      "link": "",
+      "id": "7mlxeok0s2umfwn44yh",
+      "createdAt": "2025-09-23T14:18:07.002Z",
+      "lastUpdated": "2025-11-17T17:25:26.133Z",
+      "order": 4,
+      "pulsingDisabled": false
     }
   ],
   "userId": "z5w24jnyb1lmf8bqndn"

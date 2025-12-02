@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Pepper Hat Club - Versão Modular</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="gameContainer"></div>
+  
+  <!-- Loading Screen -->
+  <div id="loadingScreen" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #2c3e50;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    z-index: 1000;
+  ">
+    <h2>Carregando Pepper Hat Game...</h2>
+    <div id="loadingBar" style="
+      width: 300px;
+      height: 20px;
+      background: #34495e;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 20px;
+    ">
+      <div id="loadingProgress" style="
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #3498db, #2ecc71);
+        transition: width 0.3s ease;
+      "></div>
+    </div>
+    <p id="loadingText">Preparando assets...</p>
+  </div>
+
+  <!-- Scripts modulares -->
+  <script src="js/core/AssetManager.js"></script>
+  <script src="js/core/GameState.js"></script>
+  <script src="js/entities/Player.js"></script>
+  
+  <script>
+    // Exemplo de uso das classes modulares
+    class ModularGame {
+      constructor() {
+        this.assetManager = new AssetManager();
+        this.gameState = new GameState();
+        this.player = null;
+        this.canvas = null;
+        this.ctx = null;
+        
+        this.init();
+      }
+
+      async init() {
+        this.setupCanvas();
+        this.setupGameState();
+        await this.loadAssets();
+        this.setupPlayer();
+        this.hideLoadingScreen();
+        this.startGame();
+      }
+
+      setupCanvas() {
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        document.getElementById('gameContainer').appendChild(this.canvas);
+        
+        // Configurar tamanho do canvas
+        this.canvas.width = 800;
+        this.canvas.height = 450;
+      }
+
+      setupGameState() {
+        // Registrar estados
+        this.gameState.registerState('menu', class MenuState {
+          update() { console.log('Menu state'); }
+          render(ctx) { 
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(0, 0, 800, 450);
+            ctx.fillStyle = 'white';
+            ctx.font = '48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Pepper Hat Game', 400, 200);
+            ctx.font = '24px Arial';
+            ctx.fillText('Versão Modular', 400, 250);
+          }
+        });
+
+        this.gameState.registerState('playing', class PlayingState {
+          constructor(game) {
+            this.game = game;
+          }
+          
+          update(dt) {
+            if (this.game.player) {
+              this.game.player.update(dt, this.game.physics, this.game.groundY);
+            }
+          }
+          
+          render(ctx) {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, 800, 450);
+            
+            if (this.game.player) {
+              this.game.renderPlayer(ctx);
+            }
+          }
+        });
+
+        // Mudar para estado de menu inicialmente
+        this.gameState.changeState('menu');
+      }
+
+      async loadAssets() {
+        const assetList = [
+          { path: 'assets/images/player/pepper.png', type: 'image' },
+          { path: 'assets/images/player/parado.png', type: 'image' },
+          { path: 'assets/images/player/wk1.png', type: 'image' },
+          { path: 'assets/images/player/wk2.png', type: 'image' },
+          { path: 'assets/images/player/wk3.png', type: 'image' },
+          { path: 'assets/images/player/wk4.png', type: 'image' },
+          { path: 'assets/images/player/1subindo.png', type: 'image' },
+          { path: 'assets/images/player/2desacelerando.png', type: 'image' },
+          { path: 'assets/images/player/3caindo.png', type: 'image' },
+          { path: 'assets/images/player/l0_abaixar1.png', type: 'image' },
+          { path: 'assets/images/player/l0_abaixar2.png', type: 'image' },
+          { path: 'assets/images/player/l0_abaixar3.png', type: 'image' }
+        ];
+
+        // Configurar listener para progresso de carregamento
+        const updateLoadingProgress = () => {
+          const progress = this.assetManager.getLoadingProgress();
+          document.getElementById('loadingProgress').style.width = `${progress * 100}%`;
+          document.getElementById('loadingText').textContent = 
+            `Carregando assets... ${Math.round(progress * 100)}%`;
+        };
+
+        // Simular atualização de progresso
+        const progressInterval = setInterval(updateLoadingProgress, 100);
+
+        try {
+          await this.assetManager.preloadAssets(assetList);
+          clearInterval(progressInterval);
+          updateLoadingProgress();
+        } catch (error) {
+          console.error('Erro ao carregar assets:', error);
+          clearInterval(progressInterval);
+        }
+      }
+
+      setupPlayer() {
+        const playerConfig = {
+          WIDTH: 50,
+          INITIAL_HEIGHT: 60,
+          CROUCH_HEIGHT: 30,
+          BASE_MOVE_SPEED: 200,
+          COLLISION_VIEW_RANGE: 100
+        };
+
+        this.player = new Player(400, 300, playerConfig);
+        
+        // Carregar animações
+        const images = {
+          parado: this.assetManager.getAsset('assets/images/player/parado.png'),
+          wk1: this.assetManager.getAsset('assets/images/player/wk1.png'),
+          wk2: this.assetManager.getAsset('assets/images/player/wk2.png'),
+          wk3: this.assetManager.getAsset('assets/images/player/wk3.png'),
+          wk4: this.assetManager.getAsset('assets/images/player/wk4.png'),
+          subindo: this.assetManager.getAsset('assets/images/player/1subindo.png'),
+          desacelerando: this.assetManager.getAsset('assets/images/player/2desacelerando.png'),
+          caindo: this.assetManager.getAsset('assets/images/player/3caindo.png'),
+          abaixar1: this.assetManager.getAsset('assets/images/player/l0_abaixar1.png'),
+          abaixar2: this.assetManager.getAsset('assets/images/player/l0_abaixar2.png'),
+          abaixar3: this.assetManager.getAsset('assets/images/player/l0_abaixar3.png')
+        };
+
+        this.player.loadAnimations(images);
+
+        // Configurar física
+        this.physics = {
+          GRAVITY: 1200,
+          JUMP_IMPULSE: -600,
+          ACCELERATED_JUMP_FACTOR: 1.8,
+          ACCELERATED_JUMP_DECAY_RATE: 0.8,
+          GROUND_TOLERANCE: 1
+        };
+
+        this.groundY = 400;
+      }
+
+      hideLoadingScreen() {
+        document.getElementById('loadingScreen').style.display = 'none';
+      }
+
+      startGame() {
+        // Mudar para estado de jogo
+        this.gameState.changeState('playing');
+        
+        // Configurar input
+        this.setupInput();
+        
+        // Iniciar loop do jogo
+        this.lastTime = 0;
+        this.gameLoop();
+      }
+
+      setupInput() {
+        document.addEventListener('keydown', (e) => {
+          switch(e.code) {
+            case 'ArrowLeft':
+            case 'KeyA':
+              this.player.setInput({ left: true });
+              break;
+            case 'ArrowRight':
+            case 'KeyD':
+              this.player.setInput({ right: true });
+              break;
+            case 'Space':
+            case 'ArrowUp':
+            case 'KeyW':
+              this.player.setInput({ jump: true });
+              this.player.jump(this.physics);
+              break;
+            case 'ArrowDown':
+            case 'KeyS':
+              this.player.setInput({ crouch: true });
+              this.player.setCrouching(true);
+              break;
+          }
+        });
+
+        document.addEventListener('keyup', (e) => {
+          switch(e.code) {
+            case 'ArrowLeft':
+            case 'KeyA':
+              this.player.setInput({ left: false });
+              break;
+            case 'ArrowRight':
+            case 'KeyD':
+              this.player.setInput({ right: false });
+              break;
+            case 'Space':
+            case 'ArrowUp':
+            case 'KeyW':
+              this.player.setInput({ jump: false });
+              break;
+            case 'ArrowDown':
+            case 'KeyS':
+              this.player.setInput({ crouch: false });
+              this.player.setCrouching(false);
+              break;
+          }
+        });
+      }
+
+      gameLoop(currentTime = 0) {
+        const dt = (currentTime - this.lastTime) / 1000;
+        this.lastTime = currentTime;
+
+        // Atualizar estado atual
+        const currentState = this.gameState.getCurrentState();
+        if (currentState && currentState.prototype.update) {
+          const stateInstance = new currentState(this);
+          stateInstance.update(dt);
+        }
+
+        // Renderizar
+        this.render();
+
+        requestAnimationFrame((time) => this.gameLoop(time));
+      }
+
+      render() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Renderizar estado atual
+        const currentState = this.gameState.getCurrentState();
+        if (currentState && currentState.prototype.render) {
+          const stateInstance = new currentState(this);
+          stateInstance.render(this.ctx);
+        }
+      }
+
+      renderPlayer(ctx) {
+        const sprite = this.player.getCurrentSprite();
+        if (!sprite) return;
+
+        const drawX = this.player.x;
+        const drawY = this.player.y;
+
+        ctx.save();
+        
+        if (!this.player.facingRight) {
+          ctx.translate(drawX + this.player.width, drawY);
+          ctx.scale(-1, 1);
+          ctx.drawImage(sprite, 0, 0, this.player.width, this.player.height);
+        } else {
+          ctx.drawImage(sprite, drawX, drawY, this.player.width, this.player.height);
+        }
+        
+        ctx.restore();
+      }
+    }
+
+    // Iniciar o jogo quando a página carregar
+    window.addEventListener('load', () => {
+      new ModularGame();
+    });
+  </script>
+</body>
+</html>

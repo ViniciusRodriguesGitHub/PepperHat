@@ -29,28 +29,28 @@
   const GameConfig = {
     // Assets
     ASSETS: {
-    ground: 'ground_tile.png',
-    pepper: 'pepper.png',
-    pepper_idle_0: 'pepper_idle_0.png',
-    pepper_idle_1: 'pepper_idle_1.png',
-    pepper_idle_2: 'pepper_idle_2.png',
-    pepper_idle_3: 'pepper_idle_3.png',
-    pepper_idle_4: 'pepper_idle_4.png',
-    pepper_idle_5: 'pepper_idle_5.png',
-    wk1: 'wk1.png',
-    wk2: 'wk2.png',
-    wk3: 'wk3.png',
-    wk4: 'wk4.png',
-    subindo: '1subindo.png',
-    desacelerando: '2desacelerando.png',
-    caindo: '3caindo.png',
-    parado: 'parado.png',
-    abaixar1: 'l0_abaixar1.png',
-    abaixar2: 'l0_abaixar2.png',
-    abaixar3: 'l0_abaixar3.png',
-    note: 'note.png',
-    record: 'record.png',
-    ground_tile: 'ground_tile.png'
+    ground: 'assets/images/environment/ground_tile.png',
+    pepper: 'assets/images/player/pepper.png',
+    pepper_idle_0: 'assets/images/player/pepper_idle_0.png',
+    pepper_idle_1: 'assets/images/player/pepper_idle_1.png',
+    pepper_idle_2: 'assets/images/player/pepper_idle_2.png',
+    pepper_idle_3: 'assets/images/player/pepper_idle_3.png',
+    pepper_idle_4: 'assets/images/player/pepper_idle_4.png',
+    pepper_idle_5: 'assets/images/player/pepper_idle_5.png',
+    wk1: 'assets/images/player/wk1.png',
+    wk2: 'assets/images/player/wk2.png',
+    wk3: 'assets/images/player/wk3.png',
+    wk4: 'assets/images/player/wk4.png',
+    subindo: 'assets/images/player/1subindo.png',
+    desacelerando: 'assets/images/player/2desacelerando.png',
+    caindo: 'assets/images/player/3caindo.png',
+    parado: 'assets/images/player/parado.png',
+    abaixar1: 'assets/images/player/l0_abaixar1.png',
+    abaixar2: 'assets/images/player/l0_abaixar2.png',
+    abaixar3: 'assets/images/player/l0_abaixar3.png',
+    note: 'assets/images/collectibles/note.png',
+    record: 'assets/images/collectibles/record.png',
+    ground_tile: 'assets/images/environment/ground_tile.png'
     },
 
     // Bar Constants
@@ -409,6 +409,38 @@
     if (enemy.onGround) {
       enemy.y = groundY - enemy.height;
     }
+    
+    // Adjust existing world objects to new groundY
+    const oldGroundY = groundY; // This will be the new groundY
+    worldObjects.forEach(obj => {
+      if (obj.type === 'structure') {
+        // Recalculate structure position based on new groundY
+        const houseHeight = obj.height;
+        obj.y = groundY - houseHeight;
+        obj.walkableSurfaceY = groundY - houseHeight;
+      } else if (obj.type === 'fence') {
+        // Recalculate fence position
+        const fenceHeight = obj.height;
+        obj.y = groundY;
+        obj.walkableSurfaceY = groundY - fenceHeight;
+      } else if (obj.type === 'tree' || obj.type === 'streetlight' || obj.type === 'bush' || obj.type === 'pole') {
+        // These objects should be on the ground
+        obj.y = groundY;
+      } else if (obj.type === 'collectible') {
+        // Recalculate collectible position
+        const itemSize = obj.size || 32;
+        obj.y = groundY - itemSize - Math.random() * 30;
+      }
+    });
+    
+    // Adjust player position if inside a house
+    if (isInHouse) {
+      // Update house floor Y position
+      window.houseFloorY = GAME_HEIGHT / 2;
+      // Reposition player on the house floor
+      player.y = window.houseFloorY - player.initialHeight;
+    }
+    
     console.log(`Resize: groundY after=${groundY}, player.y after=${player.y}`);
 
     updateBarPositions(); // Update bar positions on resize
@@ -652,6 +684,9 @@
 
     const floorY = GAME_HEIGHT / 2; // Top of the floor
     const floorHeight = GAME_HEIGHT / 2; // Height of the floor
+    
+    // Store the house floor Y position globally for player positioning
+    window.houseFloorY = floorY;
 
     // Floor
     ctx.fillStyle = floorColor;
@@ -1529,7 +1564,8 @@
               isInHouse = true;
               // Reposition player inside the house, in front of the exit door
               player.x = GAME_WIDTH / 2;
-              player.y = groundY - player.initialHeight; // Ensure player is on the ground inside
+              // Position player on the house floor (will be set correctly in drawRoom)
+              player.y = GAME_HEIGHT / 2 - player.initialHeight; // Use house floor position
               input.crouch = false; // Reset crouch input to prevent immediate re-entry/exit
               return; // Exit update early to prevent further movement/animation issues
             }
@@ -1537,6 +1573,14 @@
         }
       }
     } else { // isInHouse === true
+      // Ensure player is always on the house floor
+      const houseFloorY = GAME_HEIGHT / 2;
+      if (player.y + player.height > houseFloorY) {
+        player.y = houseFloorY - player.height;
+        player.vy = 0;
+        player.onGround = true;
+      }
+      
       // Check for exiting a house
       if (input.crouch) {
         const exitDoorXCenter = GAME_WIDTH / 2; // Center of the exit door inside
@@ -2157,7 +2201,12 @@
   // Initialize the game once assets have loaded
   loadImages().then(() => {
     // Calculate ground Y coordinate from the ground image height
-    groundY = GAME_HEIGHT - images.ground.height;
+    if (images.ground) {
+      groundY = GAME_HEIGHT - images.ground.height;
+    } else {
+      console.error('Ground image not loaded! Using fallback groundY');
+      groundY = GAME_HEIGHT - 50; // Fallback height
+    }
 
     // Set initial player and enemy Y positions now that groundY is known
     player.y = groundY - player.initialHeight; // Use player.initialHeight
@@ -2192,7 +2241,10 @@
       images.abaixar3
     ];
 
-    // Initialise collectible items.  Musical notes and vinyl records are
+    // Resize the canvas to fit the window FIRST
+    resize();
+    
+    // Initialise collectible items AFTER resize.  Musical notes and vinyl records are
     // placed throughout the level for the player to collect.  When
     // collected they increase the appropriate counter and disappear.
     // Determine sizes based on the loaded icons.  We will draw all
@@ -2213,11 +2265,9 @@
       const x = i * (GAME_WIDTH / (recordCountTotal + 1));
       worldObjects.push({ type: 'collectible', itemType: 'record', x: x + (GAME_WIDTH / (recordCountTotal + 1)) / 2, y: groundY - itemSize, size: itemSize, collected: false });
     }
-    // Generate world objects procedurally
+    
+    // Generate world objects procedurally AFTER resize
     generateWorldObjects(0, GAME_WIDTH);
-
-    // Resize the canvas to fit the window
-    resize();
     window.addEventListener('resize', resize);
     // Set up input handlers
     setupKeyboard();

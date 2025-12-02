@@ -1,0 +1,26 @@
+# Arquivos do sistema
+desktop.ini
+Thumbs.db
+.DS_Store
+
+# Pastas temporárias
+Reciclar/
+GameApp/
+
+# Arquivos de backup
+*.bak
+*.tmp
+*.log
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (se usar npm no futuro)
+node_modules/
+
+# Arquivos de build
+dist/
+build/

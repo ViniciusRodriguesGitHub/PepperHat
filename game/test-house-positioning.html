@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Teste - Posicionamento do Player em Casas</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #2c3e50;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    .test-info {
+      background: #34495e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .test-button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #2980b9;
+    }
+    .test-button.success {
+      background: #27ae60;
+    }
+    .test-button.warning {
+      background: #f39c12;
+    }
+    #gameContainer {
+      border: 2px solid #34495e;
+      border-radius: 8px;
+      display: inline-block;
+    }
+    .instructions {
+      background: #34495e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-info">
+    <h2>🏠 Teste de Posicionamento do Player em Casas</h2>
+    <p><strong>Problema:</strong> Player aparece acima ou abaixo do piso dentro das casas em diferentes tamanhos de tela.</p>
+    <p><strong>Solução:</strong> Usar posição fixa do piso da casa (GAME_HEIGHT / 2) em vez do groundY do mundo exterior.</p>
+  </div>
+
+  <div class="instructions">
+    <h3>📋 Instruções de Teste:</h3>
+    <ol>
+      <li>Inicie o jogo e entre em uma casa (agache-se perto de uma porta)</li>
+      <li>Redimensione a janela e verifique se o player permanece no piso</li>
+      <li>Use os botões de teste para verificar o posicionamento</li>
+    </ol>
+  </div>
+
+  <div>
+    <button class="test-button" onclick="testHouseFloor()">Verificar Piso da Casa</button>
+    <button class="test-button" onclick="testPlayerPosition()">Verificar Posição do Player</button>
+    <button class="test-button" onclick="testResize()">Testar Redimensionamento</button>
+    <button class="test-button" onclick="enterHouse()">Entrar em Casa (Simulado)</button>
+    <button class="test-button" onclick="exitHouse()">Sair da Casa (Simulado)</button>
+  </div>
+
+  <div id="gameContainer"></div>
+
+  <div id="testResults" style="margin-top: 20px; background: #34495e; padding: 15px; border-radius: 8px;">
+    <h3>Resultados do Teste:</h3>
+    <div id="testOutput"></div>
+  </div>
+
+  <script src="js/game.js"></script>
+  <script>
+    let testResults = [];
+
+    function logTest(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'error' ? '❌' : 'ℹ️';
+      testResults.push(`[${timestamp}] ${icon} ${message}`);
+      document.getElementById('testOutput').innerHTML = testResults.join('<br>');
+      console.log(`[TEST] ${message}`);
+    }
+
+    function testHouseFloor() {
+      logTest('🔍 Verificando piso da casa...');
+      
+      const houseFloorY = GAME_HEIGHT / 2;
+      logTest(`Piso da casa calculado: ${houseFloorY}px`);
+      logTest(`GAME_HEIGHT: ${GAME_HEIGHT}px`);
+      logTest(`Canvas height: ${canvas.height}px`);
+      
+      if (typeof window.houseFloorY !== 'undefined') {
+        logTest(`House floor Y global: ${window.houseFloorY}px`);
+      } else {
+        logTest('⚠️ House floor Y global não definido', 'warning');
+      }
+      
+      // Verificar se o piso está no meio da tela
+      const expectedFloorY = GAME_HEIGHT / 2;
+      if (Math.abs(houseFloorY - expectedFloorY) < 1) {
+        logTest('✅ Piso da casa posicionado corretamente no meio da tela', 'success');
+      } else {
+        logTest(`❌ Piso da casa não está no meio: esperado ${expectedFloorY}, atual ${houseFloorY}`, 'error');
+      }
+    }
+
+    function testPlayerPosition() {
+      logTest('🔍 Verificando posição do player...');
+      
+      if (typeof player !== 'undefined') {
+        logTest(`Player Y: ${player.y.toFixed(2)}px`);
+        logTest(`Player height: ${player.height}px`);
+        logTest(`Player bottom: ${(player.y + player.height).toFixed(2)}px`);
+        
+        if (typeof isInHouse !== 'undefined' && isInHouse) {
+          const houseFloorY = GAME_HEIGHT / 2;
+          const playerBottom = player.y + player.height;
+          const tolerance = 5; // 5px de tolerância
+          
+          if (Math.abs(playerBottom - houseFloorY) <= tolerance) {
+            logTest('✅ Player posicionado corretamente no piso da casa', 'success');
+          } else {
+            logTest(`❌ Player não está no piso: player bottom ${playerBottom.toFixed(2)}, floor ${houseFloorY}`, 'error');
+          }
+        } else {
+          logTest('ℹ️ Player não está dentro de uma casa');
+        }
+      } else {
+        logTest('❌ Player não definido', 'error');
+      }
+    }
+
+    function testResize() {
+      logTest('🔄 Testando redimensionamento...');
+      
+      const originalWidth = window.innerWidth;
+      const originalHeight = window.innerHeight;
+      
+      // Redimensionar para diferentes tamanhos
+      const testSizes = [
+        { width: 1200, height: 800 },
+        { width: 800, height: 600 },
+        { width: 1024, height: 768 }
+      ];
+      
+      let currentTest = 0;
+      
+      function runNextTest() {
+        if (currentTest < testSizes.length) {
+          const size = testSizes[currentTest];
+          logTest(`📏 Testando tamanho: ${size.width}x${size.height}`);
+          
+          window.resizeTo(size.width, size.height);
+          
+          setTimeout(() => {
+            if (typeof isInHouse !== 'undefined' && isInHouse) {
+              const houseFloorY = GAME_HEIGHT / 2;
+              const playerBottom = player.y + player.height;
+              
+              if (Math.abs(playerBottom - houseFloorY) <= 5) {
+                logTest(`✅ Player posicionado corretamente em ${size.width}x${size.height}`, 'success');
+              } else {
+                logTest(`❌ Player mal posicionado em ${size.width}x${size.height}`, 'error');
+              }
+            }
+            
+            currentTest++;
+            setTimeout(runNextTest, 500);
+          }, 100);
+        } else {
+          // Restaurar tamanho original
+          window.resizeTo(originalWidth, originalHeight);
+          logTest('🔄 Tamanho original restaurado');
+        }
+      }
+      
+      runNextTest();
+    }
+
+    function enterHouse() {
+      logTest('🚪 Simulando entrada em casa...');
+      
+      if (typeof isInHouse !== 'undefined') {
+        // Simular entrada em casa
+        isInHouse = true;
+        player.x = GAME_WIDTH / 2;
+        player.y = GAME_HEIGHT / 2 - player.initialHeight;
+        
+        logTest('✅ Player posicionado dentro da casa');
+        testPlayerPosition();
+      } else {
+        logTest('❌ Variáveis do jogo não disponíveis', 'error');
+      }
+    }
+
+    function exitHouse() {
+      logTest('🚪 Simulando saída da casa...');
+      
+      if (typeof isInHouse !== 'undefined') {
+        // Simular saída da casa
+        isInHouse = false;
+        player.y = groundY - player.initialHeight;
+        
+        logTest('✅ Player posicionado fora da casa');
+        testPlayerPosition();
+      } else {
+        logTest('❌ Variáveis do jogo não disponíveis', 'error');
+      }
+    }
+
+    // Aguardar o jogo carregar
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        logTest('🎮 Jogo carregado - Pronto para testes de posicionamento em casas');
+        testHouseFloor();
+      }, 2000);
+    });
+  </script>
+</body>
+</html>

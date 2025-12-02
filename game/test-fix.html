@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Teste - Correção de Objetos Flutuantes</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #2c3e50;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    .test-info {
+      background: #34495e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .test-button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #2980b9;
+    }
+    #gameContainer {
+      border: 2px solid #34495e;
+      border-radius: 8px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-info">
+    <h2>🧪 Teste de Correção - Objetos Flutuantes</h2>
+    <p><strong>Problema:</strong> Objetos, cercas e itens apareciam flutuando acima do chão no início do jogo.</p>
+    <p><strong>Causa:</strong> Objetos eram gerados antes da função resize() ser chamada, usando groundY incorreto.</p>
+    <p><strong>Solução:</strong> Reordenar a sequência de inicialização para chamar resize() antes da geração de objetos.</p>
+  </div>
+
+  <div>
+    <button class="test-button" onclick="testInitialLoad()">Testar Carregamento Inicial</button>
+    <button class="test-button" onclick="testResize()">Testar Redimensionamento</button>
+    <button class="test-button" onclick="checkGroundY()">Verificar GroundY</button>
+    <button class="test-button" onclick="listObjects()">Listar Objetos</button>
+  </div>
+
+  <div id="gameContainer"></div>
+
+  <div id="testResults" style="margin-top: 20px; background: #34495e; padding: 15px; border-radius: 8px;">
+    <h3>Resultados do Teste:</h3>
+    <div id="testOutput"></div>
+  </div>
+
+  <script src="js/game.js"></script>
+  <script>
+    let gameInstance = null;
+    let testResults = [];
+
+    function logTest(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      testResults.push(`[${timestamp}] ${message}`);
+      document.getElementById('testOutput').innerHTML = testResults.join('<br>');
+      console.log(`[TEST] ${message}`);
+    }
+
+    function testInitialLoad() {
+      logTest('🔄 Testando carregamento inicial...');
+      
+      // Verificar se o jogo carregou corretamente
+      if (typeof window.gameInstance !== 'undefined') {
+        logTest('✅ Jogo carregado com sucesso');
+        
+        // Verificar groundY
+        if (typeof groundY !== 'undefined' && groundY > 0) {
+          logTest(`✅ GroundY calculado: ${groundY}`);
+        } else {
+          logTest('❌ GroundY não foi calculado corretamente');
+        }
+        
+        // Verificar objetos do mundo
+        if (typeof worldObjects !== 'undefined' && worldObjects.length > 0) {
+          logTest(`✅ ${worldObjects.length} objetos gerados`);
+          
+          // Verificar se objetos estão no chão
+          let floatingObjects = 0;
+          worldObjects.forEach((obj, index) => {
+            if (obj.y < groundY - 100) { // Objetos muito acima do chão
+              floatingObjects++;
+              logTest(`⚠️ Objeto ${index} (${obj.type}) pode estar flutuando: y=${obj.y}, groundY=${groundY}`);
+            }
+          });
+          
+          if (floatingObjects === 0) {
+            logTest('✅ Todos os objetos estão posicionados corretamente no chão');
+          } else {
+            logTest(`❌ ${floatingObjects} objetos podem estar flutuando`);
+          }
+        } else {
+          logTest('❌ Nenhum objeto foi gerado');
+        }
+      } else {
+        logTest('❌ Jogo não carregou corretamente');
+      }
+    }
+
+    function testResize() {
+      logTest('🔄 Testando redimensionamento...');
+      
+      // Simular redimensionamento
+      const originalWidth = window.innerWidth;
+      const originalHeight = window.innerHeight;
+      
+      // Redimensionar para um tamanho diferente
+      window.resizeTo(1200, 800);
+      
+      setTimeout(() => {
+        logTest(`📏 Janela redimensionada para: ${window.innerWidth}x${window.innerHeight}`);
+        
+        if (typeof groundY !== 'undefined') {
+          logTest(`✅ GroundY após resize: ${groundY}`);
+        }
+        
+        // Restaurar tamanho original
+        window.resizeTo(originalWidth, originalHeight);
+        logTest('🔄 Tamanho original restaurado');
+      }, 1000);
+    }
+
+    function checkGroundY() {
+      logTest('🔍 Verificando GroundY...');
+      
+      if (typeof groundY !== 'undefined') {
+        logTest(`GroundY atual: ${groundY}`);
+        logTest(`GAME_HEIGHT: ${typeof GAME_HEIGHT !== 'undefined' ? GAME_HEIGHT : 'undefined'}`);
+        logTest(`Canvas height: ${typeof canvas !== 'undefined' ? canvas.height : 'undefined'}`);
+        
+        if (typeof images !== 'undefined' && images.ground) {
+          logTest(`Ground image height: ${images.ground.height}`);
+          logTest(`Cálculo: ${GAME_HEIGHT} - ${images.ground.height} = ${GAME_HEIGHT - images.ground.height}`);
+        } else {
+          logTest('❌ Imagem do chão não carregada');
+        }
+      } else {
+        logTest('❌ GroundY não definido');
+      }
+    }
+
+    function listObjects() {
+      logTest('📋 Listando objetos do mundo...');
+      
+      if (typeof worldObjects !== 'undefined' && worldObjects.length > 0) {
+        worldObjects.forEach((obj, index) => {
+          const status = obj.y < groundY - 50 ? '⚠️ FLUTUANDO' : '✅ OK';
+          logTest(`${index}: ${obj.type} - y: ${obj.y.toFixed(2)} - ${status}`);
+        });
+      } else {
+        logTest('❌ Nenhum objeto encontrado');
+      }
+    }
+
+    // Aguardar o jogo carregar
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        logTest('🎮 Jogo carregado - Pronto para testes');
+        testInitialLoad();
+      }, 2000);
+    });
+  </script>
+</body>
+</html>

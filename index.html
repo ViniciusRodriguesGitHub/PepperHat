@@ -3,86 +3,108 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pepper Hat Apps</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Pepper Hat - Kanban Colaborativo</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React/ReactDOM via CDN -->
+    <!-- React/ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel para transformar JSX no navegador -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Ícones (Lucide) -->
+    <!-- Ícones -->
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- FIREBASE MODULE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithPopup, 
+            GoogleAuthProvider,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged,
+            setPersistence, 
+            browserLocalPersistence
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURAÇÃO DO FIREBASE (PEPPERHAT APPS) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBru9u7vjuX1Gp2WpT8bikvh580uhruXYw",
+            authDomain: "pepperhatapps.firebaseapp.com",
+            projectId: "pepperhatapps",
+            storageBucket: "pepperhatapps.firebasestorage.app",
+            messagingSenderId: "306221893302",
+            appId: "1:306221893302:web:63c97387bf48950cd88817"
+        };
+        // -------------------------------------------------
+
+        const appId = 'pepperhatapps'; // Identificador do app
+
+        if (firebaseConfig.projectId) {
+            window.firebaseApp = initializeApp(firebaseConfig);
+            window.db = getFirestore(window.firebaseApp);
+            window.auth = getAuth(window.firebaseApp);
+            window.googleProvider = new GoogleAuthProvider();
+
+            setPersistence(window.auth, browserLocalPersistence).catch(console.warn);
+
+            window.doc = doc;
+            window.setDoc = setDoc;
+            window.onSnapshot = onSnapshot;
+            window.signInWithPopup = signInWithPopup;
+            window.signInAnonymously = signInAnonymously;
+            window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+            window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+            window.signOut = signOut;
+
+            onAuthStateChanged(window.auth, (user) => {
+                window.dispatchEvent(new CustomEvent('auth-change', { detail: user }));
+            });
+        }
+    </script>
+    
     <style>
       html, body { height: 100%; }
-      .text-xxs { font-size: 0.65rem; /* ~10px */ }
-      .pulsing-alert {
-          animation: pulse 1.5s infinite;
-      }
-      
+      .text-xxs { font-size: 0.65rem; }
+      .pulsing-alert { animation: pulse 1.5s infinite; }
       @keyframes pulse {
-          0% {
-              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-          }
-          70% {
-              box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-          }
-          100% {
-              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-          }
+        0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
       }
-      .pulsing-green {
-        animation: pulse-green 1s infinite cubic-bezier(0.66, 0, 0.33, 1);
-      }
-
+      .pulsing-green { animation: pulse-green 1s infinite cubic-bezier(0.66, 0, 0.33, 1); }
       @keyframes pulse-green {
         0%, 100% { background-color: var(--card-bg-color, white); }
-        50% { background-color: var(--pulse-green-color, #d4edda); } /* Use CSS variable for pulsing green */
+        50% { background-color: var(--pulse-green-color, #d4edda); }
       }
+      .fade-in { animation: fadeIn 0.5s ease-in-out; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      
+      /* Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
     </style>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800">
+  <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800 font-sans">
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useEffect, useMemo, useState, useRef } = React;
+      const { useEffect, useMemo, useState, useRef, useCallback } = React;
 
-const colorPalette = {
-    lightGreen: '#d4edda',
-    lightBlue: '#d1ecf1',
-    lilac: '#dbcff8',
-    yellow: '#fff3cd',
-    pink: '#f8c0c8',
-    lightGrey: '#e9ecef',
-        offWhite: '#f8f9fa',
-};
+      // --- CONSTANTES ---
+      const colorPalette = { lightGreen: '#d4edda', lightBlue: '#d1ecf1', lilac: '#dbcff8', yellow: '#fff3cd', pink: '#f8c0c8', lightGrey: '#e9ecef', offWhite: '#f8f9fa' };
+      const softPastelColors = ['#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#BAE1FF', '#E0BBE4', '#FFD7A3', '#CCE2CB', '#F0EAD6', '#D4EEFF', '#F5DEB3'];
 
-const softPastelColors = [
-  '#FFB3BA', // Light Pink
-  '#FFDFBA', // Peach
-  '#FFFFBA', // Pale Yellow
-  '#BAFFC9', // Mint Green
-  '#BAE1FF', // Light Blue
-  '#E0BBE4', // Lavender
-  '#FFD7A3', // Light Orange
-  '#CCE2CB', // Sage Green
-  '#F0EAD6', // Beige
-  '#D4EEFF', // Sky Blue
-  '#F5DEB3', // Wheat
-];
-
-const getBackgroundColor = (columnId) => {
-    const mapping = {
-        'primeiro-contato': colorPalette.lightGreen,
-        'demonstrou-interesse': colorPalette.lightBlue,
-        'contato-pessoal': colorPalette.lilac,
-        'fez-orcamento': colorPalette.yellow,
-        'contratou': colorPalette.pink,
-        'descartados': colorPalette.lightGrey,
-        'arquivados': colorPalette.offWhite,
-    };
-    return mapping[columnId] || colorPalette.lightBlue;
-};
+      const getBackgroundColor = (columnId) => {
+        const mapping = { 'primeiro-contato': colorPalette.lightGreen, 'demonstrou-interesse': colorPalette.lightBlue, 'contato-pessoal': colorPalette.lilac, 'fez-orcamento': colorPalette.yellow, 'contratou': colorPalette.pink, 'arquivados': colorPalette.offWhite, 'descartados': colorPalette.lightGrey };
+        return mapping[columnId] || colorPalette.lightBlue;
+      };
 
       const defaultBoardState = {
         columns: {
@@ -94,1755 +116,822 @@ const getBackgroundColor = (columnId) => {
           'arquivados': { id: 'arquivados', title: 'Arquivados' },
           'descartados': { id: 'descartados', title: 'Descartados' },
         },
-        columnOrder: [
-          'primeiro-contato',
-          'demonstrou-interesse',
-          'contato-pessoal',
-          'fez-orcamento',
-          'contratou',
-          'arquivados',
-          'descartados',
-        ],
+        columnOrder: ['primeiro-contato', 'demonstrou-interesse', 'contato-pessoal', 'fez-orcamento', 'contratou', 'arquivados', 'descartados'],
+        columnWidths: {},
         categories: ['Casamento', 'Corporativo', 'Bar', 'Teatro'],
         teamMembers: [],
-        activityOptions: ['Interna', 'Externa'], // Novas opções de atividade
-        durationOptions: ['Minutos', 'Horas', 'Dia', 'Dias'], // Novas opções de duração
+        activityOptions: ['Interna', 'Externa'],
+        durationOptions: ['Minutos', 'Horas', 'Dia', 'Dias'],
         columnsLocked: true,
       };
 
-      const storageKey = 'kanban-funil-vendas-v1';
-
-      function loadState() {
-        try {
-          const raw = localStorage.getItem(storageKey);
-          if (!raw) return null;
-          return JSON.parse(raw);
-        } catch (e) {
-          return null;
-        }
+      function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+      function getCurrentDateString() { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+      function getCurrentTimeString() { const n = new Date(); return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; }
+      function useDebounce(callback, delay) {
+        const timeoutRef = useRef();
+        return useCallback((...args) => {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => callback(...args), delay);
+        }, [callback, delay]);
       }
 
-      function saveState(state) {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(state));
-        } catch (e) {}
-      }
-
-      function uid() {
-        return Math.random().toString(36).slice(2) + Date.now().toString(36);
-      }
-
-      function getCurrentDateString() {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-
-      function getCurrentTimeString() {
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-      }
-
+      // --- APP CORE ---
       function App() {
+        const [user, setUser] = useState(null);
+        const [projectId, setProjectId] = useState(localStorage.getItem('pepperhat_last_project') || null);
+        const [storageMode, setStorageMode] = useState(localStorage.getItem('pepperhat_storage_mode') || 'private');
+        const [loading, setLoading] = useState(true);
+
+        useEffect(() => {
+            const handler = (e) => { setUser(e.detail); setLoading(false); };
+            window.addEventListener('auth-change', handler);
+            if(window.auth?.currentUser) { setUser(window.auth.currentUser); setLoading(false); }
+            else setTimeout(() => setLoading(false), 1500);
+            return () => window.removeEventListener('auth-change', handler);
+        }, []);
+
+        const handleSwitchMode = (mode) => { setStorageMode(mode); localStorage.setItem('pepperhat_storage_mode', mode); };
+        const handleLogout = () => { window.auth.signOut(); setProjectId(null); setUser(null); };
+
+        if(loading) return <div className="flex items-center justify-center h-screen bg-purple-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div></div>;
+        if(!user) return <AuthHome />;
+        if(!projectId) return <ProjectSelection user={user} onSelectProject={id => {setProjectId(id); localStorage.setItem('pepperhat_last_project', id);}} onLogout={handleLogout} />;
+
+        return <KanbanBoard user={user} projectId={projectId} storageMode={storageMode} onSwitchMode={handleSwitchMode} onBack={() => setProjectId(null)} />;
+      }
+
+      // --- AUTH & PROJECT SELECTION ---
+      function AuthHome() {
+          const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
+          const doLogin = async (isRegister) => {
+              try {
+                  if(isRegister) await window.createUserWithEmailAndPassword(window.auth, email, pass);
+                  else await window.signInWithEmailAndPassword(window.auth, email, pass);
+              } catch(e) { setErr(e.message); }
+          };
+          return (
+              <div className="flex items-center justify-center h-screen bg-gray-50">
+                  <div className="bg-white p-8 rounded shadow-lg w-96 text-center">
+                      <h1 className="text-3xl font-bold mb-4">Pepper Hat 🌶️</h1>
+                      {err && <div className="bg-red-100 text-red-600 text-sm p-2 mb-2 rounded">{err}</div>}
+                      <button onClick={() => window.signInAnonymously(window.auth)} className="w-full bg-gray-200 p-2 rounded mb-4 hover:bg-gray-300">Entrar como Convidado</button>
+                      <div className="text-xs text-gray-400 mb-2">— ou Email —</div>
+                      <input className="w-full border p-2 mb-2 rounded" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+                      <input className="w-full border p-2 mb-4 rounded" type="password" placeholder="Senha" value={pass} onChange={e=>setPass(e.target.value)} />
+                      <div className="flex gap-2">
+                          <button onClick={()=>doLogin(false)} className="flex-1 bg-purple-600 text-white p-2 rounded hover:bg-purple-700">Entrar</button>
+                          <button onClick={()=>doLogin(true)} className="flex-1 bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Cadastrar</button>
+                      </div>
+                  </div>
+              </div>
+          );
+      }
+
+      function ProjectSelection({ user, onSelectProject, onLogout }) {
+          const [pid, setPid] = useState('');
+          return (
+              <div className="flex items-center justify-center h-screen bg-gray-50">
+                  <div className="bg-white p-8 rounded shadow-lg w-96 text-center">
+                      <h2 className="text-xl font-bold mb-2">Olá, {user.isAnonymous ? 'Convidado' : 'Usuário'}!</h2>
+                      <input className="w-full border p-2 mb-4 rounded" placeholder="ID do Projeto (ex: vendas-2025)" value={pid} onChange={e=>setPid(e.target.value)} />
+                      <button onClick={()=>pid && onSelectProject(pid)} className="w-full bg-green-600 text-white p-2 rounded mb-2 hover:bg-green-700">Acessar Projeto</button>
+                      <button onClick={()=>onSelectProject(`proj-${Math.random().toString(36).slice(2,7)}`)} className="w-full bg-blue-100 text-blue-700 p-2 rounded mb-4 hover:bg-blue-200">Criar Novo</button>
+                      <button onClick={onLogout} className="text-red-500 text-sm hover:underline">Sair</button>
+                  </div>
+              </div>
+          );
+      }
+
+      // --- KANBAN BOARD (CORE) ---
+      function KanbanBoard({ user, projectId, storageMode, onSwitchMode, onBack }) {
         const [boardState, setBoardState] = useState(defaultBoardState);
         const [clients, setClients] = useState([]);
-        const [userId, setUserId] = useState(uid());
+        const [pageTitle, setPageTitle] = useState('Pepper Hat Funil');
+        const [isSaving, setIsSaving] = useState(false);
+        
+        // UI
+        const [currentView, setCurrentView] = useState('kanban');
+        const [showAdminMenu, setShowAdminMenu] = useState(false);
         const [showAddCard, setShowAddCard] = useState(false);
-    const [editingCardId, setEditingCardId] = useState(null);
-    const [showAddCategory, setShowAddCategory] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [cardToDelete, setCardToDelete] = useState(null);
-    const [isAddingColumn, setIsAddingColumn] = useState(false);
-    const [draggedItem, setDraggedItem] = useState(null);
-    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-    const [showAdminMenu, setShowAdminMenu] = useState(false); // Novo estado para o menu de administração
+        const [editingCardId, setEditingCardId] = useState(null);
+        
+        // Modals & Filters
+        const [showAddCategory, setShowAddCategory] = useState(false);
+        const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+        const [isAddingColumn, setIsAddingColumn] = useState(false);
+        const [showDeleteModal, setShowDeleteModal] = useState(false);
+        const [cardToDelete, setCardToDelete] = useState(null);
+        const [notification, setNotification] = useState(null);
+        const [syncError, setSyncError] = useState(false);
+        const [confirmation, setConfirmation] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+        const [undoStack, setUndoStack] = useState(null);
 
-        // Estado para filtros
+        const [compactCards, setCompactCards] = useState(true);
+        const [disablePulsing, setDisablePulsing] = useState(false);
+        const [searchTerm, setSearchTerm] = useState('');
         const [filterCategory, setFilterCategory] = useState('');
         const [filterMember, setFilterMember] = useState('');
-        const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de busca
-        const [filterActivity, setFilterActivity] = useState(''); // Novo estado para o filtro de atividade
-        const [filterDuration, setFilterDuration] = useState(''); // Novo estado para o filtro de duração
+        const [filterActivity, setFilterActivity] = useState('');
+        const [filterDuration, setFilterDuration] = useState('');
+        const [selectedDate, setSelectedDate] = useState(new Date());
+        const [hideActivityDurationFields, setHideActivityDurationFields] = useState(false);
 
-        // Estado para desfazer exclusões
-        const [deletedCards, setDeletedCards] = useState([]);
-        const [lastDeletedCard, setLastDeletedCard] = useState(null); // Renomeado de lastDeletedClient
-        const [deletedColumns, setDeletedColumns] = useState([]);
-        const [lastDeletedColumn, setLastDeletedColumn] = useState(null);
-        const [compactCards, setCompactCards] = useState(true); // Novo estado para compactar os cards (inicia como true)
-        const [pageTitle, setPageTitle] = useState('Tarefas'); // Novo estado para o título da página
-        const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Novo estado para controle de alterações não salvas
-        const [saveButtonColor, setSaveButtonColor] = useState('bg-green-500'); // Cor inicial do botão salvar
-        const [currentView, setCurrentView] = useState('kanban'); // Novo estado para controlar a visualização: 'kanban', 'calendar', 'list'
-        const [selectedDate, setSelectedDate] = useState(new Date()); // Novo estado para a data selecionada no calendário
-        const [disablePulsing, setDisablePulsing] = useState(false); // Novo estado para desativar pulsação
-        const [columnIdForNewCard, setColumnIdForNewCard] = useState(null); // Novo estado para armazenar a coluna onde o novo card será adicionado
-        const [hideActivityDurationFields, setHideActivityDurationFields] = useState(false); // Novo estado para controlar a visibilidade de campos
-
-        // Cores para o botão salvar quando houver alterações não salvas
-        const flashingColors = [
-          'bg-green-500', 'bg-yellow-500', 'bg-blue-500', 'bg-purple-500'
-        ];
-
-        useEffect(() => {
-          let interval;
-          if (hasUnsavedChanges) {
-            let colorIndex = 0;
-            interval = setInterval(() => {
-              setSaveButtonColor(flashingColors[colorIndex]);
-              colorIndex = (colorIndex + 1) % flashingColors.length;
-            }, 750); // Troca de cor a cada 750ms
-          } else {
-            setSaveButtonColor('bg-green-500'); // Volta para a cor padrão quando salvo
-          }
-          return () => clearInterval(interval);
-        }, [hasUnsavedChanges]);
-
-        useEffect(() => {
-          // Ao carregar a página, não carregamos do localStorage. Deixamos o estado inicial padrão.
-          // Apenas persistimos ao salvar explicitamente ou ao fechar a página (opcional, fora do escopo atual)
-        }, []);
-
-        // Efeito para alertar sobre alterações não salvas ao tentar sair da página
-        useEffect(() => {
-          const handleBeforeUnload = (event) => {
-            if (hasUnsavedChanges) {
-              // A mensagem personalizada é ignorada pela maioria dos navegadores modernos por segurança.
-              // Eles exibirão uma mensagem padrão.
-              event.returnValue = ''; 
-            }
-          };
-          
-          window.addEventListener('beforeunload', handleBeforeUnload);
-          
-          return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-          };
-        }, [hasUnsavedChanges]);
-
-        // Remover os antigos useEffects de persistência, pois não carregaremos na inicialização.
-        // Agora, a persistência ocorrerá apenas quando o botão 'Salvar' for clicado.
-
-        // A persistência de dados só deve acontecer quando o usuário clicar em salvar, ou no beforeunload (opcional)
-        // Portanto, removemos os useEffects que salvariam automaticamente.
-        // O estado de 'deletedCards' e 'deletedColumns' também será reiniciado a cada carregamento.
-
-        // Se você ainda quiser salvar o 'userId' para futuras sessões (não reiniciar), mantenha o useEffect abaixo:
-        // useEffect(() => { localStorage.setItem('kanban-user-id', userId); }, [userId]);
-
-        const columnOrder = boardState.columnOrder || [];
-        const columns = boardState.columns || {};
-        const categories = Array.isArray(boardState.categories) ? boardState.categories : [];
-        const teamMembers = Array.isArray(boardState.teamMembers) ? boardState.teamMembers : [];
-        const activityOptions = Array.isArray(boardState.activityOptions) ? boardState.activityOptions : []; // Novo estado para as opções de atividade
-        const durationOptions = Array.isArray(boardState.durationOptions) ? boardState.durationOptions : []; // Novo estado para as opções de duração
-
-        const [columnsWidths, setColumnsWidths] = useState({});
         const resizingRef = useRef({ isResizing: false, columnId: null, startX: 0, startWidth: 0 });
-    useEffect(() => {
-        const handleResize = () => {
-            const totalColumns = columnOrder.length;
-            if (!totalColumns) return;
-                const minWidth = 280;
-                const maxWidth = 400;
-                const availableWidth = window.innerWidth - 64;
-                const calculatedWidth = Math.max(minWidth, Math.min(maxWidth, availableWidth / totalColumns));
-                const newWidths = {};
-            columnOrder.forEach((key) => (newWidths[key] = calculatedWidth));
-                setColumnsWidths(newWidths);
-        };
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-        }, [columnOrder.join('|')]);
+        const [draggedItem, setDraggedItem] = useState(null);
+        const pendingSaveRef = useRef({}); 
+        
+        const topScrollRef = useRef(null);
+        const bottomScrollRef = useRef(null);
+        const [scrollWidth, setScrollWidth] = useState(0);
 
-        useEffect(() => {
-          function onMouseMove(e) {
-            const r = resizingRef.current;
-            if (!r.isResizing || !r.columnId) return;
-            const dx = e.clientX - r.startX;
-            const minWidth = 220;
-            const maxWidth = 720;
-            const newWidth = Math.max(minWidth, Math.min(maxWidth, r.startWidth + dx));
-            setBoardState((prev) => ({
-              ...prev,
-              columnWidths: { ...(prev.columnWidths || {}), [r.columnId]: newWidth },
-            }));
-            setHasUnsavedChanges(true);
-          }
-          function onMouseUp() {
-            resizingRef.current = { isResizing: false, columnId: null, startX: 0, startWidth: 0 };
-          }
-          window.addEventListener('mousemove', onMouseMove);
-          window.addEventListener('mouseup', onMouseUp);
-          return () => {
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
-          };
-        }, []);
-
-        function handleDragStart(e, cardId) {
-        setDraggedItem(cardId);
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', cardId); // Adicionado para compatibilidade e para passar o ID
-        }
-    const handleDragOver = (e) => e.preventDefault();
-        function handleDrop(e, targetColumnId) {
-        e.preventDefault();
-        const droppedCardId = e.dataTransfer.getData('text/plain'); // Obter o ID do card arrastado
-        if (!droppedCardId) return;
-
-        setClients((prev) => {
-            const updatedClients = prev.map((c) => {
-              if (c.id === droppedCardId) {
-                // Get old column title
-                const oldColumn = columns[c.columnId];
-                const newColumn = columns[targetColumnId];
-                if (c.columnId !== targetColumnId) { // Only add note if column actually changed
-                  const noteText = `de '${oldColumn?.title || c.columnId}' para '${newColumn?.title || targetColumnId}'.`;
-                  const newNotes = [...(c.notes || []), { text: noteText, timestamp: new Date().toISOString() }];
-                  return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), notes: newNotes, pulsingDisabled: false };
-                }
-                return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), pulsingDisabled: false };
-              }
-              return c;
-            });
-            return updatedClients;
-          });
-          setHasUnsavedChanges(true);
-          setDraggedItem(null);
-        }
-
-        // Nova função para reordenar cards dentro da mesma coluna
-        function reorderCardInColumn(draggedCardId, targetCardId) {
-          setClients(prevClients => {
-            const draggedCard = prevClients.find(c => c.id === draggedCardId);
-            const targetCard = prevClients.find(c => c.id === targetCardId);
-
-            if (!draggedCard || !targetCard || draggedCard.columnId !== targetCard.columnId) {
-              return prevClients; // Garante que estão na mesma coluna
-            }
-
-            const columnCards = prevClients.filter(c => c.columnId === draggedCard.columnId)
-                                         .sort((a, b) => (a.order || 0) - (b.order || 0));
-            
-            const draggedIndex = columnCards.findIndex(c => c.id === draggedCardId);
-            const targetIndex = columnCards.findIndex(c => c.id === targetCardId);
-
-            if (draggedIndex === -1 || targetIndex === -1) return prevClients;
-
-            const reordered = [...columnCards];
-            const [removed] = reordered.splice(draggedIndex, 1);
-            reordered.splice(targetIndex, 0, removed);
-
-            // Reatribuir a propriedade 'order' sequencialmente
-            const updatedColumnCards = reordered.map((card, index) => ({
-              ...card,
-              order: index + 1,
-              pulsingDisabled: false, // Reabilita pulsação ao reordenar
-              // lastUpdated: new Date().toISOString(), // Removido: não atualizar lastUpdated para reordenação na mesma coluna
-            }));
-
-            const otherCards = prevClients.filter(c => c.columnId !== draggedCard.columnId);
-            return [...otherCards, ...updatedColumnCards];
-          });
-          // setHasUnsavedChanges(true); // Removido: reordenação na mesma coluna não deve marcar como não salvo
-        }
-
-        function addCard(card, targetColumnId = columnOrder[0]) { // Renomeado de addClient, adicionado targetColumnId
-          const id = uid();
-          setClients((prev) => {
-            // Determinar a maior ordem existente na coluna de destino para o novo card ir para o final
-            const cardsInTargetColumn = prev.filter(c => c.columnId === targetColumnId);
-            const maxOrder = cardsInTargetColumn.reduce((max, c) => Math.max(max, c.order || 0), 0);
-            const newOrder = maxOrder + 1;
-
-            return [
-              ...prev,
-              {
-                ...card,
-                id,
-                columnId: targetColumnId, // Usa a coluna passada como parâmetro
-                createdAt: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                notes: card.notes || [],
-                order: newOrder, // Adicionando a propriedade de ordem
-                isPulsing: true, // Novo card pulsa por padrão
-              },
-            ];
-          });
-          setHasUnsavedChanges(true);
-        }
-
-        function updateCard(updated) { // Renomeado de updateClient
-          setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, lastUpdated: new Date().toISOString(), pulsingDisabled: false } : c)));
-          setHasUnsavedChanges(true);
-        }
-
-        function moveCardOrder(cardId, direction) { // Renomeado de moveClientOrder
-          setClients(prevClients => {
-            const cardToMove = prevClients.find(c => c.id === cardId);
-            if (!cardToMove) return prevClients;
-
-            const cardsInSameColumn = prevClients.filter(c => c.columnId === cardToMove.columnId)
-              .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-            const currentPosIndex = cardsInSameColumn.findIndex(c => c.id === cardId);
-            if (currentPosIndex === -1) return prevClients;
-
-            let targetPosIndex;
-            if (direction === 'up') {
-              targetPosIndex = currentPosIndex - 1;
-            } else { // direction === 'down'
-              targetPosIndex = currentPosIndex + 1;
-            }
-
-            if (targetPosIndex < 0 || targetPosIndex >= cardsInSameColumn.length) {
-              return prevClients; // Não pode mover mais para cima ou para baixo
-            }
-
-            // Criar uma nova array para a coluna e manipular a ordem
-            const reorderedColumnCards = [...cardsInSameColumn]; // Renomeado de reorderedColumnClients
-            const [removed] = reorderedColumnCards.splice(currentPosIndex, 1);
-            reorderedColumnCards.splice(targetPosIndex, 0, removed);
-
-            // Reatribuir a propriedade 'order' sequencialmente
-            const updatedCardsInColumn = reorderedColumnCards.map((card, index) => ({ // Renomeado de updatedClientsInColumn
-              ...card,
-              order: index + 1, // Atribui nova ordem sequencial
-              lastUpdated: new Date().toISOString(),
-              pulsingDisabled: false, // Reabilita pulsação ao reordenar
-            }));
-
-            // Combinar os cards da coluna atualizados com os outros cards
-            const otherCards = prevClients.filter(c => c.columnId !== cardToMove.columnId); // Renomeado de otherClients
-            return [...otherCards, ...updatedCardsInColumn];
-          });
-          setHasUnsavedChanges(true);
-        }
-
-        // Nova função para alternar a pulsação de um card específico sem alterar lastUpdated
-        function toggleCardPulsing(cardId, disable) {
-          setClients(prev => prev.map(c => c.id === cardId ? { ...c, pulsingDisabled: disable } : c));
-          setHasUnsavedChanges(true);
-        }
-
-        function deleteCard(cardId) { // Renomeado de deleteClient
-          const cardToDelete = clients.find(c => c.id === cardId);
-          if (!cardToDelete) return;
-          
-          // Salvar para desfazer
-          setLastDeletedCard({ ...cardToDelete, deletedAt: new Date().toISOString() });
-          setDeletedCards(prev => [...prev, { ...cardToDelete, deletedAt: new Date().toISOString() }]);
-          
-          setClients(prev => prev.filter(c => c.id !== cardId));
-          setHasUnsavedChanges(true);
-        }
-
-        function undoLastDeletion() {
-          if (!lastDeletedCard) return;
-          
-          // Restaurar o card
-          setClients(prev => [...prev, { ...lastDeletedCard, lastUpdated: new Date().toISOString() }]);
-          setHasUnsavedChanges(true);
-          
-          // Limpar o último deletado
-          setLastDeletedCard(null);
-        }
-
-        function undoLastColumnDeletion() {
-          if (!lastDeletedColumn) return;
-          
-          // Restaurar a coluna
-          setBoardState(prev => {
-            const newColumns = { ...prev.columns, [lastDeletedColumn.id]: { id: lastDeletedColumn.id, title: lastDeletedColumn.title } };
-            const tailFixed = ['arquivados', 'descartados'].filter(id => prev.columnOrder.includes(id));
-            const base = prev.columnOrder.filter(id => !tailFixed.includes(id));
-            const newColumnOrder = [...base, lastDeletedColumn.id, ...tailFixed];
-            
-            return { ...prev, columns: newColumns, columnOrder: newColumnOrder };
-          });
-          
-          // Restaurar os cards da coluna apenas se eles não existirem mais
-          if (lastDeletedColumn.clients && lastDeletedColumn.clients.length > 0) {
-            setClients(prev => {
-              const existingCardIds = prev.map(c => c.id);
-              const cardsToRestore = lastDeletedColumn.clients.filter(c => !existingCardIds.includes(c.id));
-              return [...prev, ...cardsToRestore.map(c => ({ ...c, lastUpdated: new Date().toISOString() }))];
-            });
-          }
-          setHasUnsavedChanges(true);
-          
-          // Limpar o último deletado
-          setLastDeletedColumn(null);
-        }
-
-        function addCategory(newCat) {
-          const name = (newCat || '').trim();
-          if (!name) return;
-          setBoardState((prev) => ({ ...prev, categories: [...(prev.categories || []), name] }));
-          setHasUnsavedChanges(true);
-        }
-
-        function deleteCategory(cat) {
-          setBoardState((prev) => ({ ...prev, categories: (prev.categories || []).filter((c) => c !== cat) }));
-          setHasUnsavedChanges(true);
-        }
-
-        function changeColumnColor(columnId) {
-          setBoardState(prev => {
-            const currentColumn = prev.columns[columnId];
-            if (!currentColumn) return prev;
-            
-            const availableColors = softPastelColors.filter(color => color !== currentColumn.color);
-            const newColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-
-            return {
-              ...prev,
-              columns: {
-                ...prev.columns,
-                [columnId]: { ...currentColumn, color: newColor }
-              }
-            };
-          });
-          setHasUnsavedChanges(true);
-        }
-
-        function addColumn(name) {
-          const trimmed = (name || '').trim();
-          if (!trimmed) return;
-          const newId = trimmed.toLowerCase().replace(/\s+/g, '-');
-          setBoardState((prev) => {
-            if (prev.columnsLocked) return prev;
-            const tailFixed = ['arquivados', 'descartados'].filter((id) => prev.columnOrder.includes(id));
-            const base = prev.columnOrder.filter((id) => !tailFixed.includes(id));
-            return {
-              ...prev,
-              columns: { ...prev.columns, [newId]: { id: newId, title: trimmed } },
-              columnOrder: [...base, newId, ...tailFixed],
-            };
-          });
-          setHasUnsavedChanges(true);
-        }
-
-        function deleteColumn(columnId) {
-          if (boardState.columnsLocked) return;
-          if (["arquivados", "descartados"].includes(columnId)) return;
-          
-          const columnToDelete = columns[columnId];
-          if (!columnToDelete) return;
-          
-          // Salvar para desfazer
-          setLastDeletedColumn({ 
-            ...columnToDelete, 
-            deletedAt: new Date().toISOString(),
-            clients: clients.filter(c => c.columnId === columnId)
-          });
-          setDeletedColumns(prev => [...prev, { 
-            ...columnToDelete, 
-            deletedAt: new Date().toISOString(),
-            clients: clients.filter(c => c.columnId === columnId)
-          }]);
-          
-          const firstColumnId = columnOrder.find((id) => !["arquivados", "descartados"].includes(id)) || columnOrder[0];
-          setClients((prev) => prev.map((c) => (c.columnId === columnId ? { ...c, columnId: firstColumnId } : c)));
-          setBoardState((prev) => {
-            const newCols = { ...prev.columns };
-            delete newCols[columnId];
-            const tailFixed = ["arquivados", "descartados"].filter((id) => prev.columnOrder.includes(id));
-            const base = prev.columnOrder.filter((id) => id !== columnId && !tailFixed.includes(id));
-            return { ...prev, columns: newCols, columnOrder: [...base, ...tailFixed] };
-          });
-          setHasUnsavedChanges(true);
-        }
-
-        function moveColumn(columnId, direction) {
-          if (boardState.columnsLocked) return;
-          if (["arquivados", "descartados"].includes(columnId)) return;
-          setBoardState((prev) => {
-            const tailFixed = ["arquivados", "descartados"].filter((id) => prev.columnOrder.includes(id));
-            const base = prev.columnOrder.filter((id) => !tailFixed.includes(id));
-            const idx = base.indexOf(columnId);
-            if (idx === -1) return prev;
-            const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
-            if (targetIdx < 0 || targetIdx >= base.length) return prev;
-            const swapped = [...base];
-            const temp = swapped[idx];
-            swapped[idx] = swapped[targetIdx];
-            swapped[targetIdx] = temp;
-            return { ...prev, columnOrder: [...swapped, ...tailFixed] };
-          });
-          setHasUnsavedChanges(true);
-        }
-
-        const canMoveLeft = (columnId) => {
-          if (["arquivados", "descartados"].includes(columnId)) return false;
-          const tailFixed = ["arquivados", "descartados"].filter((id) => columnOrder.includes(id));
-          const base = columnOrder.filter((id) => !tailFixed.includes(id));
-          const idx = base.indexOf(columnId);
-          return idx > 0;
-        };
-        const canMoveRight = (columnId) => {
-          if (["arquivados", "descartados"].includes(columnId)) return false;
-          const tailFixed = ["arquivados", "descartados"].filter((id) => columnOrder.includes(id));
-          const base = columnOrder.filter((id) => !tailFixed.includes(id));
-          const idx = base.indexOf(columnId);
-          return idx !== -1 && idx < base.length - 1;
-        };
-
-        const [uiState, setUiState] = useState({
-          newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: columnOrder[0], isPulsing: true, link: '' }, // Adicionado campo Link, Prazo - Data e Hora atual
-          newCategory: '',
-          newColumnName: '',
-          newTeamMemberName: '',
+        const [uiState, setUiState] = useState({ 
+            newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: 'primeiro-contato', isPulsing: true, link: '' },
+            newCategory: '', newColumnName: '', newTeamMemberName: ''
         });
 
-        function handleAddNote(tempCard, setTempCard, text) {
-          if (!text.trim()) return;
-          const updated = [
-            ...(Array.isArray(tempCard.notes) ? tempCard.notes : []),
-            { text, timestamp: new Date().toISOString() },
-          ];
-          setTempCard({ ...tempCard, notes: updated });
-          setHasUnsavedChanges(true);
-        }
+        const appId = 'pepperhatapps';
+        const getDocRef = () => {
+            const path = storageMode === 'public' ? ['public', 'data'] : ['users', user.uid];
+            return window.db && window.doc(window.db, 'artifacts', appId, ...path, 'pepperhat_v3', projectId);
+        };
 
-        function addTeamMember(name) {
-          const trimmed = (name || '').trim();
-          if (!trimmed) return;
-          setBoardState((prev) => ({
-            ...prev,
-            teamMembers: [...(Array.isArray(prev.teamMembers) ? prev.teamMembers : []), trimmed],
-          }));
-          setHasUnsavedChanges(true);
-        }
-
-        function saveToLocalFile() {
-          const data = { boardState, clients, userId };
-          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `kanban-funil-vendas-${new Date().toISOString().split('T')[0]}.json`;
-          document.body.appendChild(a);
-          try {
-            a.click();
-            alert('Dados salvos localmente com sucesso!');
-          } catch (error) {
-            console.error("Erro ao tentar baixar o arquivo: ", error);
-            alert('Erro ao salvar localmente. Verifique as configurações do seu navegador ou o console para mais detalhes.');
-          }
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          setHasUnsavedChanges(false); // Marcar como salvo após sucesso
-        }
-
-        function exportToGoogleSheets() {
-          // Criar dados formatados para CSV (mais compatível)
-          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora', 'Duração', 'Link']; // Adicionado Link
-                  
-                  const csvData = [
-                    headers.join(','),
-                    ...clients.map(card => [
-                      `"${card.name || ''}"`,
-                      `"${card.email || ''}"`,
-                      `"${card.phone || ''}"`,
-                      `"${card.category || ''}"`,
-                      `"${card.assignedTo || ''}"`,
-                      card.rating || 0,
-                      `"${columns[card.columnId]?.title || card.columnId || ''}"`,
-                      `"${(card.notes || []).map(note => note.text).join(' | ')}"`,
-                      `"${new Date(card.createdAt).toLocaleDateString('pt-BR')}"`,
-                      `"${new Date(card.lastUpdated).toLocaleDateString('pt-BR')}"`,
-                      `"${card.address || ''}"`,
-                      `"${card.activity || ''}"`,
-                      `"${card.deadlineDate || ''}"`,
-                      `"${card.deadlineTime || ''}"`,
-                      `"${card.duration || ''}"`,
-                      `"${card.link || ''}"` // Adicionado Link
-                    ].join(','))
-                  ].join('\n');
-
-                  // Criar e baixar arquivo CSV
-          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `kanban-funil-vendas-${new Date().toISOString().split('T')[0]}.csv`;
-          document.body.appendChild(a);
-          try {
-            a.click();
-            alert('Arquivo CSV exportado com sucesso! Você pode importar este arquivo no Google Sheets.');
-          } catch (error) {
-            console.error("Erro ao tentar baixar o arquivo: ", error);
-            alert('Erro ao exportar CSV. Verifique as configurações do seu navegador ou o console para mais detalhes.');
-          }
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-
-        function importFromLocalFile(event) {
-          const file = event.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const importedData = JSON.parse(e.target.result);
-              
-              // Validar se os dados são válidos
-              if (!importedData.boardState || !importedData.clients) {
-                throw new Error('Arquivo inválido: deve conter boardState e clients');
-              }
-
-              // Confirmar antes de sobrescrever
-              if (confirm('Isso irá substituir todos os dados atuais. Continuar?')) {
-                setBoardState(importedData.boardState);
-                setClients(importedData.clients);
-                if (importedData.userId) {
-                  setUserId(importedData.userId);
-                }
-                // Atualiza o título da página com o nome do arquivo
-                const fileName = file.name.replace('.json', '');
-                setPageTitle(fileName);
-
-                // Verifica se o nome do arquivo importado contém 'funil'
-                if (fileName.toLowerCase().includes('funil')) {
-                  setHideActivityDurationFields(true);
+        // Load & Sync
+        useEffect(() => {
+            if (!window.db) return;
+            const unsub = window.onSnapshot(getDocRef(), (doc) => {
+                setSyncError(false);
+                if (doc.exists()) {
+                    const d = doc.data();
+                    if (!resizingRef.current.isResizing) {
+                        if (d.board) setBoardState(prev => ({ ...defaultBoardState, ...d.board }));
+                        if (d.clients) {
+                            const sortedClients = [...d.clients].sort((a, b) => (a.order || 0) - (b.order || 0));
+                            setClients(sortedClients);
+                        }
+                        if (d.pageTitle) setPageTitle(d.pageTitle); 
+                    }
                 } else {
-                  setHideActivityDurationFields(false);
+                    triggerSave({ board: defaultBoardState, clients: [] });
                 }
-
-                alert('Dados importados com sucesso!');
-              }
-            } catch (error) {
-              alert('Erro ao importar dados: ' + error.message);
-            }
-            
-            // Limpar o input para permitir importar o mesmo arquivo novamente
-            event.target.value = '';
-          };
-          reader.readAsText(file);
-        }
-
-        function importFromGoogleSheets() {
-          // Função para importar dados do Google Sheets via URL pública
-          const url = prompt('Cole a URL pública da planilha do Google Sheets:');
-          if (!url) return;
-
-          // Extrair ID da planilha da URL
-          const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-          if (!match) {
-            alert('URL inválida. Certifique-se de que a planilha está pública.');
-            return;
-          }
-
-          const sheetId = match[1];
-          const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-
-          fetch(csvUrl)
-            .then(response => response.text())
-            .then(csvData => {
-              try {
-                // Converter CSV para dados estruturados
-                const lines = csvData.split('\n');
-                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-                const importedCards = [];
-
-                for (let i = 1; i < lines.length; i++) {
-                  if (lines[i].trim()) {
-                    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-                    const card = {
-                      id: uid(),
-                      name: values[0] || '',
-                      email: values[1] || '',
-                      phone: values[2] || '',
-                      category: values[3] || '',
-                      assignedTo: values[4] || '',
-                      rating: parseInt(values[5]) || 0,
-                      notes: values[7] ? [{ text: values[7], timestamp: new Date().toISOString() }] : [],
-                      columnId: 'primeiro-contato', // Coluna padrão
-                      createdAt: new Date().toISOString(),
-                      lastUpdated: new Date().toISOString(),
-                      address: values[10] || '', // Novo campo Endereço
-                      activity: values[11] || '', // Novo campo Atividade
-                      deadlineDate: values[12] || '', // Novo campo Prazo - Data
-                      deadlineTime: values[13] || '', // Novo campo Prazo - Hora
-                      duration: values[14] || '', // Novo campo Duração
-                      link: values[15] || '' // Novo campo Link
-                    };
-                    importedCards.push(card);
-                  }
+            }, (err) => {
+                if(err.code === 'permission-denied') {
+                    setSyncError(true);
+                    if(storageMode === 'public') {
+                        setNotification({ msg: "Modo Público bloqueado. Mudando para Pessoal...", type: 'error' });
+                        setTimeout(() => onSwitchMode('private'), 1500);
+                    } else setNotification({ msg: "Erro de permissão.", type: 'error' });
                 }
-
-                if (confirm(`Importar ${importedCards.length} cards da planilha?`)) {
-                  setClients(prev => [...prev, ...importedCards]);
-                  alert(`${importedCards.length} cards importados com sucesso!`);
-                }
-              } catch (error) {
-                alert('Erro ao processar dados da planilha: ' + error.message);
-              }
-            })
-            .catch(error => {
-              alert('Erro ao acessar a planilha. Certifique-se de que ela está pública.');
             });
-        }
+            return () => unsub();
+        }, [projectId, storageMode]);
 
-    return (
-          <div className="max-w-full mx-auto p-4 sm:p-8">
-                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-2">
-              <h1 className="text-3xl sm:text-4xl font-bold">{pageTitle}</h1>
-                    <div className="flex flex-wrap gap-0.5">
-                {/* Dropdown para ações administrativas */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowAdminMenu(prev => !prev)}
-                    className="bg-gray-700 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
-                  >
-                    Opções
-                  </button>
-                  {showAdminMenu && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                      <button onClick={() => { setShowAddCard(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Card</button>
-                      <button onClick={() => { setShowAddCategory(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Categoria</button>
-                      <button onClick={() => { !boardState.columnsLocked && setIsAddingColumn(true); setShowAdminMenu(false); }} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-400 cursor-not-allowed' : 'text-gray-800 hover:bg-gray-100'} block w-full text-left px-4 py-2`}>+ Coluna</button>
-                      <button onClick={() => { setShowAddMemberModal(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Membro</button>
-                      <button onClick={() => { setBoardState((prev) => ({ ...prev, columnsLocked: !prev.columnsLocked })); setShowAdminMenu(false); }} className={`block w-full text-left px-4 py-2 ${boardState.columnsLocked ? 'text-red-500 hover:bg-red-50' : 'text-gray-800 hover:bg-gray-100'}`}>{boardState.columnsLocked ? 'Destravar colunas' : 'Travar colunas'}</button>
-                      <button onClick={exportToGoogleSheets} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">📊 Exportar CSV</button>
-                      <button onClick={() => { importFromGoogleSheets(); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">📥 Importar Sheets</button>
+        const commit = useCallback(async () => {
+            const payload = pendingSaveRef.current;
+            if (Object.keys(payload).length === 0) return;
+            setIsSaving(true);
+            try {
+                await window.setDoc(getDocRef(), { ...payload, lastUpdated: new Date().toISOString() }, { merge: true });
+                pendingSaveRef.current = {};
+            } catch(e) { console.error(e); }
+            finally { setTimeout(() => setIsSaving(false), 500); }
+        }, [projectId, storageMode]);
+
+        const debouncedCommit = useDebounce(commit, 1000);
+
+        const triggerSave = (data) => {
+            if(data.board) setBoardState(data.board);
+            if(data.clients) setClients(data.clients);
+            pendingSaveRef.current = { ...pendingSaveRef.current, ...data };
+            debouncedCommit();
+        };
+
+        // Actions
+        const handleDragStart = (e, id) => { setDraggedItem(id); e.dataTransfer.setData('text', id); };
+        const handleDrop = (e, targetCol) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text');
+            if(!id) return;
+            const newClients = clients.map(c => {
+                if(c.id === id && c.columnId !== targetCol) {
+                    const oldCol = boardState.columns[c.columnId]?.title || c.columnId;
+                    const newCol = boardState.columns[targetCol]?.title || targetCol;
+                    const notes = [...(c.notes||[]), { text: `Movido: ${oldCol} -> ${newCol}`, timestamp: new Date().toISOString() }];
+                    return { ...c, columnId: targetCol, lastUpdated: new Date().toISOString(), notes, pulsingDisabled: false };
+                }
+                return c;
+            });
+            triggerSave({ clients: newClients });
+            setDraggedItem(null);
+        };
+
+        const handleFileDrop = (e, cardId) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const files = Array.from(e.dataTransfer.files);
+            if(files.length > 0) {
+                const newClients = clients.map(c => {
+                    if(c.id === cardId) {
+                        const fileNotes = files.map(f => ({ text: `Arquivo anexado: ${f.name}`, timestamp: new Date().toISOString() }));
+                        return { ...c, notes: [...(c.notes||[]), ...fileNotes], lastUpdated: new Date().toISOString() };
+                    }
+                    return c;
+                });
+                triggerSave({ clients: newClients });
+                notify(`${files.length} arquivo(s) anexado(s)!`);
+            }
+        };
+
+        const moveColumn = (id, dir) => {
+            const order = [...boardState.columnOrder];
+            const idx = order.indexOf(id);
+            if(idx < 0) return;
+            const newIdx = dir === 'left' ? idx - 1 : idx + 1;
+            if(newIdx >= 0 && newIdx < order.length && !['arquivados','descartados'].includes(order[newIdx])) {
+                [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+                triggerSave({ board: { ...boardState, columnOrder: order } });
+            }
+        };
+
+        const changeColumnColor = (id) => {
+            const col = boardState.columns[id];
+            const newColor = softPastelColors[Math.floor(Math.random()*softPastelColors.length)];
+            triggerSave({ board: { ...boardState, columns: { ...boardState.columns, [id]: { ...col, color: newColor } } } });
+        };
+
+        const handleUndo = () => {
+            if(!undoStack) return;
+            if(undoStack.type === 'card') {
+                triggerSave({ clients: [...clients, undoStack.data] });
+            } else if (undoStack.type === 'column') {
+                const newCols = { ...boardState.columns, [undoStack.data.id]: undoStack.data };
+                const newOrder = [...boardState.columnOrder];
+                const idx = newOrder.indexOf('arquivados');
+                if(idx > -1) newOrder.splice(idx, 0, undoStack.data.id);
+                else newOrder.push(undoStack.data.id);
+                
+                triggerSave({ board: { ...boardState, columns: newCols, columnOrder: newOrder } });
+                if(undoStack.relatedClients) {
+                     const restoredClients = [...clients, ...undoStack.relatedClients.filter(rc => !clients.find(c => c.id === rc.id))];
+                     triggerSave({ clients: restoredClients });
+                }
+            }
+            setUndoStack(null);
+        };
+
+        // Resizing Logic
+        useEffect(() => {
+            const onMove = (e) => {
+                const r = resizingRef.current;
+                if(!r.isResizing) return;
+                const w = Math.max(220, Math.min(720, r.startW + (e.clientX - r.startX)));
+                setBoardState(p => ({ ...p, columnWidths: { ...p.columnWidths, [r.colId]: w } }));
+            };
+            const onUp = () => {
+                if(resizingRef.current.isResizing) {
+                    setBoardState(curr => { triggerSave({ board: curr }); return curr; });
+                    resizingRef.current = { isResizing: false };
+                }
+            };
+            window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+            return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+        }, []);
+        
+        useEffect(() => {
+            const top = topScrollRef.current;
+            const bottom = bottomScrollRef.current;
+            if (!top || !bottom) return;
+            const handleTopScroll = () => { if(bottom) bottom.scrollLeft = top.scrollLeft; };
+            const handleBottomScroll = () => { if(top) top.scrollLeft = bottom.scrollLeft; };
+            top.addEventListener('scroll', handleTopScroll);
+            bottom.addEventListener('scroll', handleBottomScroll);
+            const updateWidth = () => { if(bottom) setScrollWidth(bottom.scrollWidth); };
+            updateWidth();
+            window.addEventListener('resize', updateWidth);
+            return () => {
+                top.removeEventListener('scroll', handleTopScroll);
+                bottom.removeEventListener('scroll', handleBottomScroll);
+                window.removeEventListener('resize', updateWidth);
+            };
+        }, [boardState, clients, currentView]);
+
+        useEffect(() => { if (bottomScrollRef.current) setScrollWidth(bottomScrollRef.current.scrollWidth); }, [boardState.columnOrder, boardState.columnWidths]);
+
+        // Helpers
+        const notify = (msg, type='success') => { setNotification({msg, type}); setTimeout(()=>setNotification(null), 4000); };
+        const requestConfirmation = (title, msg, action) => setConfirmation({ isOpen: true, title, message: msg, onConfirm: action });
+        const handleConfirmAction = () => {
+            if (confirmation.onConfirm) confirmation.onConfirm();
+            setConfirmation({ ...confirmation, isOpen: false });
+        };
+
+        // Import/Export
+        const saveToLocalFile = () => {
+            const data = { boardState, clients, projectId };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `backup.json`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            showNotification("Exportado!");
+        };
+
+        const importFromLocalFile = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    if(!d.boardState || !d.clients) throw new Error("Formato inválido");
+                    requestConfirmation('Importar Backup', 'Isso substituirá todos os dados atuais na nuvem. Deseja continuar?', () => {
+                        triggerSave({ board: d.boardState, clients: d.clients });
+                        notify("Importado com sucesso!");
+                    });
+                } catch(err) { notify(err.message, 'error'); }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; 
+        };
+
+        const importFromGoogleSheets = () => {
+            let url;
+            try { url = prompt('URL pública da planilha:'); } catch(e) { showNotification("Prompt bloqueado", 'error'); return; }
+            if(!url) return;
+            const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            if(!match) { showNotification('URL inválida', 'error'); return; }
+            const csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+            fetch(csvUrl).then(r => r.text()).then(csv => {
+                const lines = csv.split('\n');
+                const newCards = [];
+                for(let i=1; i<lines.length; i++) {
+                    if(lines[i].trim()) {
+                        const v = lines[i].split(',').map(x => x.trim().replace(/"/g, ''));
+                        newCards.push({
+                            id: uid(), name: v[0], email: v[1], phone: v[2], category: v[3], assignedTo: v[4],
+                            rating: parseInt(v[5])||0, columnId: 'primeiro-contato',
+                            createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString()
+                        });
+                    }
+                }
+                requestConfirmation('Importar Planilha', `Importar ${newCards.length} cards?`, () => {
+                    triggerSave({ clients: [...clients, ...newCards] });
+                    notify(`${newCards.length} cards importados!`);
+                });
+            }).catch(() => showNotification('Erro ao baixar planilha.', 'error'));
+        };
+
+        const exportToGoogleSheets = () => {
+            const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Criado Em', 'Atualizado Em', 'Endereço', 'Atividade', 'Prazo Data', 'Prazo Hora', 'Duração', 'Link'];
+            const csv = [headers.join(','), ...clients.map(c => [
+                `"${c.name||''}"`, `"${c.email||''}"`, `"${c.phone||''}"`, `"${c.category||''}"`, `"${c.assignedTo||''}"`,
+                c.rating||0, `"${boardState.columns[c.columnId]?.title || c.columnId}"`, `"${(c.notes||[]).map(n=>n.text).join('|')}"`,
+                `"${new Date(c.createdAt).toLocaleDateString()}"`, `"${new Date(c.lastUpdated).toLocaleDateString()}"`,
+                `"${c.address||''}"`, `"${c.activity||''}"`, `"${c.deadlineDate||''}"`, `"${c.deadlineTime||''}"`, `"${c.duration||''}"`, `"${c.link||''}"`
+            ].join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'kanban_export.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            showNotification("CSV exportado!");
+        };
+
+        const getColumns = () => boardState.columnOrder.map(id => boardState.columns[id]).filter(Boolean);
+
+        return (
+            <div className="max-w-full mx-auto p-4 sm:p-8 fade-in">
+                {notification && <div className={`fixed top-4 right-4 p-4 rounded shadow-xl z-50 text-white ${notification.type==='error'?'bg-red-500':'bg-green-600'}`}>{notification.msg} {syncError && <button onClick={()=>onSwitchMode('private')} className="ml-2 underline">Mudar Pessoal</button>}</div>}
+                
+                {confirmation.isOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+                        <div className="bg-white p-6 rounded w-96">
+                            <h3 className="font-bold text-lg mb-2">{confirmation.title}</h3>
+                            <p className="mb-4 text-gray-600">{confirmation.message}</p>
+                            <div className="flex justify-end gap-2">
+                                <button onClick={()=>setConfirmation({...confirmation, isOpen: false})} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                                <button onClick={handleConfirmAction} className="px-4 py-2 bg-blue-600 text-white rounded">Confirmar</button>
+                            </div>
+                        </div>
                     </div>
-                  )}
+                )}
+                
+                <div className="fixed bottom-4 right-4 z-40 flex gap-2">
+                     <div className={`px-3 py-1 rounded-full text-xs font-bold shadow-lg cursor-pointer transition-all ${storageMode === 'public' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-600'}`} onClick={() => onSwitchMode('public')}>Colaborativo</div>
+                     <div className={`px-3 py-1 rounded-full text-xs font-bold shadow-lg cursor-pointer transition-all ${storageMode === 'private' ? 'bg-purple-500 text-white' : 'bg-gray-300 text-gray-600'}`} onClick={() => onSwitchMode('private')}>Pessoal</div>
                 </div>
-                <button onClick={saveToLocalFile} className={`${saveButtonColor} text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all ${hasUnsavedChanges ? 'pulsing-alert' : ''}`}>💾 Salvar</button>
-                <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
-                {lastDeletedCard && (
-                  <button 
-                    onClick={undoLastDeletion} 
-                    className="bg-yellow-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
-                    title={`Desfazer exclusão de "${lastDeletedCard.name}"`}
-                  >
-                    ↩ Desfazer Card
-                  </button>
-                )}
-                {lastDeletedColumn && (
-                  <button 
-                    onClick={undoLastColumnDeletion} 
-                    className="bg-orange-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
-                    title={`Desfazer exclusão da coluna "${lastDeletedColumn.title}"`}
-                  >
-                    ↩ Desfazer Coluna
-                  </button>
-                )}
+
+                <header className="flex justify-between items-center mb-4 shrink-0">
+                    <div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <button onClick={onBack} className="hover:underline">← Voltar</button> • <span className="font-mono bg-gray-100 px-1 rounded">{projectId}</span>
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-800">{pageTitle}</h1>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        {undoStack && <button onClick={handleUndo} className="bg-yellow-500 text-white px-3 py-1 rounded shadow animate-pulse font-bold">↩ Desfazer</button>}
+                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${isSaving ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>{isSaving ? 'Salvando...' : 'Salvo'}</span>
+                        <div className="relative">
+                            <button onClick={()=>setShowAdminMenu(!showAdminMenu)} className="bg-gray-800 text-white px-3 py-1 rounded shadow">Opções</button>
+                            {showAdminMenu && (
+                                <div className="absolute right-0 mt-1 w-56 bg-white rounded shadow-xl border py-1 z-20 text-sm">
+                                    <button onClick={()=>{setShowAddCard(true); setEditingCardId(null); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">+ Card</button>
+                                    <button onClick={()=>{setIsAddingColumn(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">+ Coluna</button>
+                                    <button onClick={()=>{setShowAddCategory(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">+ Categoria</button>
+                                    <button onClick={()=>{triggerSave({ board: {...boardState, columnsLocked: !boardState.columnsLocked} }); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-purple-600 font-bold">{boardState.columnsLocked ? '🔓 Destravar Colunas' : '🔒 Travar Colunas'}</button>
+                                    <hr className="my-1"/>
+                                    <button onClick={saveToLocalFile} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Backup JSON</button>
+                                    <button onClick={() => document.getElementById('importFile').click()} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Importar JSON</button>
+                                    <button onClick={exportToGoogleSheets} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Exportar CSV</button>
+                                    <button onClick={importFromGoogleSheets} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Importar Sheets</button>
+                                    <div className="border-t my-1"></div>
+                                    <button onClick={onBack} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Sair</button>
+                                </div>
+                            )}
+                        </div>
+                        <input id="importFile" type="file" accept=".json" onChange={importFromLocalFile} className="hidden" />
                     </div>
                 </header>
 
-                {/* Botões de alternância de visualização */}
-                <div className="flex flex-wrap gap-0.5 mb-1">
-                  <button
-                    onClick={() => setCurrentView('kanban')}
-                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                  >Kanban</button>
-                  <button
-                    onClick={() => setCurrentView('calendar')}
-                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                  >Calendário</button>
-                  <button
-                    onClick={() => setCurrentView('list')}
-                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                  >Lista de Tarefas</button>
+                <div className="flex flex-wrap gap-2 mb-4 items-center bg-white p-2 rounded shadow-sm shrink-0">
+                    <div className="flex bg-gray-100 rounded p-1">
+                        {['kanban', 'calendar', 'list'].map(v => <button key={v} onClick={()=>setCurrentView(v)} className={`px-3 py-1 rounded text-sm capitalize ${currentView===v ? 'bg-white shadow font-bold' : 'text-gray-500'}`}>{v}</button>)}
+                    </div>
+                    <div className="w-px h-6 bg-gray-300 mx-1"></div>
+                    <button onClick={()=>setCompactCards(!compactCards)} className="text-sm bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">{compactCards ? 'Expandir' : 'Compactar'}</button>
+                    <button onClick={()=>setDisablePulsing(!disablePulsing)} className="text-sm bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">{disablePulsing ? 'Ativar' : 'Desativar'} Pulso</button>
+                    
+                    <div className="flex-grow"></div>
+                    <select className="border rounded p-1 text-sm" value={filterCategory} onChange={e=>setFilterCategory(e.target.value)}><option value="">Categ.</option>{boardState.categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
+                    <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)} className="p-1 text-sm border rounded-md max-w-[120px]"><option value="">Todos Memb.</option>{boardState.teamMembers.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                    <select value={filterActivity} onChange={(e) => setFilterActivity(e.target.value)} className="p-1 text-sm border rounded-md max-w-[120px]"><option value="">Atividade</option>{boardState.activityOptions.map(a => <option key={a} value={a}>{a}</option>)}</select>
+                    <select value={filterDuration} onChange={(e) => setFilterDuration(e.target.value)} className="p-1 text-sm border rounded-md max-w-[120px]"><option value="">Duração</option>{boardState.durationOptions.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                    
+                    <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="px-3 py-1 border rounded-md text-sm w-32 focus:w-48 transition-all outline-none" />
                 </div>
 
-                {/* Novo botão para compactar cards */}
-                <div className="flex flex-wrap gap-4 mb-1 items-center">
-                  <button 
-                    onClick={() => setCompactCards(prev => !prev)}
-                    className="bg-gray-400 text-white font-semibold text-sm py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
-                  >
-                    {compactCards ? 'Expandir' : 'Compactar'}
-                  </button>
-                  <button
-                    onClick={() => setDisablePulsing(prev => !prev)}
-                    className="bg-gray-400 text-white font-semibold text-sm py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
-                  >
-                    {disablePulsing ? 'Pulsar Atualizações' : 'Desativar Pulsação'}
-                  </button>
+                {/* SCROLLBAR SUPERIOR */}
+                {currentView === 'kanban' && (
+                    <div ref={topScrollRef} className="overflow-x-auto h-4 mb-1 custom-scrollbar flex-shrink-0">
+                        <div style={{ width: scrollWidth, height: '1px' }}></div>
+                    </div>
+                )}
 
-                  <div className="flex items-center gap-0.5">
-                    <label htmlFor="filterCategory" className="font-semibold text-sm">Categoria:</label>
-                    <select
-                      id="filterCategory"
-                      value={filterCategory}
-                      onChange={(e) => setFilterCategory(e.target.value)}
-                      className="p-1 text-sm border rounded-md"
-                    >
-                      <option value="">Todas</option>
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <label htmlFor="filterMember" className="font-semibold text-sm">Membro:</label>
-                    <select
-                      id="filterMember"
-                      value={filterMember}
-                      onChange={(e) => setFilterMember(e.target.value)}
-                      className="p-1 text-sm border rounded-md"
-                    >
-                      <option value="">Todos</option>
-                      {teamMembers.map((member) => (
-                        <option key={member} value={member}>{member}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <label htmlFor="filterActivity" className="font-semibold text-sm">Atividade:</label>
-                    <select
-                      id="filterActivity"
-                      value={filterActivity}
-                      onChange={(e) => setFilterActivity(e.target.value)}
-                      className="p-1 text-sm border rounded-md"
-                    >
-                      <option value="">Todas</option>
-                      {activityOptions.map((activity) => (
-                        <option key={activity} value={activity}>{activity}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <label htmlFor="filterDuration" className="font-semibold text-sm">Duração:</label>
-                    <select
-                      id="filterDuration"
-                      value={filterDuration}
-                      onChange={(e) => setFilterDuration(e.target.value)}
-                      className="p-1 text-sm border rounded-md"
-                    >
-                      <option value="">Todas</option>
-                      {durationOptions.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <label htmlFor="searchTerm" className="font-semibold text-sm">Buscar:</label>
-                    <input
-                      id="searchTerm"
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Buscar clientes..."
-                      className="p-1 text-sm border rounded-md w-64"
-                    />
-                  </div>
-                </div>
+                {/* KANBAN VIEW */}
+                {currentView === 'kanban' && (
+                    <div ref={bottomScrollRef} className="flex-grow overflow-x-auto overflow-y-hidden flex gap-4 pb-2 custom-scrollbar">
+                        {(boardState.columnOrder||[]).map(colId => {
+                            const col = boardState.columns[colId];
+                            if(!col) return null;
+                            
+                            // Filter AND Sort cards (by 'order')
+                            const colCards = clients
+                                .filter(c => c.columnId === colId)
+                                .filter(c => !filterCategory || c.category === filterCategory)
+                                .filter(c => !filterMember || c.assignedTo === filterMember)
+                                .filter(c => !filterActivity || c.activity === filterActivity)
+                                .filter(c => !filterDuration || c.duration === filterDuration)
+                                .filter(c => !searchTerm || (c.name||'').toLowerCase().includes(searchTerm.toLowerCase()) || (c.address||'').toLowerCase().includes(searchTerm.toLowerCase()) || (c.notes||[]).some(n => n.text.toLowerCase().includes(searchTerm.toLowerCase())))
+                                .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-                {/* Input file oculto para importação */}
-                <input
-                  id="importFile"
-                  type="file"
-                  accept=".json"
-                  onChange={importFromLocalFile}
-                  style={{ display: 'none' }}
-                />
+                            const width = boardState.columnWidths?.[colId] ?? 280;
 
-                {(showAddCard || editingCardId || columnIdForNewCard) && (
-                    <CardForm
-                card={
-                  editingCardId ? clients.find((c) => c.id === editingCardId) : uiState.newClient
-                }
-                setCard={
-                  (cardUpdate) => { // Alterado para aceitar uma função de atualização
-                    if (editingCardId) {
-                      // Se estiver editando, precisamos atualizar o estado de clients para refletir a edição temporária no App, mas apenas quando o salvar for clicado
-                      // Por enquanto, CardForm vai gerenciar o estado temporário internamente
-                    } else {
-                      setUiState((s) => ({ ...s, newClient: cardUpdate }));
-                    }
-                  }
-                }
-                onSubmit={(e) => {
-                            e.preventDefault();
-                  if (editingCardId) {
-                    // A lógica de atualização será movida para dentro do CardForm com o estado temporário
-                  } else {
-                    if (!uiState.newClient.name) return;
-                    // Nova validação para Categoria e Responsável
-                    if (!uiState.newClient.category || !uiState.newClient.assignedTo) {
-                      alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
-                      return;
-                    }
-                    addCard(uiState.newClient, uiState.newClient.columnId);
-                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: columnOrder[0], isPulsing: true, link: '' } })); // Garante que o columnId é resetado para o padrão, e rating para 3 estrelas, e link vazio, e data/hora atual
-                    setShowAddCard(false);
-                    setColumnIdForNewCard(null);
-                  }
-                }}
-                onClose={() => {
-                  setShowAddCard(false);
-                  setEditingCardId(null);
-                  setColumnIdForNewCard(null); // Limpar o estado
-                }}
-                categories={categories}
-                teamMembers={teamMembers}
-                handleAddNote={handleAddNote}
-                deleteCard={deleteCard} // Passando a função de exclusão renomeada
-                setShowDeleteModal={setShowDeleteModal} // Passando o setter para o modal de confirmação
-                setCardToDelete={setCardToDelete} // Passando o setter para o card a ser excluído renomeado
-                activityOptions={activityOptions} // Passando as opções de atividade
-                durationOptions={durationOptions} // Passando as opções de duração
-                updateCardProp={updateCard} // Passando a função updateCard do App
-                toggleCardPulsingProp={toggleCardPulsing} // Passando a nova função
-                hideActivityDurationFields={hideActivityDurationFields} // Passando o novo estado
-                    />
+                            return (
+                                <div key={col.id} onDragOver={e=>e.preventDefault()} onDrop={e=>handleDrop(e, colId)}
+                                     className="flex-shrink-0 flex flex-col bg-gray-50 rounded-xl shadow border border-gray-200 h-full max-h-full relative"
+                                     style={{ width: width, minWidth: 220, backgroundColor: col.color || '#f3f4f6' }}>
+                                    
+                                    <div className="p-3 font-bold text-gray-700 flex justify-between items-center border-b border-black/5">
+                                        <span>{col.title} <span className="text-xs bg-white/50 px-1 rounded">{colCards.length}</span></span>
+                                        {!['arquivados','descartados'].includes(colId) && !boardState.columnsLocked && (
+                                            <div className="flex gap-1">
+                                                <button onClick={()=>moveColumn(colId, 'left')} className="hover:bg-black/10 rounded px-1">←</button>
+                                                <button onClick={()=>moveColumn(colId, 'right')} className="hover:bg-black/10 rounded px-1">→</button>
+                                                <button onClick={()=>changeColumnColor(colId)} className="hover:bg-black/10 rounded px-1">🎨</button>
+                                                <button onClick={() => requestConfirmation('Excluir Coluna', 'Continuar?', () => {
+                                                    setUndoStack({ type: 'column', data: col, relatedClients: colCards });
+                                                    triggerSave({ board: { ...boardState, columns: Object.fromEntries(Object.entries(boardState.columns).filter(([k])=>k!==colId)), columnOrder: boardState.columnOrder.filter(id=>id!==colId) }, clients: clients.filter(c => c.columnId !== colId) });
+                                                })} className="text-xs hover:text-red-600">🗑</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="p-2 overflow-y-auto flex-grow space-y-2 custom-scrollbar">
+                                        {colCards.map((c, idx) => (
+                                            <div key={c.id} onDragOver={(e) => handleCardDragOver(e, c.id, idx, colId)}>
+                                                {/* LINE INDICATOR */}
+                                                {dropTarget && dropTarget.columnId === colId && dropTarget.index === idx && (
+                                                    <div className="h-1 bg-blue-500 rounded my-1 animate-pulse" />
+                                                )}
+                                                <Card card={c} compact={compactCards} disablePulsing={disablePulsing} 
+                                                      onDragStart={handleDragStart} onFileDrop={handleFileDrop} 
+                                                      onClick={()=>{setEditingCardId(c.id); setShowAddCard(true);}} />
+                                                
+                                                {/* Handle last item indicator */}
+                                                {dropTarget && dropTarget.columnId === colId && dropTarget.index === idx + 1 && idx === colCards.length - 1 && (
+                                                    <div className="h-1 bg-blue-500 rounded my-1 animate-pulse" />
+                                                )}
+                                            </div>
+                                        ))}
+                                        {/* If list is empty, show indicator here if dragging over column */}
+                                        {colCards.length === 0 && dropTarget && dropTarget.columnId === colId && (
+                                            <div className="h-1 bg-blue-500 rounded my-1 animate-pulse" />
+                                        )}
+                                        
+                                        <button onClick={()=>{setUiState(s=>({...s, newClient:{...s.newClient, columnId: colId}})); setEditingCardId(null); setShowAddCard(true);}} className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded hover:bg-white hover:border-purple-400 transition-colors">+ Novo</button>
+                                    </div>
+                                    
+                                    <div onMouseDown={e => { resizingRef.current = { isResizing: true, colId: colId, startX: e.clientX, startW: width }; e.preventDefault(); }}
+                                         className="absolute top-0 right-0 w-4 h-full cursor-col-resize z-10 hover:bg-blue-500/20" style={{right: -2}} />
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {currentView !== 'kanban' && (
+                    <div className="bg-white rounded-xl shadow p-6 h-full overflow-auto">
+                        <CalendarDisplay clients={clients} view={currentView} selectedDate={selectedDate} setSelectedDate={setSelectedDate} setEditingCardId={(id)=>{setEditingCardId(id); setShowAddCard(true);}} filters={{filterCategory, searchTerm}} />
+                    </div>
+                )}
+
+                {showAddCard && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+                            <div className="flex justify-between mb-4"><h2 className="text-2xl font-bold">{editingCardId ? 'Editar' : 'Novo'} Card</h2><button onClick={()=>setShowAddCard(false)}>✕</button></div>
+                            <CardForm 
+                                initialData={editingCardId ? clients.find(c=>c.id===editingCardId) : uiState.newClient}
+                                categories={boardState.categories} teamMembers={boardState.teamMembers} activityOptions={boardState.activityOptions} durationOptions={boardState.durationOptions}
+                                onSave={(data) => {
+                                    const newData = { ...data, lastUpdated: new Date().toISOString() };
+                                    if(editingCardId) triggerSave({ clients: clients.map(c => c.id === editingCardId ? newData : c) });
+                                    else {
+                                        if(!data.name || !data.category || !data.assignedTo) { notify("Preencha Nome, Categoria e Responsável", 'error'); return; }
+                                        triggerSave({ clients: [...clients, { id: uid(), createdAt: new Date().toISOString(), ...newData }] });
+                                    }
+                                    setShowAddCard(false);
+                                }}
+                                onDelete={() => requestConfirmation('Excluir', 'Tem certeza?', () => {
+                                    setUndoStack({ type: 'card', data: clients.find(c=>c.id===editingCardId) });
+                                    triggerSave({ clients: clients.filter(c => c.id !== editingCardId) });
+                                    setShowAddCard(false);
+                                })}
+                            />
+                        </div>
+                    </div>
                 )}
                 
-                {showAddMemberModal && (
-                    <AddMemberModal
-                newTeamMemberName={uiState.newTeamMemberName}
-                setNewTeamMemberName={(v) => setUiState((s) => ({ ...s, newTeamMemberName: v }))}
-                handleAddTeamMember={(e) => {
-                  e.preventDefault();
-                  addTeamMember(uiState.newTeamMemberName);
-                  setUiState((s) => ({ ...s, newTeamMemberName: '' }));
-                  setShowAddMemberModal(false);
-                }}
-                        onClose={() => setShowAddMemberModal(false)}
-                    />
-                )}
-
-            {showAddCategory && (
-              <CategoryForm
-                addCategory={(e) => {
-                  e.preventDefault();
-                  addCategory(uiState.newCategory);
-                  setUiState((s) => ({ ...s, newCategory: '' }));
-                  setShowAddCategory(false);
-                }}
-                newCategory={uiState.newCategory}
-                setNewCategory={(v) => setUiState((s) => ({ ...s, newCategory: v }))}
-                categories={categories}
-                deleteCategory={deleteCategory}
-                onClose={() => setShowAddCategory(false)}
-              />
-            )}
-
-            {isAddingColumn && (
-              <ColumnForm
-                addColumn={(e) => {
-                  e.preventDefault();
-                  addColumn(uiState.newColumnName);
-                  setUiState((s) => ({ ...s, newColumnName: '' }));
-                  setIsAddingColumn(false);
-                }}
-                newColumnName={uiState.newColumnName}
-                setNewColumnName={(v) => setUiState((s) => ({ ...s, newColumnName: v }))}
-                onClose={() => setIsAddingColumn(false)}
-              />
-            )}
-
-            {showDeleteModal && (
-              <ConfirmModal
-                message={`Tem certeza que deseja excluir "${cardToDelete?.name}"?`}
-                onConfirm={() => {
-                  if (cardToDelete) deleteCard(cardToDelete.id); // Usando deleteCard
-                  setShowDeleteModal(false);
-                }}
-                onCancel={() => setShowDeleteModal(false)}
-              />
-            )}
-
-            {currentView === 'kanban' && (
-              <div className="flex overflow-x-auto gap-4 p-4 rounded-xl shadow-lg bg-gray-50 bg-opacity-80 min-h-[70vh]">
-                {(boardState.columnOrder || []).map((columnId) => {
-                          const column = columns[columnId];
-                  if (!column) return null;
-                          return (
-                    <div
-                      key={column.id}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, column.id)}
-                      className="relative flex flex-col flex-shrink-0 rounded-lg p-4 shadow-inner transition-all min-h-[60vh]"
-                      style={{ backgroundColor: column.color || getBackgroundColor(column.id), width: `${(boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280).toFixed(2)}px` }}
-                    >
-                      <h2 className="text-xl font-bold mb-1 flex items-center justify-between">
-                        <span>{column.title}</span>
-                        <div className="flex items-center gap-0.5 text-sm">
-                          {!['arquivados', 'descartados'].includes(column.id) && !boardState.columnsLocked && (
-                            <>
-                              <button onClick={() => moveColumn(column.id, 'left')} disabled={!canMoveLeft(column.id)} className={`${!canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
-                              <button onClick={() => moveColumn(column.id, 'right')} disabled={!canMoveRight(column.id)} className={`${!canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
-                              <button onClick={() => changeColumnColor(column.id)} className="text-gray-500 hover:text-purple-500" title="Mudar cor">🎨</button>
-                            </>
-                          )}
-                          {/* Removida opção de ocultar Arquivados/Descartados */}
-                          {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && !boardState.columnsLocked && (
-                            <button onClick={() => deleteColumn(column.id)} className={`text-gray-500 hover:text-red-500`} title="Excluir coluna">🗑</button>
-                          )}
-                        </div>
-                                    </h2>
-                                    {/* Botão +Card na extremidade superior esquerda da coluna */}
-                                    <button
-                                      onClick={() => { 
-                                        setColumnIdForNewCard(column.id);
-                                        setUiState(s => ({ 
-                                          ...s, 
-                                          newClient: { 
-                                            ...s.newClient, 
-                                            columnId: column.id 
-                                          }
-                                        }));
-                                        setShowAddCard(true); 
-                                      }}
-                                      className="absolute top-2 right-2 text-xxs font-semibold text-blue-800 hover:text-blue-600" // Alterado para azul escuro
-                                      title="Adicionar novo card nesta coluna"
-                                    >
-                                      +card
-                                    </button>
-                                    <div className="flex-grow min-h-[100px]">
-                        {clients
-                          .filter((c) => c.columnId === column.id)
-                          .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
-                          .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
-                          .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase())) // Novo filtro por atividade
-                          .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
-                          .filter(c => searchTerm === '' || 
-                            (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
-                          )
-                          .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os cards pela propriedade 'order'
-                          .map((card) => (
-                            <Card
-                              key={card.id}
-                              card={card} // Renomeado de client para card
-                              setEditingCardId={setEditingCardId} // Renomeado
-                              setShowDeleteModal={setShowDeleteModal}
-                              setCardToDelete={setCardToDelete} // Renomeado
-                              onDragStart={(e) => handleDragStart(e, card.id)}
-                              draggedItem={draggedItem}
-                              onDropFiles={(files) => {
-                                const newNotes = Array.from(files).map((file) => ({ text: `Arquivo "${file.name}" adicionado.`, timestamp: new Date().toISOString() }));
-                                setClients((prev) => prev.map((c) => (c.id === card.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
-                              }}
-                              columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
-                              moveCardOrder={moveCardOrder} // Renomeado
-                                          compactCards={compactCards}
-                                          reorderCardInColumn={reorderCardInColumn} // Passando a nova função
-                                          disablePulsing={disablePulsing} // Passando o novo estado
-                                          />
-                                      ))}
-                                  </div>
-                      {/* Resizer handle */}
-                      <div
-                        onMouseDown={(e) => {
-                          const currentWidth = boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280;
-                          resizingRef.current = { isResizing: true, columnId: column.id, startX: e.clientX, startWidth: currentWidth };
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize select-none"
-                        style={{ transform: 'translateX(50%)' }}
-                        title="Arraste para redimensionar"
-                      />
-                              </div>
-                          );
-                      })}
-                  </div>
-            )}
-            
-            {/* Renderização do Calendário/Lista de Tarefas */}
-            {(currentView === 'calendar' || currentView === 'list') && (
-              <CalendarDisplay 
-                clients={clients} 
-                view={currentView} 
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                setEditingCardId={setEditingCardId}
-                setShowDeleteModal={setShowDeleteModal}
-                setCardToDelete={setCardToDelete}
-                compactCards={compactCards}
-                filterCategory={filterCategory}
-                filterMember={filterMember}
-                filterActivity={filterActivity}
-                filterDuration={filterDuration} // Passando o novo filtro de duração
-                searchTerm={searchTerm}
-              />
-            )}
-
-        </div>
-    );
-      }
-
-      function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, setShowDeleteModal, setCardToDelete, compactCards, filterCategory, filterMember, filterActivity, filterDuration, searchTerm }) {
-        // Funções auxiliares para o calendário
-        const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-        const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
-        const daysInMonth = endOfMonth.getDate();
-        const firstDayOfWeek = startOfMonth.getDay(); // 0 para Domingo, 1 para Segunda, etc.
-
-        const days = [];
-        for (let i = 0; i < firstDayOfWeek; i++) {
-          days.push(null); // Dias vazios antes do início do mês
-        }
-        for (let i = 1; i <= daysInMonth; i++) {
-          days.push(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i));
-        }
-
-        const getCardsForDate = (date) => {
-          return clients.filter(card => {
-            if (!card.deadlineDate) return false;
-            // Parse card.deadlineDate explicitly as YYYY-MM-DD to avoid timezone issues
-            // and compare it with the selected date, also normalized to the start of the day.
-            const [year, month, day] = card.deadlineDate.split('-').map(Number);
-            const cardDateLocal = new Date(year, month - 1, day); // month - 1 because months are 0-indexed
-
-            const normalizedSelectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-            
-            return cardDateLocal.toDateString() === normalizedSelectedDate.toDateString();
-          })
-          .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
-          .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
-          .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
-          .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
-          .filter(c => searchTerm === '' || 
-            (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-            (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-            (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
-          )
-          .sort((a, b) => {
-            const timeA = a.deadlineTime || "00:00";
-            const timeB = b.deadlineTime || "00:00";
-            return timeA.localeCompare(timeB);
-          });
-        };
-
-        const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-        return (
-          <div className="calendar-display p-4 bg-white rounded-xl shadow-lg min-h-[70vh]">
-            <h2 className="text-2xl font-bold mb-1">
-              {view === 'calendar' ? 'Calendário de Tarefas' : 'Lista de Tarefas'}
-            </h2>
-            <div className="flex justify-between items-center mb-1">
-              <button onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))} className="px-3 py-1 bg-gray-200 rounded">Anterior</button>
-              <h3 className="text-xl font-semibold">{selectedDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
-              <button onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))} className="px-3 py-1 bg-gray-200 rounded">Próximo</button>
+                {showAddCategory && <SimpleModal title="Nova Categoria" onClose={()=>setShowAddCategory(false)} onSave={v => triggerSave({ board: {...boardState, categories: [...boardState.categories, v]} })} />}
+                {isAddingColumn && <SimpleModal title="Nova Coluna" onClose={()=>setIsAddingColumn(false)} onSave={v => { const id=v.toLowerCase().replace(/\s/g,'-'); triggerSave({ board: {...boardState, columns: {...boardState.columns, [id]:{id, title:v}}, columnOrder: [...boardState.columnOrder, id]} }); }} />}
             </div>
-
-            {view === 'calendar' ? (
-              <div className="grid grid-cols-7 gap-1 text-center">
-                {daysOfWeek.map(day => (
-                  <div key={day} className="font-semibold text-gray-700">{day}</div>
-                ))}
-                {days.map((day, index) => (
-                  <div
-                    key={index}
-                    className={`border p-1 h-24 overflow-y-auto relative ${day ? 'bg-gray-50' : 'bg-gray-100'} ${day && day.toDateString() === new Date().toDateString() ? 'border-blue-500 border-2' : ''}`}
-                  >
-                    {day && (
-                      <span className="font-bold text-sm">{day.getDate()}</span>
-                    )}
-                    {day && getCardsForDate(day).map(card => (
-                      <div
-                        key={card.id}
-                        onClick={() => setEditingCardId(card.id)}
-                        className="text-xxs bg-blue-200 text-blue-800 rounded px-1 mt-0.5 cursor-pointer hover:bg-blue-300"
-                      >
-                        {card.name} ({card.deadlineTime || "00:00"})
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="task-list space-y-4">
-                {(() => {
-                  const now = new Date();
-                  now.setHours(0, 0, 0, 0); // Para comparar apenas as datas
-
-                  const endOfWeek = new Date(now);
-                  endOfWeek.setDate(now.getDate() + 7);
-
-                  const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-                  
-                  const filteredAndSortedCards = clients
-                    .filter(card => card.deadlineDate)
-                    .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
-                    .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
-                    .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
-                    .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
-                    .filter(c => searchTerm === '' || 
-                      (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                      (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                      (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
-                    )
-                    .sort((a, b) => {
-                      const dateA = new Date(a.deadlineDate + (a.deadlineTime ? `T${a.deadlineTime}` : "T00:00"));
-                      const dateB = new Date(b.deadlineDate + (b.deadlineTime ? `T${b.deadlineTime}` : "T00:00"));
-                      return dateA.getTime() - dateB.getTime();
-                    });
-
-                  const thisWeekCards = [];
-                  const nextMonthCards = [];
-                  const laterCards = [];
-
-                  filteredAndSortedCards.forEach(card => {
-                    const deadline = new Date(card.deadlineDate);
-                    deadline.setHours(0, 0, 0, 0);
-
-                    if (deadline >= now && deadline <= endOfWeek) {
-                      thisWeekCards.push(card);
-                    } else if (deadline > endOfWeek && deadline <= endOfNextMonth) {
-                      nextMonthCards.push(card);
-                    } else if (deadline > endOfNextMonth) {
-                      laterCards.push(card);
-                    }
-                  });
-
-                  const renderCardListItem = (card) => (
-                    <div
-                      key={card.id}
-                      onClick={() => setEditingCardId(card.id)}
-                      className="p-3 border rounded-md bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <p className="font-semibold">{card.name}</p>
-                      <p className="text-sm text-gray-600">
-                        Prazo: {new Date(card.deadlineDate).toLocaleDateString('pt-BR')}
-                        {card.deadlineTime && ` às ${card.deadlineTime}`}
-                      </p>
-                      {card.category && <span className="text-xs text-gray-500">Categoria: {card.category}</span>}
-                    </div>
-                  );
-
-                  return (
-                    <>
-                      {thisWeekCards.length > 0 && (
-                        <div>
-                          <h4 className="text-lg font-bold mb-1">Esta Semana</h4>
-                          <div className="space-y-2 mb-1">
-                            {thisWeekCards.map(renderCardListItem)}
-                          </div>
-                        </div>
-                      )}
-                      {nextMonthCards.length > 0 && (
-                        <div>
-                          <h4 className="text-lg font-bold mb-1">Próximo Mês</h4>
-                          <div className="space-y-2 mb-1">
-                            {nextMonthCards.map(renderCardListItem)}
-                          </div>
-                        </div>
-                      )}
-                      {laterCards.length > 0 && (
-                        <div>
-                          <h4 className="text-lg font-bold mb-1">Mais Tarde</h4>
-                          <div className="space-y-2 mb-1">
-                            {laterCards.map(renderCardListItem)}
-                          </div>
-                        </div>
-                      )}
-                      {filteredAndSortedCards.length === 0 && (
-                        <p className="text-gray-500">Nenhuma tarefa encontrada com os filtros e prazos atuais.</p>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
         );
       }
 
-      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp, toggleCardPulsingProp, hideActivityDurationFields }) {
-    const [newNote, setNewNote] = useState('');
-    const [tempCard, setTempCard] = useState(card); // Estado temporário para as edições
-    const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false); // Novo estado para controlar edições não salvas no formulário
-
-    const getWhatsAppLink = (phoneNumber) => {
-      if (!phoneNumber) return null;
-      const cleanedPhone = phoneNumber.replace(/\D/g, ''); // Remove caracteres não numéricos
-      let formattedPhone = cleanedPhone;
-      if (!cleanedPhone.startsWith('55')) {
-        formattedPhone = `55${cleanedPhone}`;
+      // --- UI COMPONENTS ---
+      function SimpleModal({ title, onClose, onSave }) {
+          const [val, setVal] = useState('');
+          return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded w-80"><h3 className="font-bold mb-2">{title}</h3><input className="border p-2 w-full mb-4" value={val} onChange={e=>setVal(e.target.value)}/><div className="flex justify-end gap-2"><button onClick={onClose} className="px-3 bg-gray-200 rounded">Cancelar</button><button onClick={()=>{if(val) {onSave(val); onClose();}}} className="px-3 bg-blue-600 text-white rounded">Salvar</button></div></div></div>;
       }
-      return `https://api.whatsapp.com/send?phone=${formattedPhone}`;
-    };
 
-    useEffect(() => {
-      setTempCard(card); // Inicializa tempCard quando o card original muda
-    }, [card]);
-
-    // Efeito para detectar alterações no tempCard em relação ao card original
-    useEffect(() => {
-      const cardJson = JSON.stringify(card);
-      const tempCardJson = JSON.stringify(tempCard);
-      setHasUnsavedEdits(cardJson !== tempCardJson);
-    }, [card, tempCard]);
-
-    const handleTempCardChange = (field, value) => {
-      setTempCard(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (newNote.trim()) { // Se houver texto na nova anotação, alertar para adicionar
-        alert('Por favor, adicione a anotação ou limpe o campo antes de salvar.');
-        return;
+      function CardForm({ initialData, categories, teamMembers, activityOptions, durationOptions, onSave, onDelete }) {
+          const [formData, setFormData] = useState(initialData);
+          const [note, setNote] = useState('');
+          const h = (f,v) => setFormData(p => ({...p, [f]: v}));
+          return (
+              <form onSubmit={e => { e.preventDefault(); onSave(formData); }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">NOME</label><input className="w-full border p-2 rounded" value={formData.name} onChange={e=>h('name',e.target.value)} required /></div>
+                      <div><label className="text-xs font-bold text-gray-500">EMAIL</label><input className="w-full border p-2 rounded" value={formData.email} onChange={e=>h('email',e.target.value)} /></div>
+                      <div><label className="text-xs font-bold text-gray-500">TELEFONE</label><input className="w-full border p-2 rounded" value={formData.phone} onChange={e=>h('phone',e.target.value)} /></div>
+                      <div><label className="text-xs font-bold text-gray-500">CATEGORIA</label><select className="w-full border p-2 rounded" value={formData.category} onChange={e=>h('category',e.target.value)}><option value="">-</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+                      <div><label className="text-xs font-bold text-gray-500">RESPONSÁVEL</label><select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
+                      
+                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">ENDEREÇO</label><input className="w-full border p-2 rounded" value={formData.address} onChange={e=>h('address',e.target.value)} /></div>
+                      
+                      <div><label className="text-xs font-bold text-gray-500">ATIVIDADE</label><select className="w-full border p-2 rounded" value={formData.activity} onChange={e=>h('activity',e.target.value)}><option value="">-</option>{activityOptions.map(a=><option key={a} value={a}>{a}</option>)}</select></div>
+                      <div><label className="text-xs font-bold text-gray-500">DURAÇÃO</label><select className="w-full border p-2 rounded" value={formData.duration} onChange={e=>h('duration',e.target.value)}><option value="">-</option>{durationOptions.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+                      
+                      <div><label className="text-xs font-bold text-gray-500">PRAZO DATA</label><input type="date" className="w-full border p-2 rounded" value={formData.deadlineDate} onChange={e=>h('deadlineDate',e.target.value)} /></div>
+                      <div><label className="text-xs font-bold text-gray-500">PRAZO HORA</label><input type="time" className="w-full border p-2 rounded" value={formData.deadlineTime} onChange={e=>h('deadlineTime',e.target.value)} /></div>
+                      
+                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">LINK</label><input className="w-full border p-2 rounded" value={formData.link} onChange={e=>h('link',e.target.value)} /></div>
+                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded border mb-4">
+                      <label className="text-xs font-bold text-gray-500">ANOTAÇÕES</label>
+                      <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1">{(formData.notes||[]).map((n,i)=><div key={i} className="bg-white p-1 rounded border">{n.text}</div>)}</div>
+                      <div className="flex gap-2"><input className="flex-grow border p-1 rounded" value={note} onChange={e=>setNote(e.target.value)} /><button type="button" onClick={()=>{if(note) h('notes', [...(formData.notes||[]), {text:note, timestamp:new Date().toISOString()}]); setNote('');}} className="px-3 bg-blue-100 text-blue-700 rounded">Add</button></div>
+                  </div>
+                  <div className="flex justify-between border-t pt-4">
+                      {initialData.id && <button type="button" onClick={onDelete} className="text-red-500 font-bold">Excluir</button>}
+                      <button className="px-6 py-2 bg-purple-600 text-white font-bold rounded shadow ml-auto">Salvar</button>
+                  </div>
+              </form>
+          );
       }
-      if (card.id) { // Se estiver editando um card existente
-        if (!tempCard.name) return;
-        updateCardProp(tempCard); // Usa a função updateCardProp do App para salvar
-      } else { // Se for um novo card
-        if (!tempCard.name) return;
-        if (!tempCard.category || !tempCard.assignedTo) {
-          alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
-          return;
-        }
-        setCard(tempCard); // Atualiza o uiState.newClient com os dados do tempCard
-        onSubmit(e); // Chama o onSubmit do App para adicionar o card
-        return; // Retorna para não chamar onClose() aqui
-      }
-      onClose(); // Fecha o formulário após salvar/adicionar
-    };
 
-    const handleCloseForm = () => {
-      if (newNote.trim()) { // Se houver texto na nova anotação, alertar para adicionar
-        alert('Por favor, adicione a anotação ou limpe o campo antes de sair.');
-        return;
-      }
-      if (hasUnsavedEdits) {
-        if (window.confirm('Você tem alterações não salvas. Deseja sair sem salvar?')) {
-          onClose();
-        }
-      } else {
-        onClose();
-      }
-    };
+      function Card({ card, compact, disablePulsing, onDragStart, onFileDrop, onClick }) {
+          const [hover, setHover] = useState(false);
+          const showDetails = !compact || hover;
+          
+          // Logic for borders & inactivity
+          const now = new Date();
+          const lastUpdated = new Date(card.lastUpdated || card.createdAt);
+          const diffTime = Math.abs(now - lastUpdated);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+          const isInactive = diffDays > 7;
+          const isRecent = diffTime < (48 * 60 * 60 * 1000);
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-center mb-1">
-                <h2 className="text-2xl font-semibold">{card?.id ? 'Editar Card' : 'Adicionar Card'}</h2>
-                <button onClick={handleCloseForm}>✕</button>
-              </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label>Nome</label>
-                    <input type="text" value={tempCard.name} onChange={(e) => handleTempCardChange('name', e.target.value)} className="w-full p-2 border rounded" required />
-                    </div>
-                  <div>
-                    <label>E-mail</label>
-                    <input type="email" value={tempCard.email || ''} onChange={(e) => handleTempCardChange('email', e.target.value)} className="w-full p-2 border rounded" />
-            </div>
-                  <div>
-                    <label>Telefone</label>
-                    {tempCard.phone && (
-                      <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(getWhatsAppLink(tempCard.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span>
-                    )}
-                    <input type="tel" value={tempCard.phone || ''} onChange={(e) => handleTempCardChange('phone', e.target.value)} className="w-full p-2 border rounded" />
-        </div>
-                  <div>
-                    <label>
-                      <span>Endereço</span>
-                      {tempCard.address && (
-                        <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tempCard.address)}`, '_blank', 'noopener noreferrer')} title="Ver no Google Maps">📍</span>
+          const getTailwindColor = (colorName) => {
+            switch (colorName) {
+                case 'green-500': return 'rgb(34, 197, 94)';
+                case 'yellow-500': return 'rgb(234, 179, 8)';
+                case 'blue-500': return 'rgb(59, 130, 246)';
+                case 'black': return 'rgb(0, 0, 0)';
+                case 'red-400': return 'rgb(248, 113, 113)';
+                default: return 'transparent';
+            }
+          };
+
+          let leftBorderColor = 'transparent';
+          // CORREÇÃO: Ordem de prioridade. Duração > Inativo.
+          if (card.duration === 'Minutos') leftBorderColor = getTailwindColor('green-500');
+          else if (card.duration === 'Horas') leftBorderColor = getTailwindColor('yellow-500');
+          else if (card.duration === 'Dia') leftBorderColor = getTailwindColor('blue-500');
+          else if (card.duration === 'Dias') leftBorderColor = getTailwindColor('black');
+          else if (isInactive) leftBorderColor = getTailwindColor('red-400');
+
+          // Right border (Aging)
+          const createdAtDate = new Date(card.createdAt);
+          const timeSinceCreation = now - createdAtDate.getTime();
+          const maxAgeMs = 168 * 60 * 60 * 1000; // 7 dias
+
+          let rightBorderColor = 'transparent';
+          if (timeSinceCreation < maxAgeMs) {
+            const factor = timeSinceCreation / maxAgeMs;
+            // Interpolate Pink (#ff86a5) to Purple (#260038)
+            const startR = 255, startG = 134, startB = 165; 
+            const endR = 38, endG = 0, endB = 56;
+            const cR = Math.round(startR + (endR - startR) * factor);
+            const cG = Math.round(startG + (endG - startG) * factor);
+            const cB = Math.round(startB + (endB - startB) * factor);
+            rightBorderColor = `rgb(${cR}, ${cG}, ${cB})`;
+          }
+
+          const customBoxShadow = [
+            leftBorderColor !== 'transparent' ? `inset 4px 0 0 0 ${leftBorderColor}` : '',
+            rightBorderColor !== 'transparent' ? `inset -4px 0 0 0 ${rightBorderColor}` : '',
+          ].filter(Boolean).join(', ');
+
+          // Pulsing
+          let pulseDuration = '0s';
+          let pulsingGreenColor = '#e4fac9';
+
+          if (isRecent && card.isPulsing !== false && !disablePulsing) {
+               const normalizedTime = (Date.now() - new Date(card.lastUpdated).getTime()) / (48 * 60 * 60 * 1000);
+               pulseDuration = `${0.5 + (normalizedTime * 1.5)}s`;
+               // Green to Lilac interpolation logic...
+               const startR = 184, startG = 238, startB = 184; 
+               const endR = 221, endG = 190, endB = 221;
+               const cR = Math.round(startR + (endR - startR) * normalizedTime);
+               const cG = Math.round(startG + (endG - startG) * normalizedTime);
+               const cB = Math.round(startB + (endB - startB) * normalizedTime);
+               pulsingGreenColor = `rgb(${cR}, ${cG}, ${cB})`;
+          }
+          
+          // CORREÇÃO: Opacidade baseada em rating
+          const cardOpacity = card.rating === 0 ? 0.6 : (0.5 + (card.rating / 10)); 
+
+          return (
+              <div draggable onDragStart={e => onDragStart(e, card.id)} onClick={onClick} 
+                   onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+                   onDragOver={e=>e.preventDefault()} onDrop={e=>onFileDrop(e, card.id)}
+                   className={`bg-white p-3 rounded shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all ${isRecent && !disablePulsing ? 'pulsing-green' : ''}`}
+                   style={{ 
+                       opacity: cardOpacity,
+                       boxShadow: customBoxShadow,
+                       '--card-bg-color': (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white',
+                       '--pulse-green-color': pulsingGreenColor,
+                       backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white',
+                       animationDuration: pulseDuration
+                   }}
+                   title={(card.notes || []).map(n => n.text).join('\n')}>
+                  
+                  <div className="flex justify-between items-start mb-1">
+                      <div className="font-bold text-gray-800 text-sm leading-tight flex flex-wrap items-center gap-0.5">
+                          {/* Emoji Activities */}
+                          {card.activity === 'Interna' && <span title="Atividade: Interna">🏠</span>}
+                          {card.activity === 'Externa' && <span title="Atividade: Externa">🚗</span>}
+                          
+                          {/* Emoji Categories (only if not activity) */}
+                          {!card.activity && card.category === 'Cerimonialista' && <span title="Categoria: Cerimonialista">💐</span>}
+                          {!card.activity && card.category === 'Hotel' && <span title="Categoria: Hotel">🏨</span>}
+                          {!card.activity && card.category === 'Teatro' && <span title="Categoria: Teatro">🎭</span>}
+                          {!card.activity && card.category === 'Eventos' && <span title="Categoria: Eventos">🍾</span>}
+                          {!card.activity && card.category === 'Corporativo' && <span title="Categoria: Corporativo">👔</span>}    
+                          {!card.activity && card.category === 'Setor Público' && <span title="Categoria: Setor Público">🏛️</span>}
+                          {!card.activity && card.category === 'Serviço Social' && <span title="Categoria: Serviço Social">🌎</span>}
+
+                          {/* Name */}
+                          <span>{card.name}</span>
+                          
+                          {/* Star after name */}
+                          {card.rating === 5 && <span className="ml-1" title="Classificação: 5 estrelas">⭐</span>}
+                      </div>
+                      {card.deadlineDate && (
+                          <div className="text-[10px] font-mono text-red-600 bg-transparent px-1 rounded ml-1 whitespace-nowrap">
+                              {(() => {
+                                const deadline = new Date(card.deadlineDate + (card.deadlineTime ? `T${card.deadlineTime}` : 'T00:00:00'));
+                                const now = new Date();
+                                const diffTime = deadline.getTime() - now.getTime();
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                
+                                if (diffTime < 0) return deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                                if (diffDays >= 7) return deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ');
+                                if (diffDays > 1) return `${diffDays}d`;
+                                if (diffDays === 1) {
+                                    const hrs = Math.floor(diffTime / 1000 / 60 / 60);
+                                    return hrs > 0 ? `${hrs}h` : "AGORA";
+                                }
+                                return null;
+                              })()}
+                          </div>
                       )}
-                    </label>
-                    <input type="text" value={tempCard.address || ''} onChange={(e) => handleTempCardChange('address', e.target.value)} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
                   </div>
-                  <div>
-                    <label>Categoria</label>
-                    <select value={tempCard.category || ''} onChange={(e) => handleTempCardChange('category', e.target.value)} className="w-full p-2 border rounded">
-                      <option value="">Nenhuma</option>
-                      {categories.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label>Responsável</label>
-                    <select value={tempCard.assignedTo || ''} onChange={(e) => handleTempCardChange('assignedTo', e.target.value)} className="w-full p-2 border rounded">
-                      <option value="">Nenhum</option>
-                      {teamMembers.map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {!hideActivityDurationFields && (
-                  <>
-                  <div>
-                    <label>Atividade</label>
-                    <select value={tempCard.activity || ''} onChange={(e) => handleTempCardChange('activity', e.target.value)} className="w-full p-2 border rounded">
-                      <option value="">Nenhuma</option>
-                      {activityOptions.map((activity) => (
-                        <option key={activity} value={activity}>{activity}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label>Duração</label>
-                    <select value={tempCard.duration || ''} onChange={(e) => handleTempCardChange('duration', e.target.value)} className="w-full p-2 border rounded">
-    <option value="">Nenhuma</option>
-    {durationOptions.map((option) => (
-      <option key={option} value={option}>{option}</option>
-    ))}
-    </select>
-                  </div>
-                  </>
+
+                  {showDetails && (
+                      <div className="mt-2 space-y-1">
+                          <div className="text-xs text-gray-500 flex flex-wrap gap-1">
+                              {card.email && <span title={card.email}>✉️</span>}
+                              {card.phone && <span title={card.phone} onClick={(e) => { e.stopPropagation(); window.open(`https://api.whatsapp.com/send?phone=${card.phone.replace(/\D/g, '')}`); }}>📞</span>}
+                              {card.address && <span title={card.address} onClick={(e) => { e.stopPropagation(); window.open(`https://maps.google.com/?q=${card.address}`); }}>📍</span>}
+                              {card.link && <span title={card.link} onClick={(e) => { e.stopPropagation(); window.open(card.link); }}>🔗</span>}
+                          </div>
+                          {/* Removed Responsible and Rating from Card Body as requested */}
+                          {/* {card.category && <div className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded inline-block">{card.category}</div>} */}
+                      </div>
                   )}
-                  <div>
-                    <label>Prazo - Data</label>
-                <input
-                      type="date" 
-                      value={tempCard.deadlineDate || ''} 
-                      onChange={(e) => handleTempCardChange('deadlineDate', e.target.value)} 
-                      className="w-full p-2 border rounded"
-                    />
-                </div>
-                  <div>
-                    <label>Prazo - Hora</label>
-                    <select 
-                      value={tempCard.deadlineTime || ''} 
-                      onChange={(e) => handleTempCardChange('deadlineTime', e.target.value)} 
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value="">Nenhuma</option>
-                      {Array.from({ length: 24 * 2 }).map((_, i) => {
-                        const hour = Math.floor(i / 2);
-                        const minute = (i % 2) * 30;
-                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-                        return <option key={time} value={time}>{time}</option>;
-                      })}
-                    </select>
-        </div>
-                  <div> {/* Novo campo Link */}
-                    <label>Link</label>
-                    {tempCard.link && (
-                      <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(tempCard.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span>
-                    )}
-                    <input type="url" value={tempCard.link || ''} onChange={(e) => handleTempCardChange('link', e.target.value)} placeholder="https://example.com" className="w-full p-2 border rounded" />
-                  </div>
-                  <div>
-                    <label>Classificação</label>
-                    <div className="flex">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <button key={i} type="button" onClick={() => handleTempCardChange('rating', i + 1)} className={i < (tempCard.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
-                          ★
-                        </button>
-                      ))}
-    </div>
-        </div>
-    </div>
-                <div className="mt-2">
-                  <label>Anotações</label>
-                  <div className="border rounded p-2 h-24 overflow-y-auto bg-gray-50">
-                    {(tempCard.notes || []).map((n, i) => (
-                      <div key={i} className="text-sm mb-1">
-                        <span className="text-xs text-gray-500">{new Date(n.timestamp).toLocaleString()}</span>: {n.text}
-        </div>
-                    ))}
-    </div>
-        </div>
-                <div className="flex mt-1">
-                  <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
-                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(tempCard, setTempCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
-                </div>
-                <div className="flex justify-end gap-0.5 mt-3">
-                  {card?.id && !tempCard.pulsingDisabled && (
-                    <button type="button" onClick={() => { toggleCardPulsingProp(card.id, true); onClose(); }} className="px-4 py-2 bg-yellow-500 text-white rounded">Parar Pulsação</button>
-                  )}
-                  <button type="button" onClick={handleCloseForm} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
-                  <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
-                  {card?.id && (
-                    <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); handleCloseForm(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
-                  )}
+                  {isInactive && !card.duration && <div className="mt-1 text-[10px] text-red-500 font-bold">Inativo por {diffDays} dias</div>}
+              </div>
+          );
+      }
+
+      function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, filters }) {
+        const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+        const startDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay();
+        const days = Array(startDay).fill(null).concat([...Array(daysInMonth).keys()].map(i => i + 1));
+        
+        const filtered = clients.filter(c => 
+            (!filters.searchTerm || c.name.toLowerCase().includes(filters.searchTerm.toLowerCase())) &&
+            (!filters.filterCategory || c.category === filters.filterCategory)
+        );
+
+        return (
+            <div className="bg-white p-6 rounded shadow h-full overflow-auto">
+                <div className="flex justify-between mb-4">
+                    <h2 className="text-2xl font-bold">{view === 'calendar' ? 'Calendário' : 'Lista'}</h2>
+                    <div className="flex gap-2">
+                        <button onClick={()=>setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth()-1)))} className="p-2 bg-gray-100 rounded">◀</button>
+                        <span className="w-32 text-center font-bold pt-2">{selectedDate.toLocaleDateString('pt-BR', {month:'long', year:'numeric'})}</span>
+                        <button onClick={()=>setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth()+1)))} className="p-2 hover:bg-white rounded">▶</button>
                     </div>
-                </form>
-        </div>
-    </div>
-);
-      }
-
-      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards, reorderCardInColumn, disablePulsing }) {
-        const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(card.lastUpdated || card.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [card.lastUpdated, card.createdAt]);
-    const isInactive = diffDays > 7;
-    const [isDragOver, setIsDragOver] = useState(false); // Novo estado para controlar o hover de drag
-    const [isHovered, setIsHovered] = useState(false); // Novo estado para controlar o hover do mouse
-
-    const getWhatsAppLink = (phoneNumber) => {
-      if (!phoneNumber) return null;
-      const cleanedPhone = phoneNumber.replace(/\D/g, ''); // Remove caracteres não numéricos
-      let formattedPhone = cleanedPhone;
-      if (!cleanedPhone.startsWith('55')) {
-        formattedPhone = `55${cleanedPhone}`;
-      }
-      return `https://api.whatsapp.com/send?phone=${formattedPhone}`;
-    };
-
-    const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
-    const oneHundredTwentyHoursInMs = 168 * 60 * 60 * 1000; // 168 horas em ms
-    const lastUpdatedDate = card.lastUpdated ? new Date(card.lastUpdated) : new Date(card.createdAt);
-    const timeSinceLastUpdate = Date.now() - lastUpdatedDate.getTime();
-    const isRecentlyUpdated = timeSinceLastUpdate < fortyEightHoursInMs;
-
-    const createdAtDate = new Date(card.createdAt);
-    const timeSinceCreation = Date.now() - createdAtDate.getTime();
-
-    // Helper to get Tailwind CSS colors (simplified for common colors)
-    const getTailwindColor = (colorName) => {
-      switch (colorName) {
-        case 'green-500': return 'rgb(34, 197, 94)';
-        case 'yellow-500': return 'rgb(234, 179, 8)';
-        case 'blue-500': return 'rgb(59, 130, 246)';
-        case 'black': return 'rgb(0, 0, 0)';
-        case 'red-400': return 'rgb(248, 113, 113)';
-        case 'pink-500': return 'rgb(236, 72, 153)';
-        case 'purple-500': return 'rgb(168, 85, 247)';
-        default: return 'transparent';
-      }
-    };
-
-    // Calculate pulse frequency: faster for more recent updates
-    // Linearly interpolate between 0.5s (very recent) and 2s (48 hours ago)
-    let pulseDuration = 0; // Default to no pulse
-    let pulsingGreenColor = '#e4fac9'; // Default to new light green
-
-    if (isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled) { // Usar card.isPulsing (default true se não definido) e verificar se não está desabilitado
-      const normalizedTime = timeSinceLastUpdate / fortyEightHoursInMs; // 0 (now) to 1 (48 horas atrás)
-      pulseDuration = 0.5 + (normalizedTime * 1.5); // 0.5s to 2s
-
-      // Interpolate green color for subtlety
-      const startR = 184, startG = 238, startB = 184; // Um verde mais escuro e saturado (lightgreen)
-      const endR = 221, endG = 190, endB = 221;     // Lilás para cards mais antigos (plum)
-
-      const currentR = Math.round(startR + (endR - startR) * normalizedTime);
-      const currentG = Math.round(startG + (endG - startG) * normalizedTime);
-      const currentB = Math.round(startB + (endB - startB) * normalizedTime);
-
-      pulsingGreenColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
-    }
-
-    let leftBorderColor = 'transparent';
-    if (card.duration === 'Minutos') {
-      leftBorderColor = getTailwindColor('green-500');
-    } else if (card.duration === 'Horas') {
-      leftBorderColor = getTailwindColor('yellow-500');
-    } else if (card.duration === 'Dia') {
-      leftBorderColor = getTailwindColor('blue-500');
-    } else if (card.duration === 'Dias') {
-      leftBorderColor = getTailwindColor('black');
-    } else if (isInactive) {
-      leftBorderColor = getTailwindColor('red-400');
-    }
-
-    let rightBorderColor = 'transparent';
-    if (timeSinceCreation < oneHundredTwentyHoursInMs) {
-      // Cores para interpolação: do rosa (#ff86a5) ao roxo escuro (#260038)
-      const startR = 255, startG = 134, startB = 165; // #ff86a5
-      const endR = 38, endG = 0, endB = 56;       // #260038
-      const factor = timeSinceCreation / oneHundredTwentyHoursInMs; // 0 (now) to 1 (120 horas atrás)
-      const currentR = Math.round(startR + (endR - startR) * factor);
-      const currentG = Math.round(startG + (endG - startG) * factor);
-      const currentB = Math.round(startB + (endB - startB) * factor);
-      rightBorderColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
-    } else {
-      rightBorderColor = 'transparent';
-    }
-
-    const customBoxShadow = [
-      leftBorderColor !== 'transparent' ? `inset 4px 0 0 0 ${leftBorderColor}` : '',
-      rightBorderColor !== 'transparent' ? `inset -4px 0 0 0 ${rightBorderColor}` : '',
-    ].filter(Boolean).join(', ');
-
-    return (
-          <div
-            draggable
-            onDragStart={onDragStart}
-            onDragOver={(e) => { e.preventDefault(); }}
-            onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDragOver(false);
-              const droppedCardId = e.dataTransfer.getData('text/plain');
-              if (droppedCardId !== card.id && draggedItem === droppedCardId) { // Adicionado check para draggedItem
-                reorderCardInColumn(droppedCardId, card.id); // Chamar a nova função de reordenação
-              } else if (draggedItem !== droppedCardId) { // Se for para outra coluna ou solto em um card diferente na mesma coluna
-                onDropFiles(Array.from(e.dataTransfer.files || [])); // Mantém a função de drop de arquivos
-              }
-            }}
-            onMouseEnter={() => setIsHovered(true)} // Adiciona manipulador de evento de mouseEnter
-            onMouseLeave={() => setIsHovered(false)} // Adiciona manipulador de evento de mouseLeave
-            className={`bg-white rounded-lg shadow-md mb-1 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled ? 'pulsing-green' : ''}
-            `}
-            style={{ 
-              width: '100%', 
-              padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, 
-              opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1,
-              '--card-bg-color': (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Set CSS variable for background
-              '--pulse-green-color': pulsingGreenColor, // Set dynamic pulsing green color
-              backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Ensure base background color is always applied
-              animationDuration: isRecentlyUpdated && !disablePulsing ? `${pulseDuration}s` : 'initial',
-              boxShadow: customBoxShadow // Apply custom box-shadow for internal borders
-            }}
-            title={(card.notes || []).map(note => note.text).join('\n')}
-          >
-            <div className="flex justify-between items-start text-sm">
-                <div className="flex items-center gap-0.5">
-                  {card.activity === 'Interna' && <span className="mr-0" title="Atividade: Interna">🏠</span>}
-                  {card.activity === 'Externa' && <span className="mr-0" title="Atividade: Externa">🚗</span>}
-                  {!card.activity && card.category === 'Cerimonialista' && <span className="mr-0" title="Categoria: Cerimonialista">💐</span>}
-                  {!card.activity && card.category === 'Hotel' && <span className="mr-0" title="Categoria: Hotel">🏨</span>}
-                  {!card.activity && card.category === 'Teatro' && <span className="mr-0" title="Categoria: Teatro">🎭</span>}
-                  {!card.activity && card.category === 'Eventos' && <span className="mr-0" title="Categoria: Eventos">🍾</span>}
-                  {!card.activity && card.category === 'Corporativo' && <span className="mr-0" title="Categoria: Corporativo">👔</span>}    
-                  {!card.activity && card.category === 'Setor Público' && <span className="mr-0" title="Categoria: Setor Público">🏛️</span>}
-                  {!card.activity && card.category === 'Serviço Social' && <span className="mr-0" title="Categoria: Serviço Social">🌎</span>}
-                  <h3 className={`font-bold cursor-pointer text-xs ${card.link ? 'text-blue-800 underline' : 'hover:text-blue-600'}`} onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
-                  {card.rating === 5 && <span className="ml-0.5" title="Classificação: 5 estrelas">⭐</span>}
                 </div>
-                <div className="flex flex-col gap-0.5 items-end">
-                    {card.deadlineDate && (
-                      <div className="text-xxs text-right">
-                        {(() => {
-                          const deadline = new Date(card.deadlineDate + (card.deadlineTime ? `T${card.deadlineTime}` : 'T00:00:00'));
-                          const now = new Date();
-                          const diffTime = deadline.getTime() - now.getTime();
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                          if (diffTime < 0) {
-                            // Passou do prazo
-                            return <span className="text-red-600">{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>;
-                          } else if (diffDays >= 7) {
-                            // Mais de 7 dias
-                            return <span>{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ')}</span>;
-                          } else if (diffDays < 7 && diffDays > 1) {
-                            // Menos de 7 dias e mais de 1 dia
-                            return <span>{diffDays}d</span>;
-                          } else if (diffDays === 1) {
-                            // Menos de 1 dia, mas ainda não passou
-                            const totalSecondsRemaining = Math.floor(diffTime / 1000);
-                            const secondsRemaining = totalSecondsRemaining % 60;
-                            const totalMinutesRemaining = Math.floor(totalSecondsRemaining / 60);
-                            const minutesRemaining = totalMinutesRemaining % 60;
-                            const hoursRemaining = Math.floor(totalMinutesRemaining / 60);
-
-                            const formattedTime = `${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsRemaining).padStart(2, '0')}`;
-                            return <span>{formattedTime}</span>;
-                          }
-                          return null; // Caso não haja prazo ou condição não atendida
-                        })()}
+                {view === 'calendar' ? (
+                    <div className="grid grid-cols-7 gap-px bg-gray-200 border rounded">
+                        {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=><div key={d} className="bg-gray-50 p-2 text-center font-bold text-xs">{d}</div>)}
+                        {days.map((d,i) => (
+                            <div key={i} className={`bg-white min-h-[80px] p-1 ${!d?'bg-gray-50':''}`}>
+                                {d && (
+                                    <>
+                                        <div className="text-right text-xs text-gray-400 font-bold mb-1">{d}</div>
+                                        <div className="space-y-1 overflow-y-auto max-h-20">
+                                            {filtered.filter(c => c.deadlineDate && new Date(c.deadlineDate).getDate() === d && new Date(c.deadlineDate).getMonth() === selectedDate.getMonth()).map(c => (
+                                                <div key={c.id} onClick={()=>setEditingCardId(c.id)} className="text-[10px] bg-blue-100 text-blue-800 p-1 rounded truncate cursor-pointer hover:bg-blue-200">
+                                                    {c.deadlineTime} {c.name}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {filtered.filter(c=>c.deadlineDate).sort((a,b)=>new Date(a.deadlineDate)-new Date(b.deadlineDate)).map(c => (
+                            <div key={c.id} onClick={()=>setEditingCardId(c.id)} className="flex items-center gap-4 p-3 border rounded hover:bg-gray-50 cursor-pointer">
+                                <div className="w-20 text-center font-bold text-purple-600">{new Date(c.deadlineDate).toLocaleDateString()}</div>
+                                <div className="flex-grow font-bold">{c.name}</div>
+                                <div className="text-sm text-gray-500">{c.category}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
-                    )}
-            </div>
-            </div>
-            {(!compactCards || isHovered) && (card.rating > 0 || card.category) && (
-              <div className="flex items-center text-xs text-gray-600 mt-1 gap-0.5">
-
-                {card.category && <span>{card.category}</span>}
-              </div>
-            )}
-            {(!compactCards || isHovered) && (
-              <div className="flex flex-wrap gap-0.5 text-xs text-gray-600 mt-1">
-                {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
-                {card.phone ? <span className="mr-1 cursor-pointer" onClick={() => window.open(getWhatsAppLink(card.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
-                {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
-                {card.address ? <span className="mr-1 cursor-pointer" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(card.address)}`, '_blank', 'noopener noreferrer')} title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
-                {card.link ? <span className="mr-1 cursor-pointer" onClick={() => window.open(card.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span> : <span className="mr-1" title="Link não informado">▫️</span>}
-                </div>
-            )}
-            {isInactive && <div className="mt-0 text-xxs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
-
-        </div>
-    );
-      }
-
-      function ConfirmModal({ message, onConfirm, onCancel }) {
-        return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
-              <h3 className="text-xl font-semibold mb-1">Confirmação</h3>
-              <p className="mb-1">{message}</p>
-              <div className="flex justify-end gap-0.5">
-                <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
-                <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded">Excluir</button>
-              </div>
-        </div>
-    </div>
-);
-      }
-
-      function AddMemberModal({ newTeamMemberName, setNewTeamMemberName, handleAddTeamMember, onClose }) {
-        return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-              <div className="flex justify-between items-center mb-1">
-                <h2 className="text-2xl font-semibold">Adicionar Membro da Equipe</h2>
-                <button onClick={onClose}>✕</button>
-              </div>
-            <form onSubmit={handleAddTeamMember}>
-                <input type="text" value={newTeamMemberName} onChange={(e) => setNewTeamMemberName(e.target.value)} placeholder="Nome do novo membro" className="w-full p-2 border rounded-md mb-1 focus:ring-2 focus:ring-blue-500 outline-none" required />
-                <div className="flex justify-end gap-0.5">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Adicionar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-);
-      }
-
-      function CategoryForm({ addCategory, newCategory, setNewCategory, categories = [], deleteCategory, onClose }) {
-        return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-              <div className="flex justify-between items-center mb-1">
-                <h2 className="text-2xl font-semibold">Gerenciar Categorias</h2>
-                <button onClick={onClose}>✕</button>
-              </div>
-              <form onSubmit={addCategory} className="flex mb-1 gap-0.5">
-                <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria" className="flex-grow p-2 border rounded" />
-                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
-              </form>
-              <ul className="space-y-2 max-h-40 overflow-y-auto">
-                {categories.map((cat) => (
-                  <li key={cat} className="flex justify-between items-center bg-gray-100 p-2 rounded">
-                    <span>{cat}</span>
-                    <button onClick={() => deleteCategory(cat)} className="text-red-500">🗑</button>
-                  </li>
-                ))}
-              </ul>
-        </div>
-    </div>
-);
-      }
-
-      function ColumnForm({ addColumn, newColumnName, setNewColumnName, onClose }) {
-    return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-1">Adicionar Nova Coluna</h3>
-              <form onSubmit={addColumn}>
-                <input type="text" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="Nome da coluna" className="w-full p-2 border rounded mb-1" />
-                <div className="flex justify-end gap-0.5">
-                  <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
-                  <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
-        </div>
-              </form>
-            </div>
-        </div>
-    );
+        );
       }
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<App />);
     </script>
   </body>
-  </html>
-
-
+</html>

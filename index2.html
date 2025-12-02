@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pepper Hat Apps</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React/ReactDOM via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel para transformar JSX no navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Ícones (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      html, body { height: 100%; }
+      .text-xxs { font-size: 0.65rem; /* ~10px */ }
+      .pulsing-alert {
+          animation: pulse 1.5s infinite;
+      }
+      
+      @keyframes pulse {
+          0% {
+              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+          }
+          70% {
+              box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+          }
+          100% {
+              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+          }
+      }
+      .pulsing-green {
+        animation: pulse-green 1s infinite cubic-bezier(0.66, 0, 0.33, 1);
+      }
+
+      @keyframes pulse-green {
+        0%, 100% { background-color: var(--card-bg-color, white); }
+        50% { background-color: var(--pulse-green-color, #d4edda); } /* Use CSS variable for pulsing green */
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 text-gray-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useState, useRef } = React;
+
+const colorPalette = {
+    lightGreen: '#d4edda',
+    lightBlue: '#d1ecf1',
+    lilac: '#dbcff8',
+    yellow: '#fff3cd',
+    pink: '#f8c0c8',
+    lightGrey: '#e9ecef',
+        offWhite: '#f8f9fa',
+};
+
+const softPastelColors = [
+  '#FFB3BA', // Light Pink
+  '#FFDFBA', // Peach
+  '#FFFFBA', // Pale Yellow
+  '#BAFFC9', // Mint Green
+  '#BAE1FF', // Light Blue
+  '#E0BBE4', // Lavender
+  '#FFD7A3', // Light Orange
+  '#CCE2CB', // Sage Green
+  '#F0EAD6', // Beige
+  '#D4EEFF', // Sky Blue
+  '#F5DEB3', // Wheat
+];
+
+const getBackgroundColor = (columnId) => {
+    const mapping = {
+        'primeiro-contato': colorPalette.lightGreen,
+        'demonstrou-interesse': colorPalette.lightBlue,
+        'contato-pessoal': colorPalette.lilac,
+        'fez-orcamento': colorPalette.yellow,
+        'contratou': colorPalette.pink,
+        'descartados': colorPalette.lightGrey,
+        'arquivados': colorPalette.offWhite,
+    };
+    return mapping[columnId] || colorPalette.lightBlue;
+};
+
+      const defaultBoardState = {
+        columns: {
+          'primeiro-contato': { id: 'primeiro-contato', title: 'Primeiro Contato' },
+          'demonstrou-interesse': { id: 'demonstrou-interesse', title: 'Demonstrou Interesse' },
+          'contato-pessoal': { id: 'contato-pessoal', title: 'Contato Pessoal' },
+          'fez-orcamento': { id: 'fez-orcamento', title: 'Fez Orçamento' },
+          'contratou': { id: 'contratou', title: 'Contratou' },
+          'arquivados': { id: 'arquivados', title: 'Arquivados' },
+          'descartados': { id: 'descartados', title: 'Descartados' },
+        },
+        columnOrder: [
+          'primeiro-contato',
+          'demonstrou-interesse',
+          'contato-pessoal',
+          'fez-orcamento',
+          'contratou',
+          'arquivados',
+          'descartados',
+        ],
+        categories: ['Casamento', 'Corporativo', 'Bar', 'Teatro'],
+        teamMembers: [],
+        activityOptions: ['Interna', 'Externa'], // Novas opções de atividade
+        durationOptions: ['Minutos', 'Horas', 'Dia', 'Dias'], // Novas opções de duração
+        columnsLocked: true,
+      };
+
+      const storageKey = 'kanban-funil-vendas-v1';
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function saveState(state) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(state));
+        } catch (e) {}
+      }
+
+      function uid() {
+        return Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+
+      function getCurrentDateString() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function getCurrentTimeString() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+
+      function App() {
+        const [boardState, setBoardState] = useState(defaultBoardState);
+        const [clients, setClients] = useState([]);
+        const [userId, setUserId] = useState(uid());
+        const [showAddCard, setShowAddCard] = useState(false);
+    const [editingCardId, setEditingCardId] = useState(null);
+    const [showAddCategory, setShowAddCategory] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [cardToDelete, setCardToDelete] = useState(null);
+    const [isAddingColumn, setIsAddingColumn] = useState(false);
+    const [draggedItem, setDraggedItem] = useState(null);
+    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+    const [showAdminMenu, setShowAdminMenu] = useState(false); // Novo estado para o menu de administração
+
+        // Estado para filtros
+        const [filterCategory, setFilterCategory] = useState('');
+        const [filterMember, setFilterMember] = useState('');
+        const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de busca
+        const [filterActivity, setFilterActivity] = useState(''); // Novo estado para o filtro de atividade
+        const [filterDuration, setFilterDuration] = useState(''); // Novo estado para o filtro de duração
+
+        // Estado para desfazer exclusões
+        const [deletedCards, setDeletedCards] = useState([]);
+        const [lastDeletedCard, setLastDeletedCard] = useState(null); // Renomeado de lastDeletedClient
+        const [deletedColumns, setDeletedColumns] = useState([]);
+        const [lastDeletedColumn, setLastDeletedColumn] = useState(null);
+        const [compactCards, setCompactCards] = useState(true); // Novo estado para compactar os cards (inicia como true)
+        const [pageTitle, setPageTitle] = useState('Tarefas'); // Novo estado para o título da página
+        const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Novo estado para controle de alterações não salvas
+        const [saveButtonColor, setSaveButtonColor] = useState('bg-green-500'); // Cor inicial do botão salvar
+        const [currentView, setCurrentView] = useState('kanban'); // Novo estado para controlar a visualização: 'kanban', 'calendar', 'list'
+        const [selectedDate, setSelectedDate] = useState(new Date()); // Novo estado para a data selecionada no calendário
+        const [disablePulsing, setDisablePulsing] = useState(false); // Novo estado para desativar pulsação
+        const [columnIdForNewCard, setColumnIdForNewCard] = useState(null); // Novo estado para armazenar a coluna onde o novo card será adicionado
+        const [hideActivityDurationFields, setHideActivityDurationFields] = useState(false); // Novo estado para controlar a visibilidade de campos
+
+        // Cores para o botão salvar quando houver alterações não salvas
+        const flashingColors = [
+          'bg-green-500', 'bg-yellow-500', 'bg-blue-500', 'bg-purple-500'
+        ];
+
+        useEffect(() => {
+          let interval;
+          if (hasUnsavedChanges) {
+            let colorIndex = 0;
+            interval = setInterval(() => {
+              setSaveButtonColor(flashingColors[colorIndex]);
+              colorIndex = (colorIndex + 1) % flashingColors.length;
+            }, 750); // Troca de cor a cada 750ms
+          } else {
+            setSaveButtonColor('bg-green-500'); // Volta para a cor padrão quando salvo
+          }
+          return () => clearInterval(interval);
+        }, [hasUnsavedChanges]);
+
+        useEffect(() => {
+          // Ao carregar a página, não carregamos do localStorage. Deixamos o estado inicial padrão.
+          // Apenas persistimos ao salvar explicitamente ou ao fechar a página (opcional, fora do escopo atual)
+        }, []);
+
+        // Efeito para alertar sobre alterações não salvas ao tentar sair da página
+        useEffect(() => {
+          const handleBeforeUnload = (event) => {
+            if (hasUnsavedChanges) {
+              // A mensagem personalizada é ignorada pela maioria dos navegadores modernos por segurança.
+              // Eles exibirão uma mensagem padrão.
+              event.returnValue = ''; 
+            }
+          };
+          
+          window.addEventListener('beforeunload', handleBeforeUnload);
+          
+          return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+          };
+        }, [hasUnsavedChanges]);
+
+        // Remover os antigos useEffects de persistência, pois não carregaremos na inicialização.
+        // Agora, a persistência ocorrerá apenas quando o botão 'Salvar' for clicado.
+
+        // A persistência de dados só deve acontecer quando o usuário clicar em salvar, ou no beforeunload (opcional)
+        // Portanto, removemos os useEffects que salvariam automaticamente.
+        // O estado de 'deletedCards' e 'deletedColumns' também será reiniciado a cada carregamento.
+
+        // Se você ainda quiser salvar o 'userId' para futuras sessões (não reiniciar), mantenha o useEffect abaixo:
+        // useEffect(() => { localStorage.setItem('kanban-user-id', userId); }, [userId]);
+
+        const columnOrder = boardState.columnOrder || [];
+        const columns = boardState.columns || {};
+        const categories = Array.isArray(boardState.categories) ? boardState.categories : [];
+        const teamMembers = Array.isArray(boardState.teamMembers) ? boardState.teamMembers : [];
+        const activityOptions = Array.isArray(boardState.activityOptions) ? boardState.activityOptions : []; // Novo estado para as opções de atividade
+        const durationOptions = Array.isArray(boardState.durationOptions) ? boardState.durationOptions : []; // Novo estado para as opções de duração
+
+        const [columnsWidths, setColumnsWidths] = useState({});
+        const resizingRef = useRef({ isResizing: false, columnId: null, startX: 0, startWidth: 0 });
+    useEffect(() => {
+        const handleResize = () => {
+            const totalColumns = columnOrder.length;
+            if (!totalColumns) return;
+                const minWidth = 280;
+                const maxWidth = 400;
+                const availableWidth = window.innerWidth - 64;
+                const calculatedWidth = Math.max(minWidth, Math.min(maxWidth, availableWidth / totalColumns));
+                const newWidths = {};
+            columnOrder.forEach((key) => (newWidths[key] = calculatedWidth));
+                setColumnsWidths(newWidths);
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+        }, [columnOrder.join('|')]);
+
+        useEffect(() => {
+          function onMouseMove(e) {
+            const r = resizingRef.current;
+            if (!r.isResizing || !r.columnId) return;
+            const dx = e.clientX - r.startX;
+            const minWidth = 220;
+            const maxWidth = 720;
+            const newWidth = Math.max(minWidth, Math.min(maxWidth, r.startWidth + dx));
+            setBoardState((prev) => ({
+              ...prev,
+              columnWidths: { ...(prev.columnWidths || {}), [r.columnId]: newWidth },
+            }));
+            setHasUnsavedChanges(true);
+          }
+          function onMouseUp() {
+            resizingRef.current = { isResizing: false, columnId: null, startX: 0, startWidth: 0 };
+          }
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+          return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          };
+        }, []);
+
+        function handleDragStart(e, cardId) {
+        setDraggedItem(cardId);
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', cardId); // Adicionado para compatibilidade e para passar o ID
+        }
+    const handleDragOver = (e) => e.preventDefault();
+        function handleDrop(e, targetColumnId) {
+        e.preventDefault();
+        const droppedCardId = e.dataTransfer.getData('text/plain'); // Obter o ID do card arrastado
+        if (!droppedCardId) return;
+
+        setClients((prev) => {
+            const updatedClients = prev.map((c) => {
+              if (c.id === droppedCardId) {
+                // Get old column title
+                const oldColumn = columns[c.columnId];
+                const newColumn = columns[targetColumnId];
+                if (c.columnId !== targetColumnId) { // Only add note if column actually changed
+                  const noteText = `de '${oldColumn?.title || c.columnId}' para '${newColumn?.title || targetColumnId}'.`;
+                  const newNotes = [...(c.notes || []), { text: noteText, timestamp: new Date().toISOString() }];
+                  return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), notes: newNotes, pulsingDisabled: false };
+                }
+                return { ...c, columnId: targetColumnId, lastUpdated: new Date().toISOString(), pulsingDisabled: false };
+              }
+              return c;
+            });
+            return updatedClients;
+          });
+          setHasUnsavedChanges(true);
+          setDraggedItem(null);
+        }
+
+        // Nova função para reordenar cards dentro da mesma coluna
+        function reorderCardInColumn(draggedCardId, targetCardId) {
+          setClients(prevClients => {
+            const draggedCard = prevClients.find(c => c.id === draggedCardId);
+            const targetCard = prevClients.find(c => c.id === targetCardId);
+
+            if (!draggedCard || !targetCard || draggedCard.columnId !== targetCard.columnId) {
+              return prevClients; // Garante que estão na mesma coluna
+            }
+
+            const columnCards = prevClients.filter(c => c.columnId === draggedCard.columnId)
+                                         .sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            const draggedIndex = columnCards.findIndex(c => c.id === draggedCardId);
+            const targetIndex = columnCards.findIndex(c => c.id === targetCardId);
+
+            if (draggedIndex === -1 || targetIndex === -1) return prevClients;
+
+            const reordered = [...columnCards];
+            const [removed] = reordered.splice(draggedIndex, 1);
+            reordered.splice(targetIndex, 0, removed);
+
+            // Reatribuir a propriedade 'order' sequencialmente
+            const updatedColumnCards = reordered.map((card, index) => ({
+              ...card,
+              order: index + 1,
+              pulsingDisabled: false, // Reabilita pulsação ao reordenar
+              // lastUpdated: new Date().toISOString(), // Removido: não atualizar lastUpdated para reordenação na mesma coluna
+            }));
+
+            const otherCards = prevClients.filter(c => c.columnId !== draggedCard.columnId);
+            return [...otherCards, ...updatedColumnCards];
+          });
+          // setHasUnsavedChanges(true); // Removido: reordenação na mesma coluna não deve marcar como não salvo
+        }
+
+        function addCard(card, targetColumnId = columnOrder[0]) { // Renomeado de addClient, adicionado targetColumnId
+          const id = uid();
+          setClients((prev) => {
+            // Determinar a maior ordem existente na coluna de destino para o novo card ir para o final
+            const cardsInTargetColumn = prev.filter(c => c.columnId === targetColumnId);
+            const maxOrder = cardsInTargetColumn.reduce((max, c) => Math.max(max, c.order || 0), 0);
+            const newOrder = maxOrder + 1;
+
+            return [
+              ...prev,
+              {
+                ...card,
+                id,
+                columnId: targetColumnId, // Usa a coluna passada como parâmetro
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                notes: card.notes || [],
+                order: newOrder, // Adicionando a propriedade de ordem
+                isPulsing: true, // Novo card pulsa por padrão
+              },
+            ];
+          });
+          setHasUnsavedChanges(true);
+        }
+
+        function updateCard(updated) { // Renomeado de updateClient
+          setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, lastUpdated: new Date().toISOString(), pulsingDisabled: false } : c)));
+          setHasUnsavedChanges(true);
+        }
+
+        function moveCardOrder(cardId, direction) { // Renomeado de moveClientOrder
+          setClients(prevClients => {
+            const cardToMove = prevClients.find(c => c.id === cardId);
+            if (!cardToMove) return prevClients;
+
+            const cardsInSameColumn = prevClients.filter(c => c.columnId === cardToMove.columnId)
+              .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            const currentPosIndex = cardsInSameColumn.findIndex(c => c.id === cardId);
+            if (currentPosIndex === -1) return prevClients;
+
+            let targetPosIndex;
+            if (direction === 'up') {
+              targetPosIndex = currentPosIndex - 1;
+            } else { // direction === 'down'
+              targetPosIndex = currentPosIndex + 1;
+            }
+
+            if (targetPosIndex < 0 || targetPosIndex >= cardsInSameColumn.length) {
+              return prevClients; // Não pode mover mais para cima ou para baixo
+            }
+
+            // Criar uma nova array para a coluna e manipular a ordem
+            const reorderedColumnCards = [...cardsInSameColumn]; // Renomeado de reorderedColumnClients
+            const [removed] = reorderedColumnCards.splice(currentPosIndex, 1);
+            reorderedColumnCards.splice(targetPosIndex, 0, removed);
+
+            // Reatribuir a propriedade 'order' sequencialmente
+            const updatedCardsInColumn = reorderedColumnCards.map((card, index) => ({ // Renomeado de updatedClientsInColumn
+              ...card,
+              order: index + 1, // Atribui nova ordem sequencial
+              lastUpdated: new Date().toISOString(),
+              pulsingDisabled: false, // Reabilita pulsação ao reordenar
+            }));
+
+            // Combinar os cards da coluna atualizados com os outros cards
+            const otherCards = prevClients.filter(c => c.columnId !== cardToMove.columnId); // Renomeado de otherClients
+            return [...otherCards, ...updatedCardsInColumn];
+          });
+          setHasUnsavedChanges(true);
+        }
+
+        // Nova função para alternar a pulsação de um card específico sem alterar lastUpdated
+        function toggleCardPulsing(cardId, disable) {
+          setClients(prev => prev.map(c => c.id === cardId ? { ...c, pulsingDisabled: disable } : c));
+          setHasUnsavedChanges(true);
+        }
+
+        function deleteCard(cardId) { // Renomeado de deleteClient
+          const cardToDelete = clients.find(c => c.id === cardId);
+          if (!cardToDelete) return;
+          
+          // Salvar para desfazer
+          setLastDeletedCard({ ...cardToDelete, deletedAt: new Date().toISOString() });
+          setDeletedCards(prev => [...prev, { ...cardToDelete, deletedAt: new Date().toISOString() }]);
+          
+          setClients(prev => prev.filter(c => c.id !== cardId));
+          setHasUnsavedChanges(true);
+        }
+
+        function undoLastDeletion() {
+          if (!lastDeletedCard) return;
+          
+          // Restaurar o card
+          setClients(prev => [...prev, { ...lastDeletedCard, lastUpdated: new Date().toISOString() }]);
+          setHasUnsavedChanges(true);
+          
+          // Limpar o último deletado
+          setLastDeletedCard(null);
+        }
+
+        function undoLastColumnDeletion() {
+          if (!lastDeletedColumn) return;
+          
+          // Restaurar a coluna
+          setBoardState(prev => {
+            const newColumns = { ...prev.columns, [lastDeletedColumn.id]: { id: lastDeletedColumn.id, title: lastDeletedColumn.title } };
+            const tailFixed = ['arquivados', 'descartados'].filter(id => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter(id => !tailFixed.includes(id));
+            const newColumnOrder = [...base, lastDeletedColumn.id, ...tailFixed];
+            
+            return { ...prev, columns: newColumns, columnOrder: newColumnOrder };
+          });
+          
+          // Restaurar os cards da coluna apenas se eles não existirem mais
+          if (lastDeletedColumn.clients && lastDeletedColumn.clients.length > 0) {
+            setClients(prev => {
+              const existingCardIds = prev.map(c => c.id);
+              const cardsToRestore = lastDeletedColumn.clients.filter(c => !existingCardIds.includes(c.id));
+              return [...prev, ...cardsToRestore.map(c => ({ ...c, lastUpdated: new Date().toISOString() }))];
+            });
+          }
+          setHasUnsavedChanges(true);
+          
+          // Limpar o último deletado
+          setLastDeletedColumn(null);
+        }
+
+        function addCategory(newCat) {
+          const name = (newCat || '').trim();
+          if (!name) return;
+          setBoardState((prev) => ({ ...prev, categories: [...(prev.categories || []), name] }));
+          setHasUnsavedChanges(true);
+        }
+
+        function deleteCategory(cat) {
+          setBoardState((prev) => ({ ...prev, categories: (prev.categories || []).filter((c) => c !== cat) }));
+          setHasUnsavedChanges(true);
+        }
+
+        function changeColumnColor(columnId) {
+          setBoardState(prev => {
+            const currentColumn = prev.columns[columnId];
+            if (!currentColumn) return prev;
+            
+            const availableColors = softPastelColors.filter(color => color !== currentColumn.color);
+            const newColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+
+            return {
+              ...prev,
+              columns: {
+                ...prev.columns,
+                [columnId]: { ...currentColumn, color: newColor }
+              }
+            };
+          });
+          setHasUnsavedChanges(true);
+        }
+
+        function addColumn(name) {
+          const trimmed = (name || '').trim();
+          if (!trimmed) return;
+          const newId = trimmed.toLowerCase().replace(/\s+/g, '-');
+          setBoardState((prev) => {
+            if (prev.columnsLocked) return prev;
+            const tailFixed = ['arquivados', 'descartados'].filter((id) => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter((id) => !tailFixed.includes(id));
+            return {
+              ...prev,
+              columns: { ...prev.columns, [newId]: { id: newId, title: trimmed } },
+              columnOrder: [...base, newId, ...tailFixed],
+            };
+          });
+          setHasUnsavedChanges(true);
+        }
+
+        function deleteColumn(columnId) {
+          if (boardState.columnsLocked) return;
+          if (["arquivados", "descartados"].includes(columnId)) return;
+          
+          const columnToDelete = columns[columnId];
+          if (!columnToDelete) return;
+          
+          // Salvar para desfazer
+          setLastDeletedColumn({ 
+            ...columnToDelete, 
+            deletedAt: new Date().toISOString(),
+            clients: clients.filter(c => c.columnId === columnId)
+          });
+          setDeletedColumns(prev => [...prev, { 
+            ...columnToDelete, 
+            deletedAt: new Date().toISOString(),
+            clients: clients.filter(c => c.columnId === columnId)
+          }]);
+          
+          const firstColumnId = columnOrder.find((id) => !["arquivados", "descartados"].includes(id)) || columnOrder[0];
+          setClients((prev) => prev.map((c) => (c.columnId === columnId ? { ...c, columnId: firstColumnId } : c)));
+          setBoardState((prev) => {
+            const newCols = { ...prev.columns };
+            delete newCols[columnId];
+            const tailFixed = ["arquivados", "descartados"].filter((id) => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter((id) => id !== columnId && !tailFixed.includes(id));
+            return { ...prev, columns: newCols, columnOrder: [...base, ...tailFixed] };
+          });
+          setHasUnsavedChanges(true);
+        }
+
+        function moveColumn(columnId, direction) {
+          if (boardState.columnsLocked) return;
+          if (["arquivados", "descartados"].includes(columnId)) return;
+          setBoardState((prev) => {
+            const tailFixed = ["arquivados", "descartados"].filter((id) => prev.columnOrder.includes(id));
+            const base = prev.columnOrder.filter((id) => !tailFixed.includes(id));
+            const idx = base.indexOf(columnId);
+            if (idx === -1) return prev;
+            const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+            if (targetIdx < 0 || targetIdx >= base.length) return prev;
+            const swapped = [...base];
+            const temp = swapped[idx];
+            swapped[idx] = swapped[targetIdx];
+            swapped[targetIdx] = temp;
+            return { ...prev, columnOrder: [...swapped, ...tailFixed] };
+          });
+          setHasUnsavedChanges(true);
+        }
+
+        const canMoveLeft = (columnId) => {
+          if (["arquivados", "descartados"].includes(columnId)) return false;
+          const tailFixed = ["arquivados", "descartados"].filter((id) => columnOrder.includes(id));
+          const base = columnOrder.filter((id) => !tailFixed.includes(id));
+          const idx = base.indexOf(columnId);
+          return idx > 0;
+        };
+        const canMoveRight = (columnId) => {
+          if (["arquivados", "descartados"].includes(columnId)) return false;
+          const tailFixed = ["arquivados", "descartados"].filter((id) => columnOrder.includes(id));
+          const base = columnOrder.filter((id) => !tailFixed.includes(id));
+          const idx = base.indexOf(columnId);
+          return idx !== -1 && idx < base.length - 1;
+        };
+
+        const [uiState, setUiState] = useState({
+          newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: columnOrder[0], isPulsing: true, link: '' }, // Adicionado campo Link, Prazo - Data e Hora atual
+          newCategory: '',
+          newColumnName: '',
+          newTeamMemberName: '',
+        });
+
+        function handleAddNote(tempCard, setTempCard, text) {
+          if (!text.trim()) return;
+          const updated = [
+            ...(Array.isArray(tempCard.notes) ? tempCard.notes : []),
+            { text, timestamp: new Date().toISOString() },
+          ];
+          setTempCard({ ...tempCard, notes: updated });
+          setHasUnsavedChanges(true);
+        }
+
+        function addTeamMember(name) {
+          const trimmed = (name || '').trim();
+          if (!trimmed) return;
+          setBoardState((prev) => ({
+            ...prev,
+            teamMembers: [...(Array.isArray(prev.teamMembers) ? prev.teamMembers : []), trimmed],
+          }));
+          setHasUnsavedChanges(true);
+        }
+
+        function saveToLocalFile() {
+          const data = { boardState, clients, userId };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kanban-funil-vendas-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          try {
+            a.click();
+            alert('Dados salvos localmente com sucesso!');
+          } catch (error) {
+            console.error("Erro ao tentar baixar o arquivo: ", error);
+            alert('Erro ao salvar localmente. Verifique as configurações do seu navegador ou o console para mais detalhes.');
+          }
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          setHasUnsavedChanges(false); // Marcar como salvo após sucesso
+        }
+
+        function exportToGoogleSheets() {
+          // Criar dados formatados para CSV (mais compatível)
+          const headers = ['Nome', 'Email', 'Telefone', 'Categoria', 'Responsável', 'Classificação', 'Coluna', 'Anotações', 'Data Criação', 'Última Atualização', 'Endereço', 'Atividade', 'Prazo - Data', 'Prazo - Hora', 'Duração', 'Link']; // Adicionado Link
+                  
+                  const csvData = [
+                    headers.join(','),
+                    ...clients.map(card => [
+                      `"${card.name || ''}"`,
+                      `"${card.email || ''}"`,
+                      `"${card.phone || ''}"`,
+                      `"${card.category || ''}"`,
+                      `"${card.assignedTo || ''}"`,
+                      card.rating || 0,
+                      `"${columns[card.columnId]?.title || card.columnId || ''}"`,
+                      `"${(card.notes || []).map(note => note.text).join(' | ')}"`,
+                      `"${new Date(card.createdAt).toLocaleDateString('pt-BR')}"`,
+                      `"${new Date(card.lastUpdated).toLocaleDateString('pt-BR')}"`,
+                      `"${card.address || ''}"`,
+                      `"${card.activity || ''}"`,
+                      `"${card.deadlineDate || ''}"`,
+                      `"${card.deadlineTime || ''}"`,
+                      `"${card.duration || ''}"`,
+                      `"${card.link || ''}"` // Adicionado Link
+                    ].join(','))
+                  ].join('\n');
+
+                  // Criar e baixar arquivo CSV
+          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kanban-funil-vendas-${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(a);
+          try {
+            a.click();
+            alert('Arquivo CSV exportado com sucesso! Você pode importar este arquivo no Google Sheets.');
+          } catch (error) {
+            console.error("Erro ao tentar baixar o arquivo: ", error);
+            alert('Erro ao exportar CSV. Verifique as configurações do seu navegador ou o console para mais detalhes.');
+          }
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
+        function importFromLocalFile(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const importedData = JSON.parse(e.target.result);
+              
+              // Validar se os dados são válidos
+              if (!importedData.boardState || !importedData.clients) {
+                throw new Error('Arquivo inválido: deve conter boardState e clients');
+              }
+
+              // Confirmar antes de sobrescrever
+              if (confirm('Isso irá substituir todos os dados atuais. Continuar?')) {
+                setBoardState(importedData.boardState);
+                setClients(importedData.clients);
+                if (importedData.userId) {
+                  setUserId(importedData.userId);
+                }
+                // Atualiza o título da página com o nome do arquivo
+                const fileName = file.name.replace('.json', '');
+                setPageTitle(fileName);
+
+                // Verifica se o nome do arquivo importado contém 'funil'
+                if (fileName.toLowerCase().includes('funil')) {
+                  setHideActivityDurationFields(true);
+                } else {
+                  setHideActivityDurationFields(false);
+                }
+
+                alert('Dados importados com sucesso!');
+              }
+            } catch (error) {
+              alert('Erro ao importar dados: ' + error.message);
+            }
+            
+            // Limpar o input para permitir importar o mesmo arquivo novamente
+            event.target.value = '';
+          };
+          reader.readAsText(file);
+        }
+
+        function importFromGoogleSheets() {
+          // Função para importar dados do Google Sheets via URL pública
+          const url = prompt('Cole a URL pública da planilha do Google Sheets:');
+          if (!url) return;
+
+          // Extrair ID da planilha da URL
+          const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          if (!match) {
+            alert('URL inválida. Certifique-se de que a planilha está pública.');
+            return;
+          }
+
+          const sheetId = match[1];
+          const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+
+          fetch(csvUrl)
+            .then(response => response.text())
+            .then(csvData => {
+              try {
+                // Converter CSV para dados estruturados
+                const lines = csvData.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                const importedCards = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                  if (lines[i].trim()) {
+                    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                    const card = {
+                      id: uid(),
+                      name: values[0] || '',
+                      email: values[1] || '',
+                      phone: values[2] || '',
+                      category: values[3] || '',
+                      assignedTo: values[4] || '',
+                      rating: parseInt(values[5]) || 0,
+                      notes: values[7] ? [{ text: values[7], timestamp: new Date().toISOString() }] : [],
+                      columnId: 'primeiro-contato', // Coluna padrão
+                      createdAt: new Date().toISOString(),
+                      lastUpdated: new Date().toISOString(),
+                      address: values[10] || '', // Novo campo Endereço
+                      activity: values[11] || '', // Novo campo Atividade
+                      deadlineDate: values[12] || '', // Novo campo Prazo - Data
+                      deadlineTime: values[13] || '', // Novo campo Prazo - Hora
+                      duration: values[14] || '', // Novo campo Duração
+                      link: values[15] || '' // Novo campo Link
+                    };
+                    importedCards.push(card);
+                  }
+                }
+
+                if (confirm(`Importar ${importedCards.length} cards da planilha?`)) {
+                  setClients(prev => [...prev, ...importedCards]);
+                  alert(`${importedCards.length} cards importados com sucesso!`);
+                }
+              } catch (error) {
+                alert('Erro ao processar dados da planilha: ' + error.message);
+              }
+            })
+            .catch(error => {
+              alert('Erro ao acessar a planilha. Certifique-se de que ela está pública.');
+            });
+        }
+
+    return (
+          <div className="max-w-full mx-auto p-4 sm:p-8">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-2">
+              <h1 className="text-3xl sm:text-4xl font-bold">{pageTitle}</h1>
+                    <div className="flex flex-wrap gap-0.5">
+                {/* Dropdown para ações administrativas */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(prev => !prev)}
+                    className="bg-gray-700 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
+                  >
+                    Opções
+                  </button>
+                  {showAdminMenu && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                      <button onClick={() => { setShowAddCard(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Card</button>
+                      <button onClick={() => { setShowAddCategory(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Categoria</button>
+                      <button onClick={() => { !boardState.columnsLocked && setIsAddingColumn(true); setShowAdminMenu(false); }} disabled={boardState.columnsLocked} className={`${boardState.columnsLocked ? 'text-gray-400 cursor-not-allowed' : 'text-gray-800 hover:bg-gray-100'} block w-full text-left px-4 py-2`}>+ Coluna</button>
+                      <button onClick={() => { setShowAddMemberModal(true); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">+ Membro</button>
+                      <button onClick={() => { setBoardState((prev) => ({ ...prev, columnsLocked: !prev.columnsLocked })); setShowAdminMenu(false); }} className={`block w-full text-left px-4 py-2 ${boardState.columnsLocked ? 'text-red-500 hover:bg-red-50' : 'text-gray-800 hover:bg-gray-100'}`}>{boardState.columnsLocked ? 'Destravar colunas' : 'Travar colunas'}</button>
+                      <button onClick={exportToGoogleSheets} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">📊 Exportar CSV</button>
+                      <button onClick={() => { importFromGoogleSheets(); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100">📥 Importar Sheets</button>
+                    </div>
+                  )}
+                </div>
+                <button onClick={saveToLocalFile} className={`${saveButtonColor} text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all ${hasUnsavedChanges ? 'pulsing-alert' : ''}`}>💾 Salvar</button>
+                <button onClick={() => document.getElementById('importFile').click()} className="bg-blue-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all">📁 Importar</button>
+                {lastDeletedCard && (
+                  <button 
+                    onClick={undoLastDeletion} 
+                    className="bg-yellow-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
+                    title={`Desfazer exclusão de "${lastDeletedCard.name}"`}
+                  >
+                    ↩ Desfazer Card
+                  </button>
+                )}
+                {lastDeletedColumn && (
+                  <button 
+                    onClick={undoLastColumnDeletion} 
+                    className="bg-orange-500 text-white font-semibold py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
+                    title={`Desfazer exclusão da coluna "${lastDeletedColumn.title}"`}
+                  >
+                    ↩ Desfazer Coluna
+                  </button>
+                )}
+                    </div>
+                </header>
+
+                {/* Botões de alternância de visualização */}
+                <div className="flex flex-wrap gap-0.5 mb-1">
+                  <button
+                    onClick={() => setCurrentView('kanban')}
+                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'kanban' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >Kanban</button>
+                  <button
+                    onClick={() => setCurrentView('calendar')}
+                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >Calendário</button>
+                  <button
+                    onClick={() => setCurrentView('list')}
+                    className={`px-3 py-1 rounded-full font-semibold text-sm ${currentView === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >Lista de Tarefas</button>
+                </div>
+
+                {/* Novo botão para compactar cards */}
+                <div className="flex flex-wrap gap-4 mb-1 items-center">
+                  <button 
+                    onClick={() => setCompactCards(prev => !prev)}
+                    className="bg-gray-400 text-white font-semibold text-sm py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
+                  >
+                    {compactCards ? 'Expandir' : 'Compactar'}
+                  </button>
+                  <button
+                    onClick={() => setDisablePulsing(prev => !prev)}
+                    className="bg-gray-400 text-white font-semibold text-sm py-1 px-3 rounded-full shadow-md hover:shadow-lg transition-all"
+                  >
+                    {disablePulsing ? 'Pulsar Atualizações' : 'Desativar Pulsação'}
+                  </button>
+
+                  <div className="flex items-center gap-0.5">
+                    <label htmlFor="filterCategory" className="font-semibold text-sm">Categoria:</label>
+                    <select
+                      id="filterCategory"
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                      className="p-1 text-sm border rounded-md"
+                    >
+                      <option value="">Todas</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <label htmlFor="filterMember" className="font-semibold text-sm">Membro:</label>
+                    <select
+                      id="filterMember"
+                      value={filterMember}
+                      onChange={(e) => setFilterMember(e.target.value)}
+                      className="p-1 text-sm border rounded-md"
+                    >
+                      <option value="">Todos</option>
+                      {teamMembers.map((member) => (
+                        <option key={member} value={member}>{member}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <label htmlFor="filterActivity" className="font-semibold text-sm">Atividade:</label>
+                    <select
+                      id="filterActivity"
+                      value={filterActivity}
+                      onChange={(e) => setFilterActivity(e.target.value)}
+                      className="p-1 text-sm border rounded-md"
+                    >
+                      <option value="">Todas</option>
+                      {activityOptions.map((activity) => (
+                        <option key={activity} value={activity}>{activity}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <label htmlFor="filterDuration" className="font-semibold text-sm">Duração:</label>
+                    <select
+                      id="filterDuration"
+                      value={filterDuration}
+                      onChange={(e) => setFilterDuration(e.target.value)}
+                      className="p-1 text-sm border rounded-md"
+                    >
+                      <option value="">Todas</option>
+                      {durationOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <label htmlFor="searchTerm" className="font-semibold text-sm">Buscar:</label>
+                    <input
+                      id="searchTerm"
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Buscar clientes..."
+                      className="p-1 text-sm border rounded-md w-64"
+                    />
+                  </div>
+                </div>
+
+                {/* Input file oculto para importação */}
+                <input
+                  id="importFile"
+                  type="file"
+                  accept=".json"
+                  onChange={importFromLocalFile}
+                  style={{ display: 'none' }}
+                />
+
+                {(showAddCard || editingCardId || columnIdForNewCard) && (
+                    <CardForm
+                card={
+                  editingCardId ? clients.find((c) => c.id === editingCardId) : uiState.newClient
+                }
+                setCard={
+                  (cardUpdate) => { // Alterado para aceitar uma função de atualização
+                    if (editingCardId) {
+                      // Se estiver editando, precisamos atualizar o estado de clients para refletir a edição temporária no App, mas apenas quando o salvar for clicado
+                      // Por enquanto, CardForm vai gerenciar o estado temporário internamente
+                    } else {
+                      setUiState((s) => ({ ...s, newClient: cardUpdate }));
+                    }
+                  }
+                }
+                onSubmit={(e) => {
+                            e.preventDefault();
+                  if (editingCardId) {
+                    // A lógica de atualização será movida para dentro do CardForm com o estado temporário
+                  } else {
+                    if (!uiState.newClient.name) return;
+                    // Nova validação para Categoria e Responsável
+                    if (!uiState.newClient.category || !uiState.newClient.assignedTo) {
+                      alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
+                      return;
+                    }
+                    addCard(uiState.newClient, uiState.newClient.columnId);
+                    setUiState((s) => ({ ...s, newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: columnOrder[0], isPulsing: true, link: '' } })); // Garante que o columnId é resetado para o padrão, e rating para 3 estrelas, e link vazio, e data/hora atual
+                    setShowAddCard(false);
+                    setColumnIdForNewCard(null);
+                  }
+                }}
+                onClose={() => {
+                  setShowAddCard(false);
+                  setEditingCardId(null);
+                  setColumnIdForNewCard(null); // Limpar o estado
+                }}
+                categories={categories}
+                teamMembers={teamMembers}
+                handleAddNote={handleAddNote}
+                deleteCard={deleteCard} // Passando a função de exclusão renomeada
+                setShowDeleteModal={setShowDeleteModal} // Passando o setter para o modal de confirmação
+                setCardToDelete={setCardToDelete} // Passando o setter para o card a ser excluído renomeado
+                activityOptions={activityOptions} // Passando as opções de atividade
+                durationOptions={durationOptions} // Passando as opções de duração
+                updateCardProp={updateCard} // Passando a função updateCard do App
+                toggleCardPulsingProp={toggleCardPulsing} // Passando a nova função
+                hideActivityDurationFields={hideActivityDurationFields} // Passando o novo estado
+                    />
+                )}
+                
+                {showAddMemberModal && (
+                    <AddMemberModal
+                newTeamMemberName={uiState.newTeamMemberName}
+                setNewTeamMemberName={(v) => setUiState((s) => ({ ...s, newTeamMemberName: v }))}
+                handleAddTeamMember={(e) => {
+                  e.preventDefault();
+                  addTeamMember(uiState.newTeamMemberName);
+                  setUiState((s) => ({ ...s, newTeamMemberName: '' }));
+                  setShowAddMemberModal(false);
+                }}
+                        onClose={() => setShowAddMemberModal(false)}
+                    />
+                )}
+
+            {showAddCategory && (
+              <CategoryForm
+                addCategory={(e) => {
+                  e.preventDefault();
+                  addCategory(uiState.newCategory);
+                  setUiState((s) => ({ ...s, newCategory: '' }));
+                  setShowAddCategory(false);
+                }}
+                newCategory={uiState.newCategory}
+                setNewCategory={(v) => setUiState((s) => ({ ...s, newCategory: v }))}
+                categories={categories}
+                deleteCategory={deleteCategory}
+                onClose={() => setShowAddCategory(false)}
+              />
+            )}
+
+            {isAddingColumn && (
+              <ColumnForm
+                addColumn={(e) => {
+                  e.preventDefault();
+                  addColumn(uiState.newColumnName);
+                  setUiState((s) => ({ ...s, newColumnName: '' }));
+                  setIsAddingColumn(false);
+                }}
+                newColumnName={uiState.newColumnName}
+                setNewColumnName={(v) => setUiState((s) => ({ ...s, newColumnName: v }))}
+                onClose={() => setIsAddingColumn(false)}
+              />
+            )}
+
+            {showDeleteModal && (
+              <ConfirmModal
+                message={`Tem certeza que deseja excluir "${cardToDelete?.name}"?`}
+                onConfirm={() => {
+                  if (cardToDelete) deleteCard(cardToDelete.id); // Usando deleteCard
+                  setShowDeleteModal(false);
+                }}
+                onCancel={() => setShowDeleteModal(false)}
+              />
+            )}
+
+            {currentView === 'kanban' && (
+              <div className="flex overflow-x-auto gap-4 p-4 rounded-xl shadow-lg bg-gray-50 bg-opacity-80 min-h-[70vh]">
+                {(boardState.columnOrder || []).map((columnId) => {
+                          const column = columns[columnId];
+                  if (!column) return null;
+                          return (
+                    <div
+                      key={column.id}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, column.id)}
+                      className="relative flex flex-col flex-shrink-0 rounded-lg p-4 shadow-inner transition-all min-h-[60vh]"
+                      style={{ backgroundColor: column.color || getBackgroundColor(column.id), width: `${(boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280).toFixed(2)}px` }}
+                    >
+                      <h2 className="text-xl font-bold mb-1 flex items-center justify-between">
+                        <span>{column.title}</span>
+                        <div className="flex items-center gap-0.5 text-sm">
+                          {!['arquivados', 'descartados'].includes(column.id) && !boardState.columnsLocked && (
+                            <>
+                              <button onClick={() => moveColumn(column.id, 'left')} disabled={!canMoveLeft(column.id)} className={`${!canMoveLeft(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a esquerda">←</button>
+                              <button onClick={() => moveColumn(column.id, 'right')} disabled={!canMoveRight(column.id)} className={`${!canMoveRight(column.id) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-900'}`} title="Mover para a direita">→</button>
+                              <button onClick={() => changeColumnColor(column.id)} className="text-gray-500 hover:text-purple-500" title="Mudar cor">🎨</button>
+                            </>
+                          )}
+                          {/* Removida opção de ocultar Arquivados/Descartados */}
+                          {boardState.columnOrder.length > 1 && !['arquivados', 'descartados'].includes(column.id) && !boardState.columnsLocked && (
+                            <button onClick={() => deleteColumn(column.id)} className={`text-gray-500 hover:text-red-500`} title="Excluir coluna">🗑</button>
+                          )}
+                        </div>
+                                    </h2>
+                                    {/* Botão +Card na extremidade superior esquerda da coluna */}
+                                    <button
+                                      onClick={() => { 
+                                        setColumnIdForNewCard(column.id);
+                                        setUiState(s => ({ 
+                                          ...s, 
+                                          newClient: { 
+                                            ...s.newClient, 
+                                            columnId: column.id 
+                                          }
+                                        }));
+                                        setShowAddCard(true); 
+                                      }}
+                                      className="absolute top-2 right-2 text-xxs font-semibold text-blue-800 hover:text-blue-600" // Alterado para azul escuro
+                                      title="Adicionar novo card nesta coluna"
+                                    >
+                                      +card
+                                    </button>
+                                    <div className="flex-grow min-h-[100px]">
+                        {clients
+                          .filter((c) => c.columnId === column.id)
+                          .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+                          .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                          .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase())) // Novo filtro por atividade
+                          .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
+                          .filter(c => searchTerm === '' || 
+                            (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+                          )
+                          .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar os cards pela propriedade 'order'
+                          .map((card) => (
+                            <Card
+                              key={card.id}
+                              card={card} // Renomeado de client para card
+                              setEditingCardId={setEditingCardId} // Renomeado
+                              setShowDeleteModal={setShowDeleteModal}
+                              setCardToDelete={setCardToDelete} // Renomeado
+                              onDragStart={(e) => handleDragStart(e, card.id)}
+                              draggedItem={draggedItem}
+                              onDropFiles={(files) => {
+                                const newNotes = Array.from(files).map((file) => ({ text: `Arquivo "${file.name}" adicionado.`, timestamp: new Date().toISOString() }));
+                                setClients((prev) => prev.map((c) => (c.id === card.id ? { ...c, notes: [...(c.notes || []), ...newNotes] } : c)));
+                              }}
+                              columnWidth={boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280}
+                              moveCardOrder={moveCardOrder} // Renomeado
+                                          compactCards={compactCards}
+                                          reorderCardInColumn={reorderCardInColumn} // Passando a nova função
+                                          disablePulsing={disablePulsing} // Passando o novo estado
+                                          />
+                                      ))}
+                                  </div>
+                      {/* Resizer handle */}
+                      <div
+                        onMouseDown={(e) => {
+                          const currentWidth = boardState.columnWidths?.[column.id] ?? columnsWidths[column.id] ?? 280;
+                          resizingRef.current = { isResizing: true, columnId: column.id, startX: e.clientX, startWidth: currentWidth };
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize select-none"
+                        style={{ transform: 'translateX(50%)' }}
+                        title="Arraste para redimensionar"
+                      />
+                              </div>
+                          );
+                      })}
+                  </div>
+            )}
+            
+            {/* Renderização do Calendário/Lista de Tarefas */}
+            {(currentView === 'calendar' || currentView === 'list') && (
+              <CalendarDisplay 
+                clients={clients} 
+                view={currentView} 
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                setEditingCardId={setEditingCardId}
+                setShowDeleteModal={setShowDeleteModal}
+                setCardToDelete={setCardToDelete}
+                compactCards={compactCards}
+                filterCategory={filterCategory}
+                filterMember={filterMember}
+                filterActivity={filterActivity}
+                filterDuration={filterDuration} // Passando o novo filtro de duração
+                searchTerm={searchTerm}
+              />
+            )}
+
+        </div>
+    );
+      }
+
+      function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, setShowDeleteModal, setCardToDelete, compactCards, filterCategory, filterMember, filterActivity, filterDuration, searchTerm }) {
+        // Funções auxiliares para o calendário
+        const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+        const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+        const daysInMonth = endOfMonth.getDate();
+        const firstDayOfWeek = startOfMonth.getDay(); // 0 para Domingo, 1 para Segunda, etc.
+
+        const days = [];
+        for (let i = 0; i < firstDayOfWeek; i++) {
+          days.push(null); // Dias vazios antes do início do mês
+        }
+        for (let i = 1; i <= daysInMonth; i++) {
+          days.push(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i));
+        }
+
+        const getCardsForDate = (date) => {
+          return clients.filter(card => {
+            if (!card.deadlineDate) return false;
+            // Parse card.deadlineDate explicitly as YYYY-MM-DD to avoid timezone issues
+            // and compare it with the selected date, also normalized to the start of the day.
+            const [year, month, day] = card.deadlineDate.split('-').map(Number);
+            const cardDateLocal = new Date(year, month - 1, day); // month - 1 because months are 0-indexed
+
+            const normalizedSelectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            
+            return cardDateLocal.toDateString() === normalizedSelectedDate.toDateString();
+          })
+          .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+          .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+          .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
+          .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
+          .filter(c => searchTerm === '' || 
+            (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+          )
+          .sort((a, b) => {
+            const timeA = a.deadlineTime || "00:00";
+            const timeB = b.deadlineTime || "00:00";
+            return timeA.localeCompare(timeB);
+          });
+        };
+
+        const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+        return (
+          <div className="calendar-display p-4 bg-white rounded-xl shadow-lg min-h-[70vh]">
+            <h2 className="text-2xl font-bold mb-1">
+              {view === 'calendar' ? 'Calendário de Tarefas' : 'Lista de Tarefas'}
+            </h2>
+            <div className="flex justify-between items-center mb-1">
+              <button onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))} className="px-3 py-1 bg-gray-200 rounded">Anterior</button>
+              <h3 className="text-xl font-semibold">{selectedDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+              <button onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))} className="px-3 py-1 bg-gray-200 rounded">Próximo</button>
+            </div>
+
+            {view === 'calendar' ? (
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {daysOfWeek.map(day => (
+                  <div key={day} className="font-semibold text-gray-700">{day}</div>
+                ))}
+                {days.map((day, index) => (
+                  <div
+                    key={index}
+                    className={`border p-1 h-24 overflow-y-auto relative ${day ? 'bg-gray-50' : 'bg-gray-100'} ${day && day.toDateString() === new Date().toDateString() ? 'border-blue-500 border-2' : ''}`}
+                  >
+                    {day && (
+                      <span className="font-bold text-sm">{day.getDate()}</span>
+                    )}
+                    {day && getCardsForDate(day).map(card => (
+                      <div
+                        key={card.id}
+                        onClick={() => setEditingCardId(card.id)}
+                        className="text-xxs bg-blue-200 text-blue-800 rounded px-1 mt-0.5 cursor-pointer hover:bg-blue-300"
+                      >
+                        {card.name} ({card.deadlineTime || "00:00"})
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="task-list space-y-4">
+                {(() => {
+                  const now = new Date();
+                  now.setHours(0, 0, 0, 0); // Para comparar apenas as datas
+
+                  const endOfWeek = new Date(now);
+                  endOfWeek.setDate(now.getDate() + 7);
+
+                  const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+                  
+                  const filteredAndSortedCards = clients
+                    .filter(card => card.deadlineDate)
+                    .filter(c => filterCategory === '' || (c.category || '').toLowerCase().includes(filterCategory.toLowerCase()))
+                    .filter(c => filterMember === '' || (c.assignedTo || '').toLowerCase().includes(filterMember.toLowerCase()))
+                    .filter(c => filterActivity === '' || (c.activity || '').toLowerCase().includes(filterActivity.toLowerCase()))
+                    .filter(c => filterDuration === '' || (c.duration || '').toLowerCase().includes(filterDuration.toLowerCase())) // Novo filtro por duração
+                    .filter(c => searchTerm === '' || 
+                      (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (c.address || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (c.notes || []).some(note => note.text.toLowerCase().includes(searchTerm.toLowerCase()))
+                    )
+                    .sort((a, b) => {
+                      const dateA = new Date(a.deadlineDate + (a.deadlineTime ? `T${a.deadlineTime}` : "T00:00"));
+                      const dateB = new Date(b.deadlineDate + (b.deadlineTime ? `T${b.deadlineTime}` : "T00:00"));
+                      return dateA.getTime() - dateB.getTime();
+                    });
+
+                  const thisWeekCards = [];
+                  const nextMonthCards = [];
+                  const laterCards = [];
+
+                  filteredAndSortedCards.forEach(card => {
+                    const deadline = new Date(card.deadlineDate);
+                    deadline.setHours(0, 0, 0, 0);
+
+                    if (deadline >= now && deadline <= endOfWeek) {
+                      thisWeekCards.push(card);
+                    } else if (deadline > endOfWeek && deadline <= endOfNextMonth) {
+                      nextMonthCards.push(card);
+                    } else if (deadline > endOfNextMonth) {
+                      laterCards.push(card);
+                    }
+                  });
+
+                  const renderCardListItem = (card) => (
+                    <div
+                      key={card.id}
+                      onClick={() => setEditingCardId(card.id)}
+                      className="p-3 border rounded-md bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                    >
+                      <p className="font-semibold">{card.name}</p>
+                      <p className="text-sm text-gray-600">
+                        Prazo: {new Date(card.deadlineDate).toLocaleDateString('pt-BR')}
+                        {card.deadlineTime && ` às ${card.deadlineTime}`}
+                      </p>
+                      {card.category && <span className="text-xs text-gray-500">Categoria: {card.category}</span>}
+                    </div>
+                  );
+
+                  return (
+                    <>
+                      {thisWeekCards.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-bold mb-1">Esta Semana</h4>
+                          <div className="space-y-2 mb-1">
+                            {thisWeekCards.map(renderCardListItem)}
+                          </div>
+                        </div>
+                      )}
+                      {nextMonthCards.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-bold mb-1">Próximo Mês</h4>
+                          <div className="space-y-2 mb-1">
+                            {nextMonthCards.map(renderCardListItem)}
+                          </div>
+                        </div>
+                      )}
+                      {laterCards.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-bold mb-1">Mais Tarde</h4>
+                          <div className="space-y-2 mb-1">
+                            {laterCards.map(renderCardListItem)}
+                          </div>
+                        </div>
+                      )}
+                      {filteredAndSortedCards.length === 0 && (
+                        <p className="text-gray-500">Nenhuma tarefa encontrada com os filtros e prazos atuais.</p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      function CardForm({ card, setCard, onSubmit, onClose, categories = [], teamMembers = [], handleAddNote, deleteCard, setShowDeleteModal, setCardToDelete, activityOptions, durationOptions, updateCardProp, toggleCardPulsingProp, hideActivityDurationFields }) {
+    const [newNote, setNewNote] = useState('');
+    const [tempCard, setTempCard] = useState(card); // Estado temporário para as edições
+    const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false); // Novo estado para controlar edições não salvas no formulário
+
+    const getWhatsAppLink = (phoneNumber) => {
+      if (!phoneNumber) return null;
+      const cleanedPhone = phoneNumber.replace(/\D/g, ''); // Remove caracteres não numéricos
+      let formattedPhone = cleanedPhone;
+      if (!cleanedPhone.startsWith('55')) {
+        formattedPhone = `55${cleanedPhone}`;
+      }
+      return `https://api.whatsapp.com/send?phone=${formattedPhone}`;
+    };
+
+    useEffect(() => {
+      setTempCard(card); // Inicializa tempCard quando o card original muda
+    }, [card]);
+
+    // Efeito para detectar alterações no tempCard em relação ao card original
+    useEffect(() => {
+      const cardJson = JSON.stringify(card);
+      const tempCardJson = JSON.stringify(tempCard);
+      setHasUnsavedEdits(cardJson !== tempCardJson);
+    }, [card, tempCard]);
+
+    const handleTempCardChange = (field, value) => {
+      setTempCard(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (newNote.trim()) { // Se houver texto na nova anotação, alertar para adicionar
+        alert('Por favor, adicione a anotação ou limpe o campo antes de salvar.');
+        return;
+      }
+      if (card.id) { // Se estiver editando um card existente
+        if (!tempCard.name) return;
+        updateCardProp(tempCard); // Usa a função updateCardProp do App para salvar
+      } else { // Se for um novo card
+        if (!tempCard.name) return;
+        if (!tempCard.category || !tempCard.assignedTo) {
+          alert('Por favor, selecione uma Categoria e um Responsável para o novo card.');
+          return;
+        }
+        setCard(tempCard); // Atualiza o uiState.newClient com os dados do tempCard
+        onSubmit(e); // Chama o onSubmit do App para adicionar o card
+        return; // Retorna para não chamar onClose() aqui
+      }
+      onClose(); // Fecha o formulário após salvar/adicionar
+    };
+
+    const handleCloseForm = () => {
+      if (newNote.trim()) { // Se houver texto na nova anotação, alertar para adicionar
+        alert('Por favor, adicione a anotação ou limpe o campo antes de sair.');
+        return;
+      }
+      if (hasUnsavedEdits) {
+        if (window.confirm('Você tem alterações não salvas. Deseja sair sem salvar?')) {
+          onClose();
+        }
+      } else {
+        onClose();
+      }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
+              <div className="flex justify-between items-center mb-1">
+                <h2 className="text-2xl font-semibold">{card?.id ? 'Editar Card' : 'Adicionar Card'}</h2>
+                <button onClick={handleCloseForm}>✕</button>
+              </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label>Nome</label>
+                    <input type="text" value={tempCard.name} onChange={(e) => handleTempCardChange('name', e.target.value)} className="w-full p-2 border rounded" required />
+                    </div>
+                  <div>
+                    <label>E-mail</label>
+                    <input type="email" value={tempCard.email || ''} onChange={(e) => handleTempCardChange('email', e.target.value)} className="w-full p-2 border rounded" />
+            </div>
+                  <div>
+                    <label>Telefone</label>
+                    {tempCard.phone && (
+                      <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(getWhatsAppLink(tempCard.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span>
+                    )}
+                    <input type="tel" value={tempCard.phone || ''} onChange={(e) => handleTempCardChange('phone', e.target.value)} className="w-full p-2 border rounded" />
+        </div>
+                  <div>
+                    <label>
+                      <span>Endereço</span>
+                      {tempCard.address && (
+                        <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tempCard.address)}`, '_blank', 'noopener noreferrer')} title="Ver no Google Maps">📍</span>
+                      )}
+                    </label>
+                    <input type="text" value={tempCard.address || ''} onChange={(e) => handleTempCardChange('address', e.target.value)} placeholder="C8J2+QV Pinheiros, São Paulo - SP" className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label>Categoria</label>
+                    <select value={tempCard.category || ''} onChange={(e) => handleTempCardChange('category', e.target.value)} className="w-full p-2 border rounded">
+                      <option value="">Nenhuma</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Responsável</label>
+                    <select value={tempCard.assignedTo || ''} onChange={(e) => handleTempCardChange('assignedTo', e.target.value)} className="w-full p-2 border rounded">
+                      <option value="">Nenhum</option>
+                      {teamMembers.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {!hideActivityDurationFields && (
+                  <>
+                  <div>
+                    <label>Atividade</label>
+                    <select value={tempCard.activity || ''} onChange={(e) => handleTempCardChange('activity', e.target.value)} className="w-full p-2 border rounded">
+                      <option value="">Nenhuma</option>
+                      {activityOptions.map((activity) => (
+                        <option key={activity} value={activity}>{activity}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Duração</label>
+                    <select value={tempCard.duration || ''} onChange={(e) => handleTempCardChange('duration', e.target.value)} className="w-full p-2 border rounded">
+    <option value="">Nenhuma</option>
+    {durationOptions.map((option) => (
+      <option key={option} value={option}>{option}</option>
+    ))}
+    </select>
+                  </div>
+                  </>
+                  )}
+                  <div>
+                    <label>Prazo - Data</label>
+                <input
+                      type="date" 
+                      value={tempCard.deadlineDate || ''} 
+                      onChange={(e) => handleTempCardChange('deadlineDate', e.target.value)} 
+                      className="w-full p-2 border rounded"
+                    />
+                </div>
+                  <div>
+                    <label>Prazo - Hora</label>
+                    <select 
+                      value={tempCard.deadlineTime || ''} 
+                      onChange={(e) => handleTempCardChange('deadlineTime', e.target.value)} 
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Nenhuma</option>
+                      {Array.from({ length: 24 * 2 }).map((_, i) => {
+                        const hour = Math.floor(i / 2);
+                        const minute = (i % 2) * 30;
+                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                        return <option key={time} value={time}>{time}</option>;
+                      })}
+                    </select>
+        </div>
+                  <div> {/* Novo campo Link */}
+                    <label>Link</label>
+                    {tempCard.link && (
+                      <span className="ml-1 cursor-pointer text-gray-600 hover:text-blue-800" onClick={() => window.open(tempCard.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span>
+                    )}
+                    <input type="url" value={tempCard.link || ''} onChange={(e) => handleTempCardChange('link', e.target.value)} placeholder="https://example.com" className="w-full p-2 border rounded" />
+                  </div>
+                  <div>
+                    <label>Classificação</label>
+                    <div className="flex">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <button key={i} type="button" onClick={() => handleTempCardChange('rating', i + 1)} className={i < (tempCard.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                          ★
+                        </button>
+                      ))}
+    </div>
+        </div>
+    </div>
+                <div className="mt-2">
+                  <label>Anotações</label>
+                  <div className="border rounded p-2 h-24 overflow-y-auto bg-gray-50">
+                    {(tempCard.notes || []).map((n, i) => (
+                      <div key={i} className="text-sm mb-1">
+                        <span className="text-xs text-gray-500">{new Date(n.timestamp).toLocaleString()}</span>: {n.text}
+        </div>
+                    ))}
+    </div>
+        </div>
+                <div className="flex mt-1">
+                  <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Nova anotação..." className="w-full p-2 border rounded-l" />
+                  <button type="button" onClick={(e) => { e.preventDefault(); handleAddNote(tempCard, setTempCard, newNote); setNewNote(''); }} className="bg-blue-500 text-white p-2 rounded-r">Adicionar</button>
+                </div>
+                <div className="flex justify-end gap-0.5 mt-3">
+                  {card?.id && !tempCard.pulsingDisabled && (
+                    <button type="button" onClick={() => { toggleCardPulsingProp(card.id, true); onClose(); }} className="px-4 py-2 bg-yellow-500 text-white rounded">Parar Pulsação</button>
+                  )}
+                  <button type="button" onClick={handleCloseForm} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Salvar</button>
+                  {card?.id && (
+                    <button type="button" onClick={() => { setCardToDelete(card); setShowDeleteModal(true); handleCloseForm(); }} className="px-4 py-2 bg-red-500 text-white rounded">Excluir Card</button>
+                  )}
+                    </div>
+                </form>
+        </div>
+    </div>
+);
+      }
+
+      function Card({ card, setEditingCardId, setShowDeleteModal, setCardToDelete, onDragStart, draggedItem, onDropFiles, columnWidth, moveCardOrder, compactCards, reorderCardInColumn, disablePulsing }) {
+        const diffDays = useMemo(() => Math.ceil(Math.abs(new Date() - new Date(card.lastUpdated || card.createdAt || Date.now())) / (1000 * 60 * 60 * 24)), [card.lastUpdated, card.createdAt]);
+    const isInactive = diffDays > 7;
+    const [isDragOver, setIsDragOver] = useState(false); // Novo estado para controlar o hover de drag
+    const [isHovered, setIsHovered] = useState(false); // Novo estado para controlar o hover do mouse
+
+    const getWhatsAppLink = (phoneNumber) => {
+      if (!phoneNumber) return null;
+      const cleanedPhone = phoneNumber.replace(/\D/g, ''); // Remove caracteres não numéricos
+      let formattedPhone = cleanedPhone;
+      if (!cleanedPhone.startsWith('55')) {
+        formattedPhone = `55${cleanedPhone}`;
+      }
+      return `https://api.whatsapp.com/send?phone=${formattedPhone}`;
+    };
+
+    const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
+    const oneHundredTwentyHoursInMs = 168 * 60 * 60 * 1000; // 168 horas em ms
+    const lastUpdatedDate = card.lastUpdated ? new Date(card.lastUpdated) : new Date(card.createdAt);
+    const timeSinceLastUpdate = Date.now() - lastUpdatedDate.getTime();
+    const isRecentlyUpdated = timeSinceLastUpdate < fortyEightHoursInMs;
+
+    const createdAtDate = new Date(card.createdAt);
+    const timeSinceCreation = Date.now() - createdAtDate.getTime();
+
+    // Helper to get Tailwind CSS colors (simplified for common colors)
+    const getTailwindColor = (colorName) => {
+      switch (colorName) {
+        case 'green-500': return 'rgb(34, 197, 94)';
+        case 'yellow-500': return 'rgb(234, 179, 8)';
+        case 'blue-500': return 'rgb(59, 130, 246)';
+        case 'black': return 'rgb(0, 0, 0)';
+        case 'red-400': return 'rgb(248, 113, 113)';
+        case 'pink-500': return 'rgb(236, 72, 153)';
+        case 'purple-500': return 'rgb(168, 85, 247)';
+        default: return 'transparent';
+      }
+    };
+
+    // Calculate pulse frequency: faster for more recent updates
+    // Linearly interpolate between 0.5s (very recent) and 2s (48 hours ago)
+    let pulseDuration = 0; // Default to no pulse
+    let pulsingGreenColor = '#e4fac9'; // Default to new light green
+
+    if (isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled) { // Usar card.isPulsing (default true se não definido) e verificar se não está desabilitado
+      const normalizedTime = timeSinceLastUpdate / fortyEightHoursInMs; // 0 (now) to 1 (48 horas atrás)
+      pulseDuration = 0.5 + (normalizedTime * 1.5); // 0.5s to 2s
+
+      // Interpolate green color for subtlety
+      const startR = 184, startG = 238, startB = 184; // Um verde mais escuro e saturado (lightgreen)
+      const endR = 221, endG = 190, endB = 221;     // Lilás para cards mais antigos (plum)
+
+      const currentR = Math.round(startR + (endR - startR) * normalizedTime);
+      const currentG = Math.round(startG + (endG - startG) * normalizedTime);
+      const currentB = Math.round(startB + (endB - startB) * normalizedTime);
+
+      pulsingGreenColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
+    }
+
+    let leftBorderColor = 'transparent';
+    if (card.duration === 'Minutos') {
+      leftBorderColor = getTailwindColor('green-500');
+    } else if (card.duration === 'Horas') {
+      leftBorderColor = getTailwindColor('yellow-500');
+    } else if (card.duration === 'Dia') {
+      leftBorderColor = getTailwindColor('blue-500');
+    } else if (card.duration === 'Dias') {
+      leftBorderColor = getTailwindColor('black');
+    } else if (isInactive) {
+      leftBorderColor = getTailwindColor('red-400');
+    }
+
+    let rightBorderColor = 'transparent';
+    if (timeSinceCreation < oneHundredTwentyHoursInMs) {
+      // Cores para interpolação: do rosa (#ff86a5) ao roxo escuro (#260038)
+      const startR = 255, startG = 134, startB = 165; // #ff86a5
+      const endR = 38, endG = 0, endB = 56;       // #260038
+      const factor = timeSinceCreation / oneHundredTwentyHoursInMs; // 0 (now) to 1 (120 horas atrás)
+      const currentR = Math.round(startR + (endR - startR) * factor);
+      const currentG = Math.round(startG + (endG - startG) * factor);
+      const currentB = Math.round(startB + (endB - startB) * factor);
+      rightBorderColor = `rgb(${currentR}, ${currentG}, ${currentB})`;
+    } else {
+      rightBorderColor = 'transparent';
+    }
+
+    const customBoxShadow = [
+      leftBorderColor !== 'transparent' ? `inset 4px 0 0 0 ${leftBorderColor}` : '',
+      rightBorderColor !== 'transparent' ? `inset -4px 0 0 0 ${rightBorderColor}` : '',
+    ].filter(Boolean).join(', ');
+
+    return (
+          <div
+            draggable
+            onDragStart={onDragStart}
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragOver(false);
+              const droppedCardId = e.dataTransfer.getData('text/plain');
+              if (droppedCardId !== card.id && draggedItem === droppedCardId) { // Adicionado check para draggedItem
+                reorderCardInColumn(droppedCardId, card.id); // Chamar a nova função de reordenação
+              } else if (draggedItem !== droppedCardId) { // Se for para outra coluna ou solto em um card diferente na mesma coluna
+                onDropFiles(Array.from(e.dataTransfer.files || [])); // Mantém a função de drop de arquivos
+              }
+            }}
+            onMouseEnter={() => setIsHovered(true)} // Adiciona manipulador de evento de mouseEnter
+            onMouseLeave={() => setIsHovered(false)} // Adiciona manipulador de evento de mouseLeave
+            className={`bg-white rounded-lg shadow-md mb-1 transition-all duration-300 ease-in-out cursor-grab ${draggedItem === card.id ? 'opacity-50' : ''} ${isRecentlyUpdated && (card.isPulsing !== false) && !card.pulsingDisabled ? 'pulsing-green' : ''}
+            `}
+            style={{ 
+              width: '100%', 
+              padding: `${Math.max(8, Math.min(16, columnWidth * 0.03))}px`, 
+              opacity: card.rating === 0 ? 0.3 : (card.rating / 5) || 1,
+              '--card-bg-color': (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Set CSS variable for background
+              '--pulse-green-color': pulsingGreenColor, // Set dynamic pulsing green color
+              backgroundColor: (card.notes && card.notes.length > 0) ? '#FFFACD' : 'white', // Ensure base background color is always applied
+              animationDuration: isRecentlyUpdated && !disablePulsing ? `${pulseDuration}s` : 'initial',
+              boxShadow: customBoxShadow // Apply custom box-shadow for internal borders
+            }}
+            title={(card.notes || []).map(note => note.text).join('\n')}
+          >
+            <div className="flex justify-between items-start text-sm">
+                <div className="flex items-center gap-0.5">
+                  {card.activity === 'Interna' && <span className="mr-0" title="Atividade: Interna">🏠</span>}
+                  {card.activity === 'Externa' && <span className="mr-0" title="Atividade: Externa">🚗</span>}
+                  {!card.activity && card.category === 'Cerimonialista' && <span className="mr-0" title="Categoria: Cerimonialista">💐</span>}
+                  {!card.activity && card.category === 'Hotel' && <span className="mr-0" title="Categoria: Hotel">🏨</span>}
+                  {!card.activity && card.category === 'Teatro' && <span className="mr-0" title="Categoria: Teatro">🎭</span>}
+                  {!card.activity && card.category === 'Eventos' && <span className="mr-0" title="Categoria: Eventos">🍾</span>}
+                  {!card.activity && card.category === 'Corporativo' && <span className="mr-0" title="Categoria: Corporativo">👔</span>}    
+                  {!card.activity && card.category === 'Setor Público' && <span className="mr-0" title="Categoria: Setor Público">🏛️</span>}
+                  {!card.activity && card.category === 'Serviço Social' && <span className="mr-0" title="Categoria: Serviço Social">🌎</span>}
+                  <h3 className={`font-bold cursor-pointer text-xs ${card.link ? 'text-blue-800 underline' : 'hover:text-blue-600'}`} onClick={() => setEditingCardId(card.id)}>{card.name}</h3>
+                  {card.rating === 5 && <span className="ml-0.5" title="Classificação: 5 estrelas">⭐</span>}
+                </div>
+                <div className="flex flex-col gap-0.5 items-end">
+                    {card.deadlineDate && (
+                      <div className="text-xxs text-right">
+                        {(() => {
+                          const deadline = new Date(card.deadlineDate + (card.deadlineTime ? `T${card.deadlineTime}` : 'T00:00:00'));
+                          const now = new Date();
+                          const diffTime = deadline.getTime() - now.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                          if (diffTime < 0) {
+                            // Passou do prazo
+                            return <span className="text-red-600">{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>;
+                          } else if (diffDays >= 7) {
+                            // Mais de 7 dias
+                            return <span>{deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ')}</span>;
+                          } else if (diffDays < 7 && diffDays > 1) {
+                            // Menos de 7 dias e mais de 1 dia
+                            return <span>{diffDays}d</span>;
+                          } else if (diffDays === 1) {
+                            // Menos de 1 dia, mas ainda não passou
+                            const totalSecondsRemaining = Math.floor(diffTime / 1000);
+                            const secondsRemaining = totalSecondsRemaining % 60;
+                            const totalMinutesRemaining = Math.floor(totalSecondsRemaining / 60);
+                            const minutesRemaining = totalMinutesRemaining % 60;
+                            const hoursRemaining = Math.floor(totalMinutesRemaining / 60);
+
+                            const formattedTime = `${String(hoursRemaining).padStart(2, '0')}:${String(minutesRemaining).padStart(2, '0')}:${String(secondsRemaining).padStart(2, '0')}`;
+                            return <span>{formattedTime}</span>;
+                          }
+                          return null; // Caso não haja prazo ou condição não atendida
+                        })()}
+            </div>
+                    )}
+            </div>
+            </div>
+            {(!compactCards || isHovered) && (card.rating > 0 || card.category) && (
+              <div className="flex items-center text-xs text-gray-600 mt-1 gap-0.5">
+
+                {card.category && <span>{card.category}</span>}
+              </div>
+            )}
+            {(!compactCards || isHovered) && (
+              <div className="flex flex-wrap gap-0.5 text-xs text-gray-600 mt-1">
+                {card.assignedTo ? <span className="mr-1" title={`${card.assignedTo}`}>👤</span> : <span className="mr-1" title="Responsável não atribuído">▫️</span>}
+                {card.phone ? <span className="mr-1 cursor-pointer" onClick={() => window.open(getWhatsAppLink(card.phone), '_blank', 'noopener noreferrer')} title="Enviar mensagem WhatsApp">📞</span> : <span className="mr-1" title="Telefone não informado">▫️</span>}
+                {card.email ? <span className="mr-1" title={`${card.email}`}>📧</span> : <span className="mr-1" title="E-mail não informado">▫️</span>}
+                {card.address ? <span className="mr-1 cursor-pointer" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(card.address)}`, '_blank', 'noopener noreferrer')} title={`${card.address}`}>📍</span> : <span className="mr-1" title="Endereço não informado">▫️</span>}
+                {card.link ? <span className="mr-1 cursor-pointer" onClick={() => window.open(card.link, '_blank', 'noopener noreferrer')} title="Abrir link">🔗</span> : <span className="mr-1" title="Link não informado">▫️</span>}
+                </div>
+            )}
+            {isInactive && <div className="mt-0 text-xxs text-red-500 font-semibold">Inativo por {diffDays} dias</div>}
+
+        </div>
+    );
+      }
+
+      function ConfirmModal({ message, onConfirm, onCancel }) {
+        return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+              <h3 className="text-xl font-semibold mb-1">Confirmação</h3>
+              <p className="mb-1">{message}</p>
+              <div className="flex justify-end gap-0.5">
+                <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                <button onClick={onConfirm} className="px-4 py-2 bg-red-500 text-white rounded">Excluir</button>
+              </div>
+        </div>
+    </div>
+);
+      }
+
+      function AddMemberModal({ newTeamMemberName, setNewTeamMemberName, handleAddTeamMember, onClose }) {
+        return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex justify-between items-center mb-1">
+                <h2 className="text-2xl font-semibold">Adicionar Membro da Equipe</h2>
+                <button onClick={onClose}>✕</button>
+              </div>
+            <form onSubmit={handleAddTeamMember}>
+                <input type="text" value={newTeamMemberName} onChange={(e) => setNewTeamMemberName(e.target.value)} placeholder="Nome do novo membro" className="w-full p-2 border rounded-md mb-1 focus:ring-2 focus:ring-blue-500 outline-none" required />
+                <div className="flex justify-end gap-0.5">
+                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+);
+      }
+
+      function CategoryForm({ addCategory, newCategory, setNewCategory, categories = [], deleteCategory, onClose }) {
+        return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex justify-between items-center mb-1">
+                <h2 className="text-2xl font-semibold">Gerenciar Categorias</h2>
+                <button onClick={onClose}>✕</button>
+              </div>
+              <form onSubmit={addCategory} className="flex mb-1 gap-0.5">
+                <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria" className="flex-grow p-2 border rounded" />
+                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
+              </form>
+              <ul className="space-y-2 max-h-40 overflow-y-auto">
+                {categories.map((cat) => (
+                  <li key={cat} className="flex justify-between items-center bg-gray-100 p-2 rounded">
+                    <span>{cat}</span>
+                    <button onClick={() => deleteCategory(cat)} className="text-red-500">🗑</button>
+                  </li>
+                ))}
+              </ul>
+        </div>
+    </div>
+);
+      }
+
+      function ColumnForm({ addColumn, newColumnName, setNewColumnName, onClose }) {
+    return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 className="text-xl font-semibold mb-1">Adicionar Nova Coluna</h3>
+              <form onSubmit={addColumn}>
+                <input type="text" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="Nome da coluna" className="w-full p-2 border rounded mb-1" />
+                <div className="flex justify-end gap-0.5">
+                  <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Adicionar</button>
+        </div>
+              </form>
+            </div>
+        </div>
+    );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+  </html>
+
+

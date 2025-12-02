@@ -1,0 +1,46 @@
+{
+  "name": "pepper-hat-game",
+  "version": "1.0.0",
+  "description": "Um jogo de plataforma minimalista desenvolvido em JavaScript puro",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -o",
+    "dev": "npx live-server --port=8080 --open=/index.html",
+    "dev:vite": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port=8080"
+  },
+  "keywords": [
+    "game",
+    "javascript",
+    "canvas",
+    "platformer",
+    "2d",
+    "mobile",
+    "html5",
+    "modular",
+    "ecs"
+  ],
+  "author": "Pepper Hat Team",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2",
+    "vite": "^5.0.0",
+    "terser": "^5.24.0"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "local"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
