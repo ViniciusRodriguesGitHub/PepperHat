@@ -20,13 +20,12 @@
         import { 
             getAuth, 
             signInAnonymously, 
-            signInWithCustomToken, 
-            onAuthStateChanged, 
             signInWithPopup, 
             GoogleAuthProvider,
             createUserWithEmailAndPassword,
             signInWithEmailAndPassword,
             signOut,
+            onAuthStateChanged,
             setPersistence, 
             browserLocalPersistence
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -84,7 +83,6 @@
       }
       .fade-in { animation: fadeIn 0.5s ease-in-out; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      
       /* Custom Scrollbar */
       .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -166,10 +164,16 @@
       function AuthHome() {
           const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
           const doLogin = async (isRegister) => {
+              setErr('');
               try {
                   if(isRegister) await window.createUserWithEmailAndPassword(window.auth, email, pass);
                   else await window.signInWithEmailAndPassword(window.auth, email, pass);
-              } catch(e) { setErr(e.message); }
+              } catch(e) { 
+                   let msg = "Erro de autenticação.";
+                   if (e.code === 'auth/operation-not-allowed') msg = "⚠️ Email/Senha não ativado no Console do Firebase.";
+                   else if (e.code === 'auth/invalid-credential') msg = "Email ou senha inválidos.";
+                   setErr(msg); 
+              }
           };
 
           const handleGoogleLogin = async () => {
@@ -177,10 +181,27 @@
             try {
                 await window.signInWithPopup(window.auth, window.googleProvider);
             } catch (err) {
+                console.error("Google Auth Error:", err);
                 if (err.code === 'auth/unauthorized-domain') {
-                    setErr("⚠️ Domínio não autorizado no Firebase Console.");
+                    setErr("⚠️ Domínio não autorizado no Firebase. (Adicione este domínio em Authentication > Settings > Authorized domains)");
+                } else if (err.code === 'auth/popup-closed-by-user') {
+                    setErr("Login cancelado.");
                 } else {
                     setErr("Erro ao conectar com Google: " + err.message);
+                }
+            }
+          };
+
+          const handleAnonymousLogin = async () => {
+            setErr('');
+            try {
+                await window.signInAnonymously(window.auth);
+            } catch (err) {
+                console.error("Anon Auth Error:", err);
+                if (err.code === 'auth/admin-restricted-operation') {
+                     setErr("⚠️ O login anônimo não está ativado no Console do Firebase. (Ative em Authentication > Sign-in method > Anonymous)");
+                } else {
+                     setErr("Erro ao entrar como convidado: " + err.message);
                 }
             }
           };
@@ -189,7 +210,7 @@
               <div className="flex items-center justify-center h-screen bg-gray-50">
                   <div className="bg-white p-8 rounded shadow-lg w-96 text-center">
                       <h1 className="text-3xl font-bold mb-4">Pepper Hat 🌶️</h1>
-                      {err && <div className="bg-red-100 text-red-600 text-sm p-2 mb-2 rounded">{err}</div>}
+                      {err && <div className="bg-red-100 text-red-600 text-xs p-2 mb-2 rounded font-semibold text-left">{err}</div>}
                       
                       <button 
                         onClick={handleGoogleLogin} 
@@ -199,7 +220,7 @@
                         Continuar com Google
                       </button>
 
-                      <button onClick={() => window.signInAnonymously(window.auth)} className="w-full bg-gray-100 text-gray-600 p-2 rounded mb-4 hover:bg-gray-200 text-sm font-semibold">Entrar como Convidado</button>
+                      <button onClick={handleAnonymousLogin} className="w-full bg-gray-100 text-gray-600 p-2 rounded mb-4 hover:bg-gray-200 text-sm font-semibold">Entrar como Convidado</button>
                       
                       <div className="relative flex py-2 items-center">
                         <div className="flex-grow border-t border-gray-300"></div>
@@ -265,9 +286,11 @@
         const [filterActivity, setFilterActivity] = useState('');
         const [filterDuration, setFilterDuration] = useState('');
         const [selectedDate, setSelectedDate] = useState(new Date());
+        const [hideActivityDurationFields, setHideActivityDurationFields] = useState(false);
 
         const resizingRef = useRef({ isResizing: false, columnId: null, startX: 0, startWidth: 0 });
         const [draggedItem, setDraggedItem] = useState(null);
+        const [dropTarget, setDropTarget] = useState(null);
         const pendingSaveRef = useRef({}); 
         
         const topScrollRef = useRef(null);
@@ -339,10 +362,17 @@
 
         // Actions
         const handleDragStart = (e, id) => { setDraggedItem(id); e.dataTransfer.setData('text', id); };
+        const handleCardDragOver = (e, cardId, index, columnId) => {
+            e.preventDefault();
+            if (draggedItem && draggedItem !== cardId) {
+                setDropTarget({ columnId, index });
+            }
+        };
         const handleDrop = (e, targetCol) => {
             e.preventDefault();
             const id = e.dataTransfer.getData('text');
             if(!id) return;
+            setDropTarget(null);
             const newClients = clients.map(c => {
                 if(c.id === id && c.columnId !== targetCol) {
                     const oldCol = boardState.columns[c.columnId]?.title || c.columnId;
@@ -463,7 +493,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `backup.json`;
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            showNotification("Exportado!");
+            notify("Exportado!");
         };
 
         const importFromLocalFile = (event) => {
@@ -486,10 +516,10 @@
 
         const importFromGoogleSheets = () => {
             let url;
-            try { url = prompt('URL pública da planilha:'); } catch(e) { showNotification("Prompt bloqueado", 'error'); return; }
+            try { url = prompt('URL pública da planilha:'); } catch(e) { notify("Prompt bloqueado", 'error'); return; }
             if(!url) return;
             const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-            if(!match) { showNotification('URL inválida', 'error'); return; }
+            if(!match) { notify('URL inválida', 'error'); return; }
             const csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
             fetch(csvUrl).then(r => r.text()).then(csv => {
                 const lines = csv.split('\n');
@@ -508,7 +538,7 @@
                     triggerSave({ clients: [...clients, ...newCards] });
                     notify(`${newCards.length} cards importados!`);
                 });
-            }).catch(() => showNotification('Erro ao baixar planilha.', 'error'));
+            }).catch(() => notify('Erro ao baixar planilha.', 'error'));
         };
 
         const exportToGoogleSheets = () => {
@@ -524,7 +554,7 @@
             const a = document.createElement('a');
             a.href = url; a.download = 'kanban_export.csv';
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            showNotification("CSV exportado!");
+            notify("CSV exportado!");
         };
 
         const getColumns = () => boardState.columnOrder.map(id => boardState.columns[id]).filter(Boolean);
@@ -627,7 +657,7 @@
                             const width = boardState.columnWidths?.[colId] ?? 280;
 
                             return (
-                                <div key={col.id} onDragOver={e=>e.preventDefault()} onDrop={e=>handleDrop(e, colId)}
+                                <div key={col.id} onDragOver={e=>{e.preventDefault(); if(draggedItem) setDropTarget({ columnId: colId, index: colCards.length });}} onDrop={e=>handleDrop(e, colId)} onDragLeave={()=>setDropTarget(null)}
                                      className="flex-shrink-0 flex flex-col bg-gray-50 rounded-xl shadow border border-gray-200 h-full max-h-full relative"
                                      style={{ width: width, minWidth: 220, backgroundColor: col.color || '#f3f4f6' }}>
                                     
@@ -816,7 +846,6 @@
           // Pulsing
           let pulseDuration = '0s';
           let pulsingGreenColor = '#e4fac9';
-
           if (isRecent && card.isPulsing !== false && !disablePulsing) {
                const normalizedTime = (Date.now() - new Date(card.lastUpdated).getTime()) / (48 * 60 * 60 * 1000);
                pulseDuration = `${0.5 + (normalizedTime * 1.5)}s`;
