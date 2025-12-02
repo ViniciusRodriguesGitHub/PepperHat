@@ -270,6 +270,8 @@
         // Modals & Filters
         const [showAddCategory, setShowAddCategory] = useState(false);
         const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+        const [showManageCategories, setShowManageCategories] = useState(false);
+        const [showManageMembers, setShowManageMembers] = useState(false);
         const [isAddingColumn, setIsAddingColumn] = useState(false);
         const [showDeleteModal, setShowDeleteModal] = useState(false);
         const [cardToDelete, setCardToDelete] = useState(null);
@@ -597,7 +599,9 @@
                                 <div className="absolute right-0 mt-1 w-56 bg-white rounded shadow-xl border py-1 z-20 text-sm">
                                     <button onClick={()=>{setShowAddCard(true); setEditingCardId(null); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">+ Card</button>
                                     <button onClick={()=>{setIsAddingColumn(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">+ Coluna</button>
-                                    <button onClick={()=>{setShowAddCategory(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">+ Categoria</button>
+                                    <hr className="my-1"/>
+                                    <button onClick={()=>{setShowManageCategories(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">📋 Gerenciar Categorias</button>
+                                    <button onClick={()=>{setShowManageMembers(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100">👥 Gerenciar Responsáveis</button>
                                     <button onClick={()=>{triggerSave({ board: {...boardState, columnsLocked: !boardState.columnsLocked} }); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-purple-600 font-bold">{boardState.columnsLocked ? '🔓 Destravar Colunas' : '🔒 Travar Colunas'}</button>
                                     <hr className="my-1"/>
                                     <button onClick={saveToLocalFile} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Backup JSON</button>
@@ -742,6 +746,8 @@
                 )}
                 
                 {showAddCategory && <SimpleModal title="Nova Categoria" onClose={()=>setShowAddCategory(false)} onSave={v => triggerSave({ board: {...boardState, categories: [...boardState.categories, v]} })} />}
+                {showManageCategories && <ManageItemsModal title="Gerenciar Categorias" items={boardState.categories} onClose={()=>setShowManageCategories(false)} onSave={(items) => triggerSave({ board: {...boardState, categories: items} })} />}
+                {showManageMembers && <ManageItemsModal title="Gerenciar Responsáveis" items={boardState.teamMembers} onClose={()=>setShowManageMembers(false)} onSave={(items) => triggerSave({ board: {...boardState, teamMembers: items} })} />}
                 {isAddingColumn && <SimpleModal title="Nova Coluna" onClose={()=>setIsAddingColumn(false)} onSave={v => { const id=v.toLowerCase().replace(/\s/g,'-'); triggerSave({ board: {...boardState, columns: {...boardState.columns, [id]:{id, title:v}}, columnOrder: [...boardState.columnOrder, id]} }); }} />}
             </div>
         );
@@ -751,6 +757,106 @@
       function SimpleModal({ title, onClose, onSave }) {
           const [val, setVal] = useState('');
           return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded w-80"><h3 className="font-bold mb-2">{title}</h3><input className="border p-2 w-full mb-4" value={val} onChange={e=>setVal(e.target.value)}/><div className="flex justify-end gap-2"><button onClick={onClose} className="px-3 bg-gray-200 rounded">Cancelar</button><button onClick={()=>{if(val) {onSave(val); onClose();}}} className="px-3 bg-blue-600 text-white rounded">Salvar</button></div></div></div>;
+      }
+
+      function ManageItemsModal({ title, items, onClose, onSave }) {
+          const [localItems, setLocalItems] = useState([...items]);
+          const [newItem, setNewItem] = useState('');
+          const [editingIndex, setEditingIndex] = useState(null);
+          const [editingValue, setEditingValue] = useState('');
+
+          const handleAdd = () => {
+              if (newItem.trim() && !localItems.includes(newItem.trim())) {
+                  setLocalItems([...localItems, newItem.trim()]);
+                  setNewItem('');
+              }
+          };
+
+          const handleEdit = (index) => {
+              setEditingIndex(index);
+              setEditingValue(localItems[index]);
+          };
+
+          const handleSaveEdit = () => {
+              if (editingValue.trim() && editingIndex !== null) {
+                  const updated = [...localItems];
+                  updated[editingIndex] = editingValue.trim();
+                  setLocalItems(updated);
+                  setEditingIndex(null);
+                  setEditingValue('');
+              }
+          };
+
+          const handleDelete = (index) => {
+              if (window.confirm(`Tem certeza que deseja excluir "${localItems[index]}"?`)) {
+                  setLocalItems(localItems.filter((_, i) => i !== index));
+              }
+          };
+
+          const handleSave = () => {
+              onSave(localItems);
+              onClose();
+          };
+
+          return (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+                      <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xl font-bold">{title}</h3>
+                          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                      </div>
+                      
+                      {/* Adicionar novo item */}
+                      <div className="mb-4 flex gap-2">
+                          <input 
+                              className="flex-1 border p-2 rounded" 
+                              placeholder="Novo item..." 
+                              value={newItem} 
+                              onChange={e=>setNewItem(e.target.value)}
+                              onKeyPress={e=>{if(e.key==='Enter') handleAdd();}}
+                          />
+                          <button onClick={handleAdd} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+</button>
+                      </div>
+
+                      {/* Lista de itens */}
+                      <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+                          {localItems.length === 0 ? (
+                              <p className="text-gray-500 text-center py-4">Nenhum item cadastrado</p>
+                          ) : (
+                              localItems.map((item, index) => (
+                                  <div key={index} className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50">
+                                      {editingIndex === index ? (
+                                          <>
+                                              <input 
+                                                  className="flex-1 border p-1 rounded" 
+                                                  value={editingValue} 
+                                                  onChange={e=>setEditingValue(e.target.value)}
+                                                  onKeyPress={e=>{if(e.key==='Enter') handleSaveEdit(); if(e.key==='Escape') {setEditingIndex(null); setEditingValue('');}}}
+                                                  autoFocus
+                                              />
+                                              <button onClick={handleSaveEdit} className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">✓</button>
+                                              <button onClick={()=>{setEditingIndex(null); setEditingValue('');}} className="px-3 py-1 bg-gray-400 text-white rounded text-sm hover:bg-gray-500">✕</button>
+                                          </>
+                                      ) : (
+                                          <>
+                                              <span className="flex-1">{item}</span>
+                                              <button onClick={()=>handleEdit(index)} className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">✏️</button>
+                                              <button onClick={()=>handleDelete(index)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">🗑️</button>
+                                          </>
+                                      )}
+                                  </div>
+                              ))
+                          )}
+                      </div>
+
+                      {/* Botões de ação */}
+                      <div className="flex justify-end gap-2 pt-4 border-t">
+                          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancelar</button>
+                          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Salvar</button>
+                      </div>
+                  </div>
+              </div>
+          );
       }
 
       function CardForm({ initialData, categories, teamMembers, activityOptions, durationOptions, onSave, onDelete }) {
