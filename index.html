@@ -13,6 +13,9 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!-- Ícones -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Calendar API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
 
     <!-- FIREBASE MODULE -->
     <script type="module">
@@ -273,6 +276,11 @@
         const [showManageCategories, setShowManageCategories] = useState(false);
         const [showManageMembers, setShowManageMembers] = useState(false);
         const [isAddingColumn, setIsAddingColumn] = useState(false);
+        
+        // Google Calendar
+        const [googleCalendarAuth, setGoogleCalendarAuth] = useState(null);
+        const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
+        const [showCalendarGuide, setShowCalendarGuide] = useState(false);
         const [showDeleteModal, setShowDeleteModal] = useState(false);
         const [cardToDelete, setCardToDelete] = useState(null);
         const [notification, setNotification] = useState(null);
@@ -559,6 +567,139 @@
             notify("CSV exportado!");
         };
 
+        // Google Calendar Sync
+        const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+
+        const initGoogleCalendar = () => {
+            if (typeof gapi === 'undefined') {
+                notify('Google API não carregada. Recarregue a página.', 'error');
+                return;
+            }
+            gapi.load('client:auth2', () => {
+                gapi.client.init({
+                    discoveryDocs: DISCOVERY_DOCS,
+                }).then(() => {
+                    const authInstance = gapi.auth2.getAuthInstance();
+                    if (authInstance.isSignedIn.get()) {
+                        setGoogleCalendarAuth(authInstance.currentUser.get());
+                    }
+                }).catch(err => console.error('Erro ao inicializar Google Calendar:', err));
+            });
+        };
+
+        useEffect(() => {
+            if (typeof gapi !== 'undefined') {
+                initGoogleCalendar();
+            }
+        }, []);
+
+        const handleGoogleCalendarAuth = async () => {
+            if (typeof gapi === 'undefined') {
+                notify('Google API não carregada. Recarregue a página.', 'error');
+                return;
+            }
+            try {
+                await gapi.load('client:auth2', async () => {
+                    await gapi.client.init({
+                        discoveryDocs: DISCOVERY_DOCS,
+                    });
+                    const authInstance = gapi.auth2.getAuthInstance();
+                    const user = await authInstance.signIn({ scope: SCOPES });
+                    setGoogleCalendarAuth(user);
+                    notify('Conectado ao Google Calendar!', 'success');
+                });
+            } catch (err) {
+                console.error('Erro na autenticação:', err);
+                notify('Erro ao conectar com Google Calendar', 'error');
+            }
+        };
+
+        const syncToGoogleCalendar = async () => {
+            if (!googleCalendarAuth) {
+                await handleGoogleCalendarAuth();
+                if (!googleCalendarAuth) return; // Se ainda não autenticou, sair
+            }
+            setIsSyncingCalendar(true);
+            try {
+                const cardsWithDeadline = clients.filter(c => c.deadlineDate);
+                if (cardsWithDeadline.length === 0) {
+                    notify('Nenhum card com prazo encontrado para sincronizar', 'error');
+                    setIsSyncingCalendar(false);
+                    return;
+                }
+                let synced = 0;
+                let errors = 0;
+
+                for (const card of cardsWithDeadline) {
+                    try {
+                        const deadlineDate = card.deadlineDate;
+                        const deadlineTime = card.deadlineTime || '09:00';
+                        const startDateTime = new Date(`${deadlineDate}T${deadlineTime}:00`);
+                        const endDateTime = new Date(startDateTime.getTime() + (60 * 60 * 1000)); // 1 hora padrão
+
+                        const event = {
+                            summary: card.name || 'Tarefa sem nome',
+                            description: [
+                                card.category && `Categoria: ${card.category}`,
+                                card.assignedTo && `Responsável: ${card.assignedTo}`,
+                                card.address && `Endereço: ${card.address}`,
+                                card.phone && `Telefone: ${card.phone}`,
+                                card.email && `Email: ${card.email}`,
+                                card.link && `Link: ${card.link}`,
+                                (card.notes && card.notes.length > 0) && `Notas: ${card.notes.map(n => n.text).join('; ')}`,
+                                `Status: ${boardState.columns[card.columnId]?.title || card.columnId}`
+                            ].filter(Boolean).join('\n'),
+                            start: {
+                                dateTime: startDateTime.toISOString(),
+                                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            },
+                            end: {
+                                dateTime: endDateTime.toISOString(),
+                                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            },
+                            reminders: {
+                                useDefault: false,
+                                overrides: [
+                                    { method: 'popup', minutes: 30 },
+                                    { method: 'popup', minutes: 1440 } // 1 dia antes
+                                ]
+                            }
+                        };
+
+                        // Verificar se já existe evento (usando card.id como identificador)
+                        const existingEventId = card.googleCalendarEventId;
+                        if (existingEventId) {
+                            await gapi.client.calendar.events.update({
+                                calendarId: 'primary',
+                                eventId: existingEventId,
+                                resource: event
+                            });
+                        } else {
+                            const response = await gapi.client.calendar.events.insert({
+                                calendarId: 'primary',
+                                resource: event
+                            });
+                            // Salvar ID do evento no card
+                            const updatedCard = { ...card, googleCalendarEventId: response.result.id };
+                            triggerSave({ clients: clients.map(c => c.id === card.id ? updatedCard : c) });
+                        }
+                        synced++;
+                    } catch (err) {
+                        console.error(`Erro ao sincronizar card ${card.id}:`, err);
+                        errors++;
+                    }
+                }
+
+                notify(`Sincronização concluída! ${synced} eventos sincronizados${errors > 0 ? `, ${errors} erros` : ''}`, errors > 0 ? 'error' : 'success');
+            } catch (err) {
+                console.error('Erro na sincronização:', err);
+                notify('Erro ao sincronizar com Google Calendar: ' + (err.message || 'Erro desconhecido'), 'error');
+            } finally {
+                setIsSyncingCalendar(false);
+            }
+        };
+
         const getColumns = () => boardState.columnOrder.map(id => boardState.columns[id]).filter(Boolean);
 
         return (
@@ -608,6 +749,12 @@
                                     <button onClick={() => document.getElementById('importFile').click()} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Importar JSON</button>
                                     <button onClick={exportToGoogleSheets} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Exportar CSV</button>
                                     <button onClick={importFromGoogleSheets} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Importar Sheets</button>
+                                    <hr className="my-1"/>
+                                    <button onClick={()=>{setShowCalendarGuide(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-blue-600 font-bold">📖 Guia: Configurar Google Calendar</button>
+                                    <button onClick={googleCalendarAuth ? syncToGoogleCalendar : handleGoogleCalendarAuth} className="block w-full text-left px-4 py-2 hover:bg-gray-100" disabled={isSyncingCalendar}>
+                                        {isSyncingCalendar ? '🔄 Sincronizando...' : (googleCalendarAuth ? '📅 Sincronizar Google Calendar' : '📅 Conectar Google Calendar')}
+                                    </button>
+                                    {googleCalendarAuth && <button onClick={() => { gapi.auth2.getAuthInstance().signOut(); setGoogleCalendarAuth(null); notify('Desconectado do Google Calendar', 'success'); }} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Desconectar Calendar</button>}
                                     <div className="border-t my-1"></div>
                                     <button onClick={onBack} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Sair</button>
                                 </div>
@@ -752,6 +899,7 @@
                 {showAddCategory && <SimpleModal title="Nova Categoria" onClose={()=>setShowAddCategory(false)} onSave={v => triggerSave({ board: {...boardState, categories: [...boardState.categories, v]} })} />}
                 {showManageCategories && <ManageItemsModal title="Gerenciar Categorias" items={boardState.categories} onClose={()=>setShowManageCategories(false)} onSave={(items) => triggerSave({ board: {...boardState, categories: items} })} />}
                 {showManageMembers && <ManageItemsModal title="Gerenciar Responsáveis" items={boardState.teamMembers} onClose={()=>setShowManageMembers(false)} onSave={(items) => triggerSave({ board: {...boardState, teamMembers: items} })} />}
+                {showCalendarGuide && <GoogleCalendarGuideModal onClose={()=>setShowCalendarGuide(false)} />}
                 {isAddingColumn && <SimpleModal title="Nova Coluna" onClose={()=>setIsAddingColumn(false)} onSave={v => { const id=v.toLowerCase().replace(/\s/g,'-'); triggerSave({ board: {...boardState, columns: {...boardState.columns, [id]:{id, title:v}}, columnOrder: [...boardState.columnOrder, id]} }); }} />}
             </div>
         );
@@ -857,6 +1005,178 @@
                       <div className="flex justify-end gap-2 pt-4 border-t">
                           <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancelar</button>
                           <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Salvar</button>
+                      </div>
+                  </div>
+              </div>
+          );
+      }
+
+      function GoogleCalendarGuideModal({ onClose }) {
+          return (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                      <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+                          <h2 className="text-2xl font-bold text-gray-800">📖 Guia: Configurar Google Calendar (GRATUITO)</h2>
+                          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-3xl leading-none">×</button>
+                      </div>
+                      
+                      <div className="p-6 space-y-6">
+                          {/* Introdução */}
+                          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                              <h3 className="font-bold text-lg mb-2 text-blue-800">✨ É 100% GRATUITO!</h3>
+                              <p className="text-blue-700">
+                                  A API do Google Calendar oferece <strong>1.000.000 de requisições por dia gratuitamente</strong>, 
+                                  mais que suficiente para uso pessoal e de pequenas equipes.
+                              </p>
+                          </div>
+
+                          {/* Passo 1 */}
+                          <div className="border rounded-lg p-5 bg-gray-50">
+                              <div className="flex items-center gap-3 mb-3">
+                                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">1</span>
+                                  <h3 className="text-xl font-bold">Criar um Projeto no Google Cloud Platform</h3>
+                              </div>
+                              <ol className="list-decimal list-inside space-y-2 ml-11 text-gray-700">
+                                  <li>Acesse <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold">console.cloud.google.com</a></li>
+                                  <li>Faça login com sua conta Google</li>
+                                  <li>No canto superior, clique no seletor de projetos</li>
+                                  <li>Clique em <strong>"Novo Projeto"</strong></li>
+                                  <li>Digite um nome (ex: "Meu Kanban Calendar")</li>
+                                  <li>Clique em <strong>"Criar"</strong></li>
+                                  <li>Aguarde alguns segundos e selecione o projeto criado</li>
+                              </ol>
+                          </div>
+
+                          {/* Passo 2 */}
+                          <div className="border rounded-lg p-5 bg-gray-50">
+                              <div className="flex items-center gap-3 mb-3">
+                                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">2</span>
+                                  <h3 className="text-xl font-bold">Habilitar a API do Google Calendar</h3>
+                              </div>
+                              <ol className="list-decimal list-inside space-y-2 ml-11 text-gray-700">
+                                  <li>No menu lateral, vá em <strong>"APIs e Serviços"</strong> → <strong>"Biblioteca"</strong></li>
+                                  <li>Na busca, digite: <strong>"Google Calendar API"</strong></li>
+                                  <li>Clique no resultado <strong>"Google Calendar API"</strong></li>
+                                  <li>Clique no botão <strong>"ATIVAR"</strong> (pode levar alguns segundos)</li>
+                                  <li>Aguarde a confirmação de que a API foi ativada</li>
+                              </ol>
+                          </div>
+
+                          {/* Passo 3 */}
+                          <div className="border rounded-lg p-5 bg-gray-50">
+                              <div className="flex items-center gap-3 mb-3">
+                                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">3</span>
+                                  <h3 className="text-xl font-bold">Configurar Tela de Consentimento OAuth</h3>
+                              </div>
+                              <ol className="list-decimal list-inside space-y-2 ml-11 text-gray-700">
+                                  <li>No menu lateral, vá em <strong>"APIs e Serviços"</strong> → <strong>"Tela de consentimento OAuth"</strong></li>
+                                  <li>Selecione <strong>"Externo"</strong> e clique em <strong>"Criar"</strong></li>
+                                  <li>Preencha os campos obrigatórios:
+                                      <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
+                                          <li><strong>Nome do app:</strong> "Meu Kanban" (ou qualquer nome)</li>
+                                          <li><strong>Email de suporte do usuário:</strong> Seu email</li>
+                                          <li><strong>Email de contato do desenvolvedor:</strong> Seu email</li>
+                                      </ul>
+                                  </li>
+                                  <li>Clique em <strong>"Salvar e continuar"</strong> nas próximas telas (pode pular as opcionais)</li>
+                                  <li>Na última tela, clique em <strong>"Voltar ao painel"</strong></li>
+                              </ol>
+                          </div>
+
+                          {/* Passo 4 */}
+                          <div className="border rounded-lg p-5 bg-gray-50">
+                              <div className="flex items-center gap-3 mb-3">
+                                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">4</span>
+                                  <h3 className="text-xl font-bold">Criar Credenciais OAuth 2.0</h3>
+                              </div>
+                              <ol className="list-decimal list-inside space-y-2 ml-11 text-gray-700">
+                                  <li>No menu lateral, vá em <strong>"APIs e Serviços"</strong> → <strong>"Credenciais"</strong></li>
+                                  <li>Clique em <strong>"+ CRIAR CREDENCIAIS"</strong> → <strong>"ID do cliente OAuth"</strong></li>
+                                  <li>Selecione <strong>"Aplicativo da Web"</strong> como tipo</li>
+                                  <li>Dê um nome (ex: "Kanban Web Client")</li>
+                                  <li>Em <strong>"Origens JavaScript autorizadas"</strong>, adicione:
+                                      <ul className="list-disc list-inside ml-6 mt-2 space-y-1 bg-yellow-50 p-2 rounded">
+                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost</code></li>
+                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:3000</code></li>
+                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:8080</code></li>
+                                          <li>Se estiver em produção, adicione seu domínio (ex: <code className="bg-gray-200 px-1 rounded">https://seudominio.com</code>)</li>
+                                      </ul>
+                                  </li>
+                                  <li>Em <strong>"URIs de redirecionamento autorizados"</strong>, adicione:
+                                      <ul className="list-disc list-inside ml-6 mt-2 space-y-1 bg-yellow-50 p-2 rounded">
+                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost</code></li>
+                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:3000</code></li>
+                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:8080</code></li>
+                                          <li>Se estiver em produção, adicione seu domínio</li>
+                                      </ul>
+                                  </li>
+                                  <li>Clique em <strong>"Criar"</strong></li>
+                                  <li><strong>IMPORTANTE:</strong> Copie o <strong>"ID do cliente"</strong> que aparece (algo como: <code className="bg-gray-200 px-1 rounded">xxxxx.apps.googleusercontent.com</code>)</li>
+                              </ol>
+                          </div>
+
+                          {/* Passo 5 */}
+                          <div className="border rounded-lg p-5 bg-gray-50">
+                              <div className="flex items-center gap-3 mb-3">
+                                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">5</span>
+                                  <h3 className="text-xl font-bold">Configurar no Código (Opcional - para produção)</h3>
+                              </div>
+                              <div className="ml-11 text-gray-700">
+                                  <p className="mb-2">
+                                      <strong>Nota:</strong> Para uso local/teste, você pode usar a autenticação diretamente sem configurar nada no código. 
+                                      O Google pedirá permissão na primeira vez que você clicar em "Conectar Google Calendar".
+                                  </p>
+                                  <p className="mb-2">
+                                      Se quiser usar em produção ou personalizar, você precisará adicionar o Client ID no código. 
+                                      Por enquanto, a funcionalidade funciona sem isso para testes locais.
+                                  </p>
+                              </div>
+                          </div>
+
+                          {/* Passo 6 */}
+                          <div className="border rounded-lg p-5 bg-green-50 border-green-500">
+                              <div className="flex items-center gap-3 mb-3">
+                                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">6</span>
+                                  <h3 className="text-xl font-bold text-green-800">Usar no Pepper Hat</h3>
+                              </div>
+                              <ol className="list-decimal list-inside space-y-2 ml-11 text-green-700">
+                                  <li>Feche este guia</li>
+                                  <li>No menu <strong>"Opções"</strong>, clique em <strong>"📅 Conectar Google Calendar"</strong></li>
+                                  <li>Uma janela do Google abrirá pedindo permissão</li>
+                                  <li>Selecione sua conta Google</li>
+                                  <li>Clique em <strong>"Permitir"</strong> para dar acesso ao calendário</li>
+                                  <li>Pronto! Agora você pode sincronizar seus cards com prazo</li>
+                              </ol>
+                          </div>
+
+                          {/* Dicas */}
+                          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                              <h3 className="font-bold text-lg mb-2 text-yellow-800">💡 Dicas Importantes:</h3>
+                              <ul className="list-disc list-inside space-y-1 text-yellow-700">
+                                  <li>O limite gratuito é de <strong>1 milhão de requisições por dia</strong> - mais que suficiente!</li>
+                                  <li>Os eventos são criados no seu calendário principal do Google</li>
+                                  <li>Você pode editar/excluir eventos diretamente no Google Calendar</li>
+                                  <li>Se atualizar um card aqui, sincronize novamente para atualizar o evento</li>
+                                  <li>Cards sem prazo (deadlineDate) não serão sincronizados</li>
+                              </ul>
+                          </div>
+
+                          {/* Links úteis */}
+                          <div className="bg-gray-100 p-4 rounded">
+                              <h3 className="font-bold mb-2">🔗 Links Úteis:</h3>
+                              <ul className="space-y-1 text-sm">
+                                  <li>• <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google Cloud Console</a></li>
+                                  <li>• <a href="https://developers.google.com/calendar/api/guides/overview" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Documentação da API</a></li>
+                                  <li>• <a href="https://developers.google.com/identity/protocols/oauth2" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Guia OAuth 2.0</a></li>
+                              </ul>
+                          </div>
+
+                          {/* Botão fechar */}
+                          <div className="flex justify-end pt-4 border-t">
+                              <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">
+                                  Entendi! Fechar Guia
+                              </button>
+                          </div>
                       </div>
                   </div>
               </div>
