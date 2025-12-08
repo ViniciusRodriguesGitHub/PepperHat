@@ -574,6 +574,17 @@
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
         const tokenClientRef = useRef(null);
         const initialClientsLoadRef = useRef(true);
+        const lastSyncedSignatureRef = useRef(null);
+
+        const computeClientsSignature = useCallback((list) => {
+            return JSON.stringify(list.map(c => ({
+                id: c.id,
+                lastUpdated: c.lastUpdated,
+                eventId: c.googleCalendarEventId,
+                deadline: c.deadlineDate,
+                time: c.deadlineTime
+            })));
+        }, []);
         const resetGoogleCalendarAuth = useCallback(() => {
             const token = gapi?.client?.getToken?.()?.access_token;
             if (token && window.google?.accounts?.oauth2?.revoke) {
@@ -648,12 +659,18 @@
         useEffect(() => {
             if (initialClientsLoadRef.current) {
                 initialClientsLoadRef.current = false;
+                lastSyncedSignatureRef.current = computeClientsSignature(clients);
                 return;
             }
-            if (googleCalendarAuth && clients.length > 0) {
+            if (!googleCalendarAuth) return;
+            if (!clients.some(c => c.deadlineDate)) return;
+            const currentSig = computeClientsSignature(clients);
+            if (currentSig === lastSyncedSignatureRef.current) return;
+            const t = setTimeout(() => {
                 syncToGoogleCalendar();
-            }
-        }, [clients, googleCalendarAuth]);
+            }, 400);
+            return () => clearTimeout(t);
+        }, [clients, googleCalendarAuth, computeClientsSignature]);
 
         const handleGoogleCalendarAuth = async () => {
             if (typeof gapi === 'undefined') {
@@ -800,6 +817,26 @@
                 notify('Erro ao sincronizar com Google Calendar: ' + (err.message || 'Erro desconhecido'), 'error');
             } finally {
                 setIsSyncingCalendar(false);
+        lastSyncedSignatureRef.current = computeClientsSignature(clients);
+            }
+        };
+
+        const deleteCalendarEvent = async (eventId) => {
+            if (!eventId) return;
+            if (typeof gapi === 'undefined') return;
+            try {
+                if (!gapi.client.getToken()?.access_token) {
+                    const token = await handleGoogleCalendarAuth();
+                    if (!token && !gapi.client.getToken()?.access_token) return;
+                }
+                await gapi.client.calendar.events.delete({
+                    calendarId: 'primary',
+                    eventId
+                });
+                notify('Evento removido do Google Calendar', 'success');
+            } catch (err) {
+                console.error('Erro ao excluir evento do Calendar:', err);
+                notify('Não foi possível excluir do Google Calendar.', 'error');
             }
         };
 
@@ -1010,8 +1047,15 @@
                                     }
                                     setShowAddCard(false);
                                 }}
-                                onDelete={() => requestConfirmation('Excluir', 'Tem certeza?', () => {
-                                    setUndoStack({ type: 'card', data: clients.find(c=>c.id===editingCardId) });
+                                onDelete={() => requestConfirmation('Excluir', 'Tem certeza?', async () => {
+                                    const card = clients.find(c=>c.id===editingCardId);
+                                    setUndoStack({ type: 'card', data: card });
+                                    if (card?.googleCalendarEventId) {
+                                        const deleteFromCalendar = window.confirm('Excluir também do Google Calendar?');
+                                        if (deleteFromCalendar) {
+                                            await deleteCalendarEvent(card.googleCalendarEventId);
+                                        }
+                                    }
                                     triggerSave({ clients: clients.filter(c => c.id !== editingCardId) });
                                     setShowAddCard(false);
                                 })}
@@ -1140,7 +1184,7 @@
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                   <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
                       <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-                          <h2 className="text-2xl font-bold text-gray-800">📖 Guia: Configurar Google Calendar (GRATUITO)</h2>
+                          <h2 className="text-2xl font-bold text-gray-800">📖 Guia: Configurar Google Calendar (domínio)</h2>
                           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-3xl leading-none">×</button>
                       </div>
                       
@@ -1218,20 +1262,14 @@
                                   <li>Clique em <strong>"+ CRIAR CREDENCIAIS"</strong> → <strong>"ID do cliente OAuth"</strong></li>
                                   <li>Selecione <strong>"Aplicativo da Web"</strong> como tipo</li>
                                   <li>Dê um nome (ex: "Kanban Web Client")</li>
-                                  <li>Em <strong>"Origens JavaScript autorizadas"</strong>, adicione:
+                                  <li>Em <strong>"Origens JavaScript autorizadas"</strong>, adicione apenas o domínio publicado:
                                       <ul className="list-disc list-inside ml-6 mt-2 space-y-1 bg-yellow-50 p-2 rounded">
-                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost</code></li>
-                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:3000</code></li>
-                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:8080</code></li>
-                                          <li>Se estiver em produção, adicione seu domínio (ex: <code className="bg-gray-200 px-1 rounded">https://seudominio.com</code>)</li>
+                                          <li><code className="bg-gray-200 px-1 rounded">https://viniciusrodriguesgithub.github.io</code></li>
                                       </ul>
                                   </li>
-                                  <li>Em <strong>"URIs de redirecionamento autorizados"</strong>, adicione:
+                                  <li>Em <strong>"URIs de redirecionamento autorizados"</strong>, adicione o mesmo domínio:
                                       <ul className="list-disc list-inside ml-6 mt-2 space-y-1 bg-yellow-50 p-2 rounded">
-                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost</code></li>
-                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:3000</code></li>
-                                          <li><code className="bg-gray-200 px-1 rounded">http://localhost:8080</code></li>
-                                          <li>Se estiver em produção, adicione seu domínio</li>
+                                          <li><code className="bg-gray-200 px-1 rounded">https://viniciusrodriguesgithub.github.io</code></li>
                                       </ul>
                                   </li>
                                   <li>Clique em <strong>"Criar"</strong></li>
@@ -1240,27 +1278,9 @@
                           </div>
 
                           {/* Passo 5 */}
-                          <div className="border rounded-lg p-5 bg-gray-50">
-                              <div className="flex items-center gap-3 mb-3">
-                                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">5</span>
-                                  <h3 className="text-xl font-bold">Configurar no Código (Opcional - para produção)</h3>
-                              </div>
-                              <div className="ml-11 text-gray-700">
-                                  <p className="mb-2">
-                                      <strong>Nota:</strong> Para uso local/teste, você pode usar a autenticação diretamente sem configurar nada no código. 
-                                      O Google pedirá permissão na primeira vez que você clicar em "Conectar Google Calendar".
-                                  </p>
-                                  <p className="mb-2">
-                                      Se quiser usar em produção ou personalizar, você precisará adicionar o Client ID no código. 
-                                      Por enquanto, a funcionalidade funciona sem isso para testes locais.
-                                  </p>
-                              </div>
-                          </div>
-
-                          {/* Passo 6 */}
                           <div className="border rounded-lg p-5 bg-green-50 border-green-500">
                               <div className="flex items-center gap-3 mb-3">
-                                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">6</span>
+                                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">5</span>
                                   <h3 className="text-xl font-bold text-green-800">Usar no Pepper Hat</h3>
                               </div>
                               <ol className="list-decimal list-inside space-y-2 ml-11 text-green-700">
