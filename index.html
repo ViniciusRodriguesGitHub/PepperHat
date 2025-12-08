@@ -573,6 +573,17 @@
         const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
         const tokenClientRef = useRef(null);
+        const resetGoogleCalendarAuth = useCallback(() => {
+            const token = gapi?.client?.getToken?.()?.access_token;
+            if (token && window.google?.accounts?.oauth2?.revoke) {
+                window.google.accounts.oauth2.revoke(token, () => {});
+            }
+            gapi?.client?.setToken('');
+            setGoogleCalendarAuth(null);
+            localStorage.removeItem('googleCalendarClientId');
+            setGoogleClientId('');
+            notify('Dados do Google Calendar apagados. Reinsira o Client ID.', 'success');
+        }, []);
 
         const requireGoogleClientId = () => {
             if (googleClientId) return googleClientId;
@@ -805,6 +816,7 @@
                                     <button onClick={importFromGoogleSheets} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Importar Sheets</button>
                                     <hr className="my-1"/>
                                     <button onClick={()=>{setShowCalendarGuide(true); setShowAdminMenu(false);}} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-blue-600 font-bold">📖 Guia: Configurar Google Calendar</button>
+                                    <button onClick={()=>{ resetGoogleCalendarAuth(); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-orange-600">🔁 Alterar Client ID</button>
                                     <button onClick={googleCalendarAuth ? syncToGoogleCalendar : handleGoogleCalendarAuth} className="block w-full text-left px-4 py-2 hover:bg-gray-100" disabled={isSyncingCalendar}>
                                         {isSyncingCalendar ? '🔄 Sincronizando...' : (googleCalendarAuth ? '📅 Sincronizar Google Calendar' : '📅 Conectar Google Calendar')}
                                     </button>
