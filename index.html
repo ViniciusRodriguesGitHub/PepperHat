@@ -573,6 +573,7 @@
         const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
         const tokenClientRef = useRef(null);
+        const initialClientsLoadRef = useRef(true);
         const resetGoogleCalendarAuth = useCallback(() => {
             const token = gapi?.client?.getToken?.()?.access_token;
             if (token && window.google?.accounts?.oauth2?.revoke) {
@@ -644,6 +645,16 @@
             }
         }, [googleClientId]);
 
+        useEffect(() => {
+            if (initialClientsLoadRef.current) {
+                initialClientsLoadRef.current = false;
+                return;
+            }
+            if (googleCalendarAuth && clients.length > 0) {
+                syncToGoogleCalendar();
+            }
+        }, [clients, googleCalendarAuth]);
+
         const handleGoogleCalendarAuth = async () => {
             if (typeof gapi === 'undefined') {
                 notify('Google API não carregada. Recarregue a página.', 'error');
@@ -678,6 +689,23 @@
                 const details = err?.message || err?.error || err?.error_description || 'Ver console para detalhes';
                 notify('Erro ao conectar com Google Calendar: ' + details, 'error');
             }
+        };
+
+        const findExistingEventId = async (cardId) => {
+            try {
+                const res = await gapi.client.calendar.events.list({
+                    calendarId: 'primary',
+                    privateExtendedProperty: `cardId=${cardId}`,
+                    maxResults: 1,
+                    singleEvents: true,
+                    orderBy: 'startTime',
+                });
+                const items = res.result?.items || [];
+                if (items.length > 0) return items[0].id;
+            } catch (err) {
+                console.error('Erro ao buscar evento existente:', err);
+            }
+            return null;
         };
 
         const syncToGoogleCalendar = async () => {
@@ -733,7 +761,17 @@
                         };
 
                         // Verificar se já existe evento (usando card.id como identificador)
-                        const existingEventId = card.googleCalendarEventId;
+                        let existingEventId = card.googleCalendarEventId;
+                        if (!existingEventId) {
+                            existingEventId = await findExistingEventId(card.id);
+                            if (existingEventId) {
+                                const updatedCard = { ...card, googleCalendarEventId: existingEventId };
+                                triggerSave({ clients: clients.map(c => c.id === card.id ? updatedCard : c) });
+                            }
+                        }
+
+                        // Armazenar cardId como propriedade privada para futuras deduplicações
+                        event.extendedProperties = { private: { cardId: card.id } };
                         if (existingEventId) {
                             await gapi.client.calendar.events.update({
                                 calendarId: 'primary',
