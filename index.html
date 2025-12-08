@@ -109,22 +109,94 @@
       };
 
       const defaultBoardState = {
-        columns: {
-          'primeiro-contato': { id: 'primeiro-contato', title: 'Primeiro Contato' },
-          'demonstrou-interesse': { id: 'demonstrou-interesse', title: 'Demonstrou Interesse' },
-          'contato-pessoal': { id: 'contato-pessoal', title: 'Contato Pessoal' },
-          'fez-orcamento': { id: 'fez-orcamento', title: 'Fez Orçamento' },
-          'contratou': { id: 'contratou', title: 'Contratou' },
-          'arquivados': { id: 'arquivados', title: 'Arquivados' },
-          'descartados': { id: 'descartados', title: 'Descartados' },
-        },
-        columnOrder: ['primeiro-contato', 'demonstrou-interesse', 'contato-pessoal', 'fez-orcamento', 'contratou', 'arquivados', 'descartados'],
+        columns: {},
+        columnOrder: [],
         columnWidths: {},
-        categories: ['Casamento', 'Corporativo', 'Bar', 'Teatro'],
+        categories: [],
         teamMembers: [],
         activityOptions: ['Interna', 'Externa'],
         durationOptions: ['Minutos', 'Horas', 'Dia', 'Dias'],
-        columnsLocked: true,
+        columnsLocked: false,
+      };
+
+      const columnTemplates = {
+        'produtividade': {
+          name: 'Produtividade Pessoal (GTD)',
+          icon: '⚡',
+          description: 'Gerenciamento de tarefas do dia a dia',
+          columns: [
+            { id: 'backlog', title: 'Backlog (Caixa de Entrada)', color: '#e9ecef' },
+            { id: 'para-fazer', title: 'Para Fazer (To Do)', color: '#d1ecf1' },
+            { id: 'hoje', title: 'Hoje', color: '#fff3cd' },
+            { id: 'em-andamento', title: 'Em Andamento (Doing)', color: '#d4edda' },
+            { id: 'aguardando', title: 'Aguardando (Waiting)', color: '#f8c0c8' },
+            { id: 'concluido', title: 'Concluído (Done)', color: '#cce2cb' },
+          ]
+        },
+        'vendas': {
+          name: 'Funil de Vendas (CRM)',
+          icon: '💰',
+          description: 'Jornada do cliente, do primeiro contato ao fechamento',
+          columns: [
+            { id: 'prospeccao', title: 'Prospecção (Novos Leads)', color: '#d1ecf1' },
+            { id: 'contato-realizado', title: 'Contato Realizado', color: '#d4edda' },
+            { id: 'qualificacao', title: 'Qualificação', color: '#fff3cd' },
+            { id: 'proposta-enviada', title: 'Proposta Enviada', color: '#dbcff8' },
+            { id: 'em-negociacao', title: 'Em Negociação', color: '#f8c0c8' },
+            { id: 'venda-realizada', title: 'Venda Realizada (Ganho)', color: '#cce2cb' },
+            { id: 'perdido', title: 'Perdido (Lost)', color: '#e9ecef' },
+          ]
+        },
+        'conteudo': {
+          name: 'Criação de Conteúdo (Marketing)',
+          icon: '📝',
+          description: 'Gerenciar blogs, redes sociais ou vídeos',
+          columns: [
+            { id: 'ideias', title: 'Ideias (Brainstorming)', color: '#e0bbe4' },
+            { id: 'pauta-aprovada', title: 'Pauta Aprovada', color: '#d1ecf1' },
+            { id: 'em-producao', title: 'Em Produção', color: '#d4edda' },
+            { id: 'em-edicao', title: 'Em Edição/Design', color: '#fff3cd' },
+            { id: 'agendado', title: 'Agendado', color: '#dbcff8' },
+            { id: 'publicado', title: 'Publicado', color: '#cce2cb' },
+          ]
+        },
+        'recrutamento': {
+          name: 'Recrutamento e Seleção (RH)',
+          icon: '👥',
+          description: 'Visualização do fluxo de candidatos',
+          columns: [
+            { id: 'novas-candidaturas', title: 'Novas Candidaturas', color: '#d1ecf1' },
+            { id: 'triagem', title: 'Triagem', color: '#d4edda' },
+            { id: 'entrevista-tecnica', title: 'Entrevista Técnica', color: '#fff3cd' },
+            { id: 'entrevista-cultural', title: 'Entrevista Cultural', color: '#dbcff8' },
+            { id: 'proposta-feita', title: 'Proposta Feita', color: '#f8c0c8' },
+            { id: 'contratado', title: 'Contratado', color: '#cce2cb' },
+          ]
+        },
+        'desenvolvimento': {
+          name: 'Desenvolvimento de Software (TI)',
+          icon: '💻',
+          description: 'Fluxo padrão para times de tecnologia',
+          columns: [
+            { id: 'backlog-produto', title: 'Backlog do Produto', color: '#e9ecef' },
+            { id: 'especificacao', title: 'Especificação/Design', color: '#d1ecf1' },
+            { id: 'em-desenvolvimento', title: 'Em Desenvolvimento', color: '#d4edda' },
+            { id: 'code-review', title: 'Code Review', color: '#fff3cd' },
+            { id: 'em-testes', title: 'Em Testes (QA)', color: '#dbcff8' },
+            { id: 'deploy', title: 'Deploy (Pronto)', color: '#cce2cb' },
+          ]
+        },
+        'estudos': {
+          name: 'Estudos e Aprendizado',
+          icon: '📚',
+          description: 'Organizar cursos, leituras e desenvolvimento pessoal',
+          columns: [
+            { id: 'lista-desejos', title: 'Lista de Desejos', color: '#e0bbe4' },
+            { id: 'estudando', title: 'Estudando', color: '#d4edda' },
+            { id: 'resumindo', title: 'Resumindo/Praticando', color: '#fff3cd' },
+            { id: 'concluido-estudos', title: 'Concluído', color: '#cce2cb' },
+          ]
+        },
       };
 
       function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
@@ -276,6 +348,7 @@
         const [showManageCategories, setShowManageCategories] = useState(false);
         const [showManageMembers, setShowManageMembers] = useState(false);
         const [isAddingColumn, setIsAddingColumn] = useState(false);
+        const [showTemplateSelector, setShowTemplateSelector] = useState(false);
         
         // Google Calendar
         const [googleCalendarAuth, setGoogleCalendarAuth] = useState(null); // stores access token metadata
@@ -309,8 +382,12 @@
         const bottomScrollRef = useRef(null);
         const [scrollWidth, setScrollWidth] = useState(0);
 
+        const getDefaultColumnId = () => {
+            return (boardState.columnOrder && boardState.columnOrder.length > 0) ? boardState.columnOrder[0] : '';
+        };
+
         const [uiState, setUiState] = useState({ 
-            newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: 'primeiro-contato', isPulsing: true, link: '' },
+            newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: '', isPulsing: true, link: '' },
             newCategory: '', newColumnName: '', newTeamMemberName: ''
         });
 
@@ -413,6 +490,31 @@
                 triggerSave({ clients: newClients });
                 notify(`${files.length} arquivo(s) anexado(s)!`);
             }
+        };
+
+        const applyTemplate = (templateKey) => {
+            const template = columnTemplates[templateKey];
+            if (!template) return;
+            
+            const newColumns = {};
+            const newColumnOrder = [];
+            const newColumnWidths = {};
+            
+            template.columns.forEach(col => {
+                newColumns[col.id] = { id: col.id, title: col.title, color: col.color };
+                newColumnOrder.push(col.id);
+                newColumnWidths[col.id] = 280;
+            });
+            
+            triggerSave({ 
+                board: { 
+                    ...boardState, 
+                    columns: newColumns, 
+                    columnOrder: newColumnOrder,
+                    columnWidths: newColumnWidths
+                } 
+            });
+            notify(`Template "${template.name}" aplicado com sucesso!`, 'success');
         };
 
         const moveColumn = (id, dir) => {
@@ -950,7 +1052,66 @@
                 )}
 
                 {/* KANBAN VIEW */}
-                {currentView === 'kanban' && (
+                {currentView === 'kanban' && (boardState.columnOrder || []).length === 0 ? (
+                    <div className="flex-grow flex items-center justify-center p-8">
+                        <div className="bg-white rounded-xl shadow-xl p-8 max-w-4xl w-full">
+                            <div className="text-center mb-8">
+                                <div className="text-6xl mb-4">📋</div>
+                                <h2 className="text-3xl font-bold text-gray-800 mb-2">Seu Kanban está vazio!</h2>
+                                <p className="text-gray-600 text-lg">Escolha um template abaixo para começar rapidamente ou crie colunas personalizadas.</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                {Object.entries(columnTemplates).map(([key, template]) => (
+                                    <div 
+                                        key={key}
+                                        onClick={() => applyTemplate(key)}
+                                        className="border-2 border-gray-200 rounded-lg p-6 hover:border-purple-500 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-white to-gray-50 group"
+                                    >
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <span className="text-4xl">{template.icon}</span>
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-lg text-gray-800 group-hover:text-purple-600 transition-colors">{template.name}</h3>
+                                                <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 pt-4 border-t border-gray-200">
+                                            <div className="flex flex-wrap gap-2">
+                                                {template.columns.map((col, idx) => (
+                                                    <span 
+                                                        key={idx}
+                                                        className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700"
+                                                        style={{ backgroundColor: col.color + '40' }}
+                                                    >
+                                                        {col.title}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            <div className="mt-3 text-xs text-gray-500">
+                                                {template.columns.length} colunas
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 pt-4 border-t border-gray-200">
+                                            <button className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                                                Usar este template →
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="text-center pt-6 border-t border-gray-200">
+                                <p className="text-gray-600 mb-4">Ou prefere criar suas próprias colunas?</p>
+                                <button 
+                                    onClick={() => setIsAddingColumn(true)}
+                                    className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                                >
+                                    + Criar Coluna Personalizada
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : currentView === 'kanban' ? (
                     <div ref={bottomScrollRef} className="flex-grow overflow-x-auto overflow-y-hidden flex gap-4 pb-2 custom-scrollbar">
                         {(boardState.columnOrder||[]).map(colId => {
                             const col = boardState.columns[colId];
@@ -1023,7 +1184,7 @@
                             );
                         })}
                     </div>
-                )}
+                ) : null}
 
                 {currentView !== 'kanban' && (
                     <div className="bg-white rounded-xl shadow p-6 h-full overflow-auto">
@@ -1043,6 +1204,14 @@
                                     if(editingCardId) triggerSave({ clients: clients.map(c => c.id === editingCardId ? newData : c) });
                                     else {
                                         if(!data.name) { notify("Preencha o Nome", 'error'); return; }
+                                        const defaultColId = getDefaultColumnId();
+                                        if (!newData.columnId && defaultColId) {
+                                            newData.columnId = defaultColId;
+                                        }
+                                        if (!newData.columnId) {
+                                            notify("É necessário ter pelo menos uma coluna para criar um card.", 'error');
+                                            return;
+                                        }
                                         triggerSave({ clients: [...clients, { id: uid(), createdAt: new Date().toISOString(), ...newData }] });
                                     }
                                     setShowAddCard(false);
