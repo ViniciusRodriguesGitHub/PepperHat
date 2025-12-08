@@ -279,6 +279,7 @@
         
         // Google Calendar
         const [googleCalendarAuth, setGoogleCalendarAuth] = useState(null);
+        const [googleClientId, setGoogleClientId] = useState(localStorage.getItem('googleCalendarClientId') || '');
         const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
         const [showCalendarGuide, setShowCalendarGuide] = useState(false);
         const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -571,14 +572,41 @@
         const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
+        const requireGoogleClientId = () => {
+            if (googleClientId) return googleClientId;
+            const entered = prompt('Cole o Client ID OAuth do Google Calendar (termina com .apps.googleusercontent.com)');
+            if (entered && entered.trim()) {
+                const sanitized = entered.trim();
+                localStorage.setItem('googleCalendarClientId', sanitized);
+                setGoogleClientId(sanitized);
+                notify('Client ID salvo. Tentando conectar...', 'success');
+                return sanitized;
+            }
+            notify('É necessário informar o Client ID do Google para conectar.', 'error');
+            return null;
+        };
+
+        const loadGapiAuth = () => {
+            return new Promise((resolve, reject) => {
+                gapi.load('client:auth2', {
+                    callback: resolve,
+                    onerror: () => reject(new Error('Falha ao carregar auth do Google')),
+                });
+            });
+        };
+
         const initGoogleCalendar = () => {
             if (typeof gapi === 'undefined') {
                 notify('Google API não carregada. Recarregue a página.', 'error');
                 return;
             }
+            const clientId = requireGoogleClientId();
+            if (!clientId) return;
             gapi.load('client:auth2', () => {
                 gapi.client.init({
                     discoveryDocs: DISCOVERY_DOCS,
+                    clientId,
+                    scope: SCOPES,
                 }).then(() => {
                     const authInstance = gapi.auth2.getAuthInstance();
                     if (authInstance.isSignedIn.get()) {
@@ -592,23 +620,27 @@
             if (typeof gapi !== 'undefined') {
                 initGoogleCalendar();
             }
-        }, []);
+        }, [googleClientId]);
 
         const handleGoogleCalendarAuth = async () => {
             if (typeof gapi === 'undefined') {
                 notify('Google API não carregada. Recarregue a página.', 'error');
                 return;
             }
+            const clientId = requireGoogleClientId();
+            if (!clientId) return;
             try {
-                await gapi.load('client:auth2', async () => {
-                    await gapi.client.init({
-                        discoveryDocs: DISCOVERY_DOCS,
-                    });
-                    const authInstance = gapi.auth2.getAuthInstance();
-                    const user = await authInstance.signIn({ scope: SCOPES });
-                    setGoogleCalendarAuth(user);
-                    notify('Conectado ao Google Calendar!', 'success');
+                await loadGapiAuth();
+                await gapi.client.init({
+                    discoveryDocs: DISCOVERY_DOCS,
+                    clientId,
+                    scope: SCOPES,
                 });
+                const authInstance = gapi.auth2.getAuthInstance();
+                const user = await authInstance.signIn({ scope: SCOPES });
+                setGoogleCalendarAuth(user);
+                setShowAdminMenu(false);
+                notify('Conectado ao Google Calendar!', 'success');
             } catch (err) {
                 console.error('Erro na autenticação:', err);
                 notify('Erro ao conectar com Google Calendar', 'error');
