@@ -667,12 +667,16 @@
                                     
                                     <div className="p-3 font-bold text-gray-700 flex justify-between items-center border-b border-black/5">
                                         <span>{col.title} <span className="text-xs bg-white/50 px-1 rounded">{colCards.length}</span></span>
-                                        {!['arquivados','descartados'].includes(colId) && !boardState.columnsLocked && (
+                                        {!boardState.columnsLocked && (
                                             <div className="flex gap-1">
-                                                <button onClick={()=>moveColumn(colId, 'left')} className="hover:bg-black/10 rounded px-1">←</button>
-                                                <button onClick={()=>moveColumn(colId, 'right')} className="hover:bg-black/10 rounded px-1">→</button>
-                                                <button onClick={()=>changeColumnColor(colId)} className="hover:bg-black/10 rounded px-1">🎨</button>
-                                                <button onClick={() => requestConfirmation('Excluir Coluna', 'Continuar?', () => {
+                                                {!['arquivados','descartados'].includes(colId) && (
+                                                    <>
+                                                        <button onClick={()=>moveColumn(colId, 'left')} className="hover:bg-black/10 rounded px-1">←</button>
+                                                        <button onClick={()=>moveColumn(colId, 'right')} className="hover:bg-black/10 rounded px-1">→</button>
+                                                        <button onClick={()=>changeColumnColor(colId)} className="hover:bg-black/10 rounded px-1">🎨</button>
+                                                    </>
+                                                )}
+                                                <button onClick={() => requestConfirmation('Excluir Coluna', `Tem certeza que deseja excluir a coluna "${col.title}"?`, () => {
                                                     setUndoStack({ type: 'column', data: col, relatedClients: colCards });
                                                     triggerSave({ board: { ...boardState, columns: Object.fromEntries(Object.entries(boardState.columns).filter(([k])=>k!==colId)), columnOrder: boardState.columnOrder.filter(id=>id!==colId) }, clients: clients.filter(c => c.columnId !== colId) });
                                                 })} className="text-xs hover:text-red-600">🗑</button>
