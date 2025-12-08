@@ -278,8 +278,9 @@
         const [isAddingColumn, setIsAddingColumn] = useState(false);
         
         // Google Calendar
-        const [googleCalendarAuth, setGoogleCalendarAuth] = useState(null);
+        const [googleCalendarAuth, setGoogleCalendarAuth] = useState(null); // stores access token metadata
         const [googleClientId, setGoogleClientId] = useState(localStorage.getItem('googleCalendarClientId') || '');
+        const [gapiReady, setGapiReady] = useState(false);
         const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
         const [showCalendarGuide, setShowCalendarGuide] = useState(false);
         const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -571,6 +572,7 @@
         // Google Calendar Sync
         const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+        const tokenClientRef = useRef(null);
 
         const requireGoogleClientId = () => {
             if (googleClientId) return googleClientId;
@@ -586,38 +588,47 @@
             return null;
         };
 
-        const loadGapiAuth = () => {
+        const loadGapiClient = () => {
             return new Promise((resolve, reject) => {
-                gapi.load('client:auth2', {
+                gapi.load('client', {
                     callback: resolve,
-                    onerror: () => reject(new Error('Falha ao carregar auth do Google')),
+                    onerror: () => reject(new Error('Falha ao carregar Google API')),
                 });
             });
         };
 
-        const initGoogleCalendar = () => {
+        const initGoogleCalendar = async () => {
             if (typeof gapi === 'undefined') {
                 notify('Google API não carregada. Recarregue a página.', 'error');
                 return;
             }
             const clientId = requireGoogleClientId();
             if (!clientId) return;
-            gapi.load('client:auth2', () => {
-                gapi.client.init({
-                    discoveryDocs: DISCOVERY_DOCS,
-                    clientId,
+
+            if (!gapiReady) {
+                try {
+                    await loadGapiClient();
+                    await gapi.client.init({});
+                    await gapi.client.load('calendar', 'v3');
+                    setGapiReady(true);
+                } catch (err) {
+                    console.error('Erro ao inicializar gapi:', err);
+                    notify('Não foi possível iniciar o Google API Client.', 'error');
+                    return;
+                }
+            }
+
+            if (!tokenClientRef.current) {
+                tokenClientRef.current = google.accounts.oauth2.initTokenClient({
+                    client_id: clientId,
                     scope: SCOPES,
-                }).then(() => {
-                    const authInstance = gapi.auth2.getAuthInstance();
-                    if (authInstance.isSignedIn.get()) {
-                        setGoogleCalendarAuth(authInstance.currentUser.get());
-                    }
-                }).catch(err => console.error('Erro ao inicializar Google Calendar:', err));
-            });
+                    callback: () => {},
+                });
+            }
         };
 
         useEffect(() => {
-            if (typeof gapi !== 'undefined') {
+            if (typeof gapi !== 'undefined' && googleClientId) {
                 initGoogleCalendar();
             }
         }, [googleClientId]);
@@ -629,29 +640,39 @@
             }
             const clientId = requireGoogleClientId();
             if (!clientId) return;
+
             try {
-                await loadGapiAuth();
-                await gapi.client.init({
-                    discoveryDocs: DISCOVERY_DOCS,
-                    clientId,
-                    scope: SCOPES,
+                await initGoogleCalendar();
+                if (!tokenClientRef.current) return;
+
+                return await new Promise((resolve, reject) => {
+                    tokenClientRef.current.callback = (resp) => {
+                        if (resp?.error) {
+                            console.error('Token error:', resp);
+                            notify('Erro ao conectar com Google Calendar: ' + (resp.error_description || resp.error), 'error');
+                            reject(resp);
+                            return;
+                        }
+                        const token = { accessToken: resp.access_token, expiresIn: resp.expires_in };
+                        gapi.client.setToken({ access_token: resp.access_token });
+                        setGoogleCalendarAuth(token);
+                        setShowAdminMenu(false);
+                        notify('Conectado ao Google Calendar!', 'success');
+                        resolve(token);
+                    };
+                    tokenClientRef.current.requestAccessToken({ prompt: googleCalendarAuth ? '' : 'consent' });
                 });
-                const authInstance = gapi.auth2.getAuthInstance();
-                const user = await authInstance.signIn({ scope: SCOPES });
-                setGoogleCalendarAuth(user);
-                setShowAdminMenu(false);
-                notify('Conectado ao Google Calendar!', 'success');
             } catch (err) {
                 console.error('Erro na autenticação:', err);
-                const details = err?.message || err?.error?.message || err?.details || 'Ver console para detalhes';
+                const details = err?.message || err?.error || err?.error_description || 'Ver console para detalhes';
                 notify('Erro ao conectar com Google Calendar: ' + details, 'error');
             }
         };
 
         const syncToGoogleCalendar = async () => {
-            if (!googleCalendarAuth) {
-                await handleGoogleCalendarAuth();
-                if (!googleCalendarAuth) return; // Se ainda não autenticou, sair
+            if (!googleCalendarAuth || !gapi.client.getToken()?.access_token) {
+                const token = await handleGoogleCalendarAuth();
+                if (!token && !gapi.client.getToken()?.access_token) return; // Se ainda não autenticou, sair
             }
             setIsSyncingCalendar(true);
             try {
@@ -787,7 +808,27 @@
                                     <button onClick={googleCalendarAuth ? syncToGoogleCalendar : handleGoogleCalendarAuth} className="block w-full text-left px-4 py-2 hover:bg-gray-100" disabled={isSyncingCalendar}>
                                         {isSyncingCalendar ? '🔄 Sincronizando...' : (googleCalendarAuth ? '📅 Sincronizar Google Calendar' : '📅 Conectar Google Calendar')}
                                     </button>
-                                    {googleCalendarAuth && <button onClick={() => { gapi.auth2.getAuthInstance().signOut(); setGoogleCalendarAuth(null); notify('Desconectado do Google Calendar', 'success'); }} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Desconectar Calendar</button>}
+                                    {googleCalendarAuth && (
+                                        <button
+                                            onClick={() => {
+                                                const token = gapi.client.getToken()?.access_token;
+                                                if (token && window.google?.accounts?.oauth2?.revoke) {
+                                                    window.google.accounts.oauth2.revoke(token, () => {
+                                                        gapi.client.setToken('');
+                                                        setGoogleCalendarAuth(null);
+                                                        notify('Desconectado do Google Calendar', 'success');
+                                                    });
+                                                } else {
+                                                    gapi.client.setToken('');
+                                                    setGoogleCalendarAuth(null);
+                                                    notify('Desconectado do Google Calendar', 'success');
+                                                }
+                                            }}
+                                            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                                        >
+                                            Desconectar Calendar
+                                        </button>
+                                    )}
                                     <div className="border-t my-1"></div>
                                     <button onClick={onBack} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Sair</button>
                                 </div>
