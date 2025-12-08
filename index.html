@@ -643,7 +643,8 @@
                 notify('Conectado ao Google Calendar!', 'success');
             } catch (err) {
                 console.error('Erro na autenticação:', err);
-                notify('Erro ao conectar com Google Calendar', 'error');
+                const details = err?.message || err?.error?.message || err?.details || 'Ver console para detalhes';
+                notify('Erro ao conectar com Google Calendar: ' + details, 'error');
             }
         };
 
