@@ -734,7 +734,7 @@
                                     const newData = { ...data, lastUpdated: new Date().toISOString() };
                                     if(editingCardId) triggerSave({ clients: clients.map(c => c.id === editingCardId ? newData : c) });
                                     else {
-                                        if(!data.name || !data.category || !data.assignedTo) { notify("Preencha Nome, Categoria e Responsável", 'error'); return; }
+                                        if(!data.name) { notify("Preencha o Nome", 'error'); return; }
                                         triggerSave({ clients: [...clients, { id: uid(), createdAt: new Date().toISOString(), ...newData }] });
                                     }
                                     setShowAddCard(false);
