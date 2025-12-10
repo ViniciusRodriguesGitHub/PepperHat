@@ -121,80 +121,70 @@
 
       const columnTemplates = {
         'produtividade': {
-          name: 'Produtividade Pessoal (GTD)',
+          name: 'Produtividade (Tarefas)',
           icon: '⚡',
-          description: 'Gerenciamento de tarefas do dia a dia',
+          description: 'Foco: fluxo simples de execução.',
           columns: [
-            { id: 'backlog', title: 'Backlog (Caixa de Entrada)', color: '#e9ecef' },
-            { id: 'para-fazer', title: 'Para Fazer (To Do)', color: '#d1ecf1' },
-            { id: 'hoje', title: 'Hoje', color: '#fff3cd' },
-            { id: 'em-andamento', title: 'Em Andamento (Doing)', color: '#d4edda' },
-            { id: 'aguardando', title: 'Aguardando (Waiting)', color: '#f8c0c8' },
-            { id: 'concluido', title: 'Concluído (Done)', color: '#cce2cb' },
+            { id: 'a-fazer', title: 'A Fazer', color: '#d1ecf1' },
+            { id: 'fazendo', title: 'Fazendo', color: '#fff3cd' },
+            { id: 'pendente', title: 'Pendente', color: '#f8c0c8' },
+            { id: 'concluido', title: 'Concluído', color: '#cce2cb' },
           ]
         },
         'vendas': {
-          name: 'Funil de Vendas (CRM)',
+          name: 'Vendas (CRM)',
           icon: '💰',
-          description: 'Jornada do cliente, do primeiro contato ao fechamento',
+          description: 'Foco: simplificar a jornada até o fecho.',
           columns: [
-            { id: 'prospeccao', title: 'Prospecção (Novos Leads)', color: '#d1ecf1' },
-            { id: 'contato-realizado', title: 'Contato Realizado', color: '#d4edda' },
-            { id: 'qualificacao', title: 'Qualificação', color: '#fff3cd' },
-            { id: 'proposta-enviada', title: 'Proposta Enviada', color: '#dbcff8' },
-            { id: 'em-negociacao', title: 'Em Negociação', color: '#f8c0c8' },
-            { id: 'venda-realizada', title: 'Venda Realizada (Ganho)', color: '#cce2cb' },
-            { id: 'perdido', title: 'Perdido (Lost)', color: '#e9ecef' },
+            { id: 'novos', title: 'Novos', color: '#d1ecf1' },
+            { id: 'contato', title: 'Contato', color: '#d4edda' },
+            { id: 'proposta', title: 'Proposta', color: '#fff3cd' },
+            { id: 'fechado', title: 'Fechado', color: '#cce2cb' },
+            { id: 'perdido', title: 'Perdido', color: '#e9ecef' },
           ]
         },
         'conteudo': {
-          name: 'Criação de Conteúdo (Marketing)',
+          name: 'Marketing (Conteúdo)',
           icon: '📝',
-          description: 'Gerenciar blogs, redes sociais ou vídeos',
+          description: 'Foco: da ideia à publicação.',
           columns: [
-            { id: 'ideias', title: 'Ideias (Brainstorming)', color: '#e0bbe4' },
-            { id: 'pauta-aprovada', title: 'Pauta Aprovada', color: '#d1ecf1' },
-            { id: 'em-producao', title: 'Em Produção', color: '#d4edda' },
-            { id: 'em-edicao', title: 'Em Edição/Design', color: '#fff3cd' },
-            { id: 'agendado', title: 'Agendado', color: '#dbcff8' },
+            { id: 'ideias', title: 'Ideias', color: '#e0bbe4' },
+            { id: 'producao', title: 'Produção', color: '#d4edda' },
+            { id: 'revisao', title: 'Revisão', color: '#fff3cd' },
             { id: 'publicado', title: 'Publicado', color: '#cce2cb' },
           ]
         },
         'recrutamento': {
-          name: 'Recrutamento e Seleção (RH)',
+          name: 'Recrutamento (RH)',
           icon: '👥',
-          description: 'Visualização do fluxo de candidatos',
+          description: 'Foco: seleção rápida de candidatos.',
           columns: [
-            { id: 'novas-candidaturas', title: 'Novas Candidaturas', color: '#d1ecf1' },
-            { id: 'triagem', title: 'Triagem', color: '#d4edda' },
-            { id: 'entrevista-tecnica', title: 'Entrevista Técnica', color: '#fff3cd' },
-            { id: 'entrevista-cultural', title: 'Entrevista Cultural', color: '#dbcff8' },
-            { id: 'proposta-feita', title: 'Proposta Feita', color: '#f8c0c8' },
+            { id: 'inscritos', title: 'Inscritos', color: '#d1ecf1' },
+            { id: 'entrevista', title: 'Entrevista', color: '#fff3cd' },
+            { id: 'proposta', title: 'Proposta', color: '#f8c0c8' },
             { id: 'contratado', title: 'Contratado', color: '#cce2cb' },
           ]
         },
         'desenvolvimento': {
-          name: 'Desenvolvimento de Software (TI)',
+          name: 'Desenvolvimento (TI)',
           icon: '💻',
-          description: 'Fluxo padrão para times de tecnologia',
+          description: 'Foco: entrega de funcionalidades.',
           columns: [
-            { id: 'backlog-produto', title: 'Backlog do Produto', color: '#e9ecef' },
-            { id: 'especificacao', title: 'Especificação/Design', color: '#d1ecf1' },
-            { id: 'em-desenvolvimento', title: 'Em Desenvolvimento', color: '#d4edda' },
-            { id: 'code-review', title: 'Code Review', color: '#fff3cd' },
-            { id: 'em-testes', title: 'Em Testes (QA)', color: '#dbcff8' },
-            { id: 'deploy', title: 'Deploy (Pronto)', color: '#cce2cb' },
+            { id: 'backlog', title: 'Backlog', color: '#e9ecef' },
+            { id: 'codando', title: 'Codando', color: '#d4edda' },
+            { id: 'testes', title: 'Testes', color: '#fff3cd' },
+            { id: 'pronto', title: 'Pronto', color: '#cce2cb' },
           ]
         },
         'estudos': {
-          name: 'Estudos e Aprendizado',
+          name: 'Estudos',
           icon: '📚',
-          description: 'Organizar cursos, leituras e desenvolvimento pessoal',
+          description: 'Foco: organizar o aprendizado.',
           columns: [
-            { id: 'lista-desejos', title: 'Lista de Desejos', color: '#e0bbe4' },
+            { id: 'fila', title: 'Fila', color: '#e0bbe4' },
             { id: 'estudando', title: 'Estudando', color: '#d4edda' },
-            { id: 'resumindo', title: 'Resumindo/Praticando', color: '#fff3cd' },
-            { id: 'concluido-estudos', title: 'Concluído', color: '#cce2cb' },
+            { id: 'pratica', title: 'Prática', color: '#fff3cd' },
+            { id: 'finalizado', title: 'Finalizado', color: '#cce2cb' },
           ]
         },
       };
@@ -1199,6 +1189,8 @@
                             <CardForm 
                                 initialData={editingCardId ? clients.find(c=>c.id===editingCardId) : uiState.newClient}
                                 categories={boardState.categories} teamMembers={boardState.teamMembers} activityOptions={boardState.activityOptions} durationOptions={boardState.durationOptions}
+                                onManageCategories={()=>setShowManageCategories(true)}
+                                onManageMembers={()=>setShowManageMembers(true)}
                                 onSave={(data) => {
                                     const newData = { ...data, lastUpdated: new Date().toISOString() };
                                     if(editingCardId) triggerSave({ clients: clients.map(c => c.id === editingCardId ? newData : c) });
@@ -1496,7 +1488,7 @@
           );
       }
 
-      function CardForm({ initialData, categories, teamMembers, activityOptions, durationOptions, onSave, onDelete }) {
+      function CardForm({ initialData, categories, teamMembers, activityOptions, durationOptions, onSave, onDelete, onManageCategories = () => {}, onManageMembers = () => {} }) {
           const [formData, setFormData] = useState(initialData);
           const [note, setNote] = useState('');
           const h = (f,v) => setFormData(p => ({...p, [f]: v}));
@@ -1506,8 +1498,20 @@
                       <div className="col-span-2"><label className="text-xs font-bold text-gray-500">NOME</label><input className="w-full border p-2 rounded" value={formData.name} onChange={e=>h('name',e.target.value)} required /></div>
                       <div><label className="text-xs font-bold text-gray-500">EMAIL</label><input className="w-full border p-2 rounded" value={formData.email} onChange={e=>h('email',e.target.value)} /></div>
                       <div><label className="text-xs font-bold text-gray-500">TELEFONE</label><input className="w-full border p-2 rounded" value={formData.phone} onChange={e=>h('phone',e.target.value)} /></div>
-                      <div><label className="text-xs font-bold text-gray-500">CATEGORIA</label><select className="w-full border p-2 rounded" value={formData.category} onChange={e=>h('category',e.target.value)}><option value="">-</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
-                      <div><label className="text-xs font-bold text-gray-500">RESPONSÁVEL</label><select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
+                      <div>
+                          <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-gray-500">CATEGORIA</label>
+                              <button type="button" onClick={onManageCategories} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
+                          </div>
+                          <select className="w-full border p-2 rounded" value={formData.category} onChange={e=>h('category',e.target.value)}><option value="">-</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
+                      </div>
+                      <div>
+                          <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-gray-500">RESPONSÁVEL</label>
+                              <button type="button" onClick={onManageMembers} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
+                          </div>
+                          <select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select>
+                      </div>
                       
                       <div className="col-span-2"><label className="text-xs font-bold text-gray-500">ENDEREÇO</label><input className="w-full border p-2 rounded" value={formData.address} onChange={e=>h('address',e.target.value)} /></div>
                       
