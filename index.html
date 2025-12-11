@@ -352,6 +352,11 @@
         const [syncError, setSyncError] = useState(false);
         const [confirmation, setConfirmation] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
         const [undoStack, setUndoStack] = useState(null);
+        
+        // Sistema de Alertas
+        const [notificationsEnabled, setNotificationsEnabled] = useState(localStorage.getItem('pepperhat_notifications_enabled') === 'true');
+        const [notificationPermission, setNotificationPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
+        const notifiedTasksRef = useRef(new Set()); // Armazena IDs de tarefas já notificadas
 
         const [compactCards, setCompactCards] = useState(true);
         const [disablePulsing, setDisablePulsing] = useState(false);
@@ -377,7 +382,7 @@
         };
 
         const [uiState, setUiState] = useState({ 
-            newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: getCurrentDateString(), deadlineTime: getCurrentTimeString(), duration: '', columnId: '', isPulsing: true, link: '' },
+            newClient: { name: '', email: '', phone: '', notes: [], rating: 3, category: '', assignedTo: '', address: '', activity: '', deadlineDate: '', deadlineTime: '', duration: '', columnId: '', isPulsing: true, link: '' },
             newCategory: '', newColumnName: '', newTeamMemberName: ''
         });
 
@@ -589,6 +594,108 @@
             if (confirmation.onConfirm) confirmation.onConfirm();
             setConfirmation({ ...confirmation, isOpen: false });
         };
+
+        // Sistema de Alertas - Funções
+        const requestNotificationPermission = async () => {
+            if (typeof Notification === 'undefined' || !('Notification' in window)) {
+                notify('Seu navegador não suporta notificações', 'error');
+                return false;
+            }
+            
+            if (Notification.permission === 'granted') {
+                setNotificationPermission('granted');
+                setNotificationsEnabled(true);
+                localStorage.setItem('pepperhat_notifications_enabled', 'true');
+                notify('Notificações ativadas! Você receberá alertas 1 hora antes das tarefas.', 'success');
+                return true;
+            }
+            
+            if (Notification.permission !== 'denied') {
+                const permission = await Notification.requestPermission();
+                setNotificationPermission(permission);
+                if (permission === 'granted') {
+                    setNotificationsEnabled(true);
+                    localStorage.setItem('pepperhat_notifications_enabled', 'true');
+                    notify('Notificações ativadas! Você receberá alertas 1 hora antes das tarefas.', 'success');
+                    return true;
+                } else {
+                    notify('Permissão de notificações negada. Ative nas configurações do navegador.', 'error');
+                    return false;
+                }
+            } else {
+                notify('Permissão de notificações negada. Ative nas configurações do navegador.', 'error');
+                return false;
+            }
+        };
+
+        const toggleNotifications = async () => {
+            if (!notificationsEnabled) {
+                await requestNotificationPermission();
+            } else {
+                setNotificationsEnabled(false);
+                localStorage.setItem('pepperhat_notifications_enabled', 'false');
+                notify('Notificações desativadas', 'success');
+            }
+        };
+
+        const checkUpcomingTasks = useCallback(() => {
+            if (!notificationsEnabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+            
+            const now = new Date();
+            const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora
+            
+            clients.forEach(card => {
+                if (!card.deadlineDate || !card.deadlineTime) return;
+                
+                try {
+                    const deadlineTime = card.deadlineTime || '00:00';
+                    const deadlineDateTime = new Date(`${card.deadlineDate}T${deadlineTime}:00`);
+                    
+                    // Verifica se está entre agora e 1 hora a partir de agora
+                    if (deadlineDateTime >= now && deadlineDateTime <= oneHourFromNow) {
+                        const taskId = `${card.id}_${deadlineDateTime.getTime()}`;
+                        
+                        // Evita notificações duplicadas
+                        if (!notifiedTasksRef.current.has(taskId)) {
+                            notifiedTasksRef.current.add(taskId);
+                            
+                            const timeUntil = Math.round((deadlineDateTime - now) / 1000 / 60); // minutos
+                            const timeText = timeUntil < 1 ? 'menos de 1 minuto' : `${timeUntil} minuto${timeUntil > 1 ? 's' : ''}`;
+                            
+                            new Notification(`Tarefa iniciando em breve!`, {
+                                body: `${card.name || 'Tarefa sem nome'} - Inicia em ${timeText}`,
+                                icon: '/favicon.ico', // Pode ser ajustado
+                                tag: taskId,
+                                requireInteraction: false
+                            });
+                        }
+                    }
+                    
+                    // Remove IDs antigos (tarefas que já passaram há mais de 2 horas)
+                    const twoHoursAgo = now.getTime() - (2 * 60 * 60 * 1000);
+                    if (deadlineDateTime.getTime() < twoHoursAgo) {
+                        notifiedTasksRef.current.delete(taskId);
+                    }
+                } catch (err) {
+                    console.error('Erro ao verificar tarefa:', err);
+                }
+            });
+        }, [notificationsEnabled, clients]);
+
+        // Sistema de Alertas - Verificação periódica
+        useEffect(() => {
+            if (!notificationsEnabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+            
+            // Verifica imediatamente
+            checkUpcomingTasks();
+            
+            // Verifica a cada minuto
+            const interval = setInterval(() => {
+                checkUpcomingTasks();
+            }, 60000); // 60 segundos
+            
+            return () => clearInterval(interval);
+        }, [notificationsEnabled, checkUpcomingTasks]);
 
         // Import/Export
         const saveToLocalFile = () => {
@@ -986,6 +1093,13 @@
                                     <button onClick={()=>{ resetGoogleCalendarAuth(); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-orange-600">🔁 Alterar Client ID</button>
                                     <button onClick={googleCalendarAuth ? syncToGoogleCalendar : handleGoogleCalendarAuth} className="block w-full text-left px-4 py-2 hover:bg-gray-100" disabled={isSyncingCalendar}>
                                         {isSyncingCalendar ? '🔄 Sincronizando...' : (googleCalendarAuth ? '📅 Sincronizar Google Calendar' : '📅 Conectar Google Calendar')}
+                                    </button>
+                                    <hr className="my-1"/>
+                                    <button 
+                                        onClick={() => { toggleNotifications(); setShowAdminMenu(false); }} 
+                                        className={`block w-full text-left px-4 py-2 hover:bg-gray-100 ${notificationsEnabled ? 'text-green-600 font-bold' : 'text-gray-800'}`}
+                                    >
+                                        {notificationsEnabled ? '🔔 Notificações: Ativadas' : '🔕 Notificações: Desativadas'}
                                     </button>
                                     {googleCalendarAuth && (
                                         <button
