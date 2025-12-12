@@ -400,7 +400,16 @@
                 if (doc.exists()) {
                     const d = doc.data();
                     if (!resizingRef.current.isResizing) {
-                        if (d.board) setBoardState(prev => ({ ...defaultBoardState, ...d.board }));
+                        if (d.board) {
+                            const mergedBoard = { ...defaultBoardState, ...d.board };
+                            // Garantir que activityOptions sempre inclua 'Digital'
+                            if (!mergedBoard.activityOptions || !mergedBoard.activityOptions.includes('Digital')) {
+                                mergedBoard.activityOptions = ['Interna', 'Externa', 'Digital'];
+                                // Salvar a atualização para persistir
+                                triggerSave({ board: mergedBoard });
+                            }
+                            setBoardState(mergedBoard);
+                        }
                         // Merge clients? No, replace usually. 
                         // Sort by 'order' if exists, else by id or date
                         if (d.clients) {
