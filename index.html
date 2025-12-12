@@ -114,7 +114,7 @@
         columnWidths: {},
         categories: [],
         teamMembers: [],
-        activityOptions: ['Interna', 'Externa'],
+        activityOptions: ['Interna', 'Externa', 'Digital'],
         durationOptions: ['Minutos', 'Horas', 'Dia', 'Dias'],
         columnsLocked: false,
       };
@@ -1767,9 +1767,10 @@
                                   onClick={() => h('activity', formData.activity === 'Interna' ? '' : 'Interna')}
                                   className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
                                       formData.activity === 'Interna' 
-                                          ? 'bg-blue-500 text-white border-blue-600 shadow-md' 
-                                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                          ? 'text-white border-yellow-600 shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
                                   }`}
+                                  style={formData.activity === 'Interna' ? { backgroundColor: '#e5b720' } : {}}
                               >
                                   🏠 Interna
                               </button>
@@ -1778,31 +1779,57 @@
                                   onClick={() => h('activity', formData.activity === 'Externa' ? '' : 'Externa')}
                                   className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
                                       formData.activity === 'Externa' 
-                                          ? 'bg-blue-500 text-white border-blue-600 shadow-md' 
-                                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                          ? 'text-white border-yellow-600 shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
                                   }`}
+                                  style={formData.activity === 'Externa' ? { backgroundColor: '#e5b720' } : {}}
                               >
                                   🚗 Externa
+                              </button>
+                              <button 
+                                  type="button"
+                                  onClick={() => h('activity', formData.activity === 'Digital' ? '' : 'Digital')}
+                                  className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
+                                      formData.activity === 'Digital' 
+                                          ? 'text-white border-yellow-600 shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
+                                  }`}
+                                  style={formData.activity === 'Digital' ? { backgroundColor: '#e5b720' } : {}}
+                              >
+                                  💻 📱 Digital
                               </button>
                           </div>
                       </div>
                       <div style={{ minWidth: 0 }}>
                           <label className="text-xs font-bold text-gray-500">DURAÇÃO <span className="text-gray-400 font-normal">(tempo estimado)</span></label>
                           <div className="grid grid-cols-2 gap-2 mt-1">
-                              {['Minutos', 'Horas', 'Dia', 'Dias'].map(d => (
-                                  <button
-                                      key={d}
-                                      type="button"
-                                      onClick={() => h('duration', formData.duration === d ? '' : d)}
-                                      className={`px-3 py-2 rounded border-2 transition-all text-xs font-medium ${
-                                          formData.duration === d
-                                              ? 'bg-purple-500 text-white border-purple-600 shadow-md'
-                                              : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400 hover:bg-purple-50'
-                                      }`}
-                                  >
-                                      {d}
-                                  </button>
-                              ))}
+                              {['Minutos', 'Horas', 'Dia', 'Dias'].map(d => {
+                                  const colorMap = {
+                                      'Minutos': '#31c86e',
+                                      'Horas': '#e5b720',
+                                      'Dia': '#478bf7',
+                                      'Dias': '#121619'
+                                  };
+                                  const selectedColor = colorMap[d];
+                                  return (
+                                      <button
+                                          key={d}
+                                          type="button"
+                                          onClick={() => h('duration', formData.duration === d ? '' : d)}
+                                          className={`px-3 py-2 rounded border-2 transition-all text-xs font-medium ${
+                                              formData.duration === d
+                                                  ? 'text-white shadow-md'
+                                                  : 'bg-white text-gray-700 border-gray-300'
+                                          }`}
+                                          style={formData.duration === d ? { 
+                                              backgroundColor: selectedColor, 
+                                              borderColor: selectedColor 
+                                          } : {}}
+                                      >
+                                          {d}
+                                      </button>
+                                  );
+                              })}
                           </div>
                       </div>
                       
