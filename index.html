@@ -1767,10 +1767,10 @@
                                   onClick={() => h('activity', formData.activity === 'Interna' ? '' : 'Interna')}
                                   className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
                                       formData.activity === 'Interna' 
-                                          ? 'text-white border-yellow-600 shadow-md' 
-                                          : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
+                                          ? 'text-white shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-pink-400 hover:bg-pink-50'
                                   }`}
-                                  style={formData.activity === 'Interna' ? { backgroundColor: '#e5b720' } : {}}
+                                  style={formData.activity === 'Interna' ? { backgroundColor: '#ec4899', borderColor: '#db2777' } : {}}
                               >
                                   🏠 Interna
                               </button>
@@ -1779,10 +1779,10 @@
                                   onClick={() => h('activity', formData.activity === 'Externa' ? '' : 'Externa')}
                                   className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
                                       formData.activity === 'Externa' 
-                                          ? 'text-white border-yellow-600 shadow-md' 
-                                          : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
+                                          ? 'text-white shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-pink-400 hover:bg-pink-50'
                                   }`}
-                                  style={formData.activity === 'Externa' ? { backgroundColor: '#e5b720' } : {}}
+                                  style={formData.activity === 'Externa' ? { backgroundColor: '#ec4899', borderColor: '#db2777' } : {}}
                               >
                                   🚗 Externa
                               </button>
@@ -1791,12 +1791,12 @@
                                   onClick={() => h('activity', formData.activity === 'Digital' ? '' : 'Digital')}
                                   className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
                                       formData.activity === 'Digital' 
-                                          ? 'text-white border-yellow-600 shadow-md' 
-                                          : 'bg-white text-gray-700 border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
+                                          ? 'text-white shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-pink-400 hover:bg-pink-50'
                                   }`}
-                                  style={formData.activity === 'Digital' ? { backgroundColor: '#e5b720' } : {}}
+                                  style={formData.activity === 'Digital' ? { backgroundColor: '#ec4899', borderColor: '#db2777' } : {}}
                               >
-                                  💻 📱 Digital
+                                  💻 Digital
                               </button>
                           </div>
                       </div>
@@ -1943,6 +1943,7 @@
                           {/* Emoji Activities */}
                           {card.activity === 'Interna' && <span title="Atividade: Interna">🏠</span>}
                           {card.activity === 'Externa' && <span title="Atividade: Externa">🚗</span>}
+                          {card.activity === 'Digital' && <span title="Atividade: Externa">💻</span>}
                           
                           {/* Emoji Categories (only if not activity) */}
                           {!card.activity && card.category === 'Cerimonialista' && <span title="Categoria: Cerimonialista">💐</span>}
