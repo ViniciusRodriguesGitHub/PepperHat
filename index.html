@@ -1297,8 +1297,8 @@
                 )}
 
                 {showAddCard && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-3 sm:p-4 md:p-6 max-h-[90vh] overflow-y-auto" style={{ maxWidth: 'calc(100vw - 1rem)' }}>
                             <div className="flex justify-between mb-4"><h2 className="text-2xl font-bold">{editingCardId ? 'Editar' : 'Novo'} Card</h2><button onClick={()=>setShowAddCard(false)}>✕</button></div>
                             <CardForm 
                                 initialData={editingCardId ? clients.find(c=>c.id===editingCardId) : uiState.newClient}
@@ -1728,8 +1728,8 @@
           }, []);
           return (
               <form onSubmit={e => { e.preventDefault(); onSave(formData); }}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4" style={{ minWidth: 0 }}>
+                      <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}>
                           <label className="text-xs font-bold text-gray-500">NOME</label>
                           <input 
                               className="w-full border-2 border-blue-500 p-2 rounded" 
@@ -1737,40 +1737,41 @@
                               onChange={e=>h('name',e.target.value)}
                               {...(nameHandlers || {})}
                               required 
+                              style={{ minWidth: 0 }}
                           />
                       </div>
-                      <div><label className="text-xs font-bold text-gray-500">EMAIL</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.email} onChange={e=>h('email',e.target.value)} {...(emailHandlers || {})} /></div>
-                      <div><label className="text-xs font-bold text-gray-500">TELEFONE</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.phone} onChange={e=>h('phone',e.target.value)} {...(phoneHandlers || {})} /></div>
-                      <div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">EMAIL</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.email} onChange={e=>h('email',e.target.value)} {...(emailHandlers || {})} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">TELEFONE</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.phone} onChange={e=>h('phone',e.target.value)} {...(phoneHandlers || {})} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}>
                           <div className="flex items-center justify-between">
                               <label className="text-xs font-bold text-gray-500">CATEGORIA</label>
                               <button type="button" onClick={onManageCategories} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
                           </div>
-                          <select className="w-full border p-2 rounded" value={formData.category} onChange={e=>h('category',e.target.value)}><option value="">-</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
+                          <select className="w-full border p-2 rounded" value={formData.category} onChange={e=>h('category',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0 }}>
                           <div className="flex items-center justify-between">
                               <label className="text-xs font-bold text-gray-500">RESPONSÁVEL</label>
                               <button type="button" onClick={onManageMembers} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
                           </div>
-                          <select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select>
+                          <select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select>
                       </div>
                       
-                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">ENDEREÇO</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.address} onChange={e=>h('address',e.target.value)} {...(addressHandlers || {})} /></div>
+                      <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">ENDEREÇO</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.address} onChange={e=>h('address',e.target.value)} {...(addressHandlers || {})} style={{ minWidth: 0 }} /></div>
                       
-                      <div><label className="text-xs font-bold text-gray-500">ATIVIDADE</label><select className="w-full border p-2 rounded" value={formData.activity} onChange={e=>h('activity',e.target.value)}><option value="">-</option>{activityOptions.map(a=><option key={a} value={a}>{a}</option>)}</select></div>
-                      <div><label className="text-xs font-bold text-gray-500">DURAÇÃO</label><select className="w-full border p-2 rounded" value={formData.duration} onChange={e=>h('duration',e.target.value)}><option value="">-</option>{durationOptions.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">ATIVIDADE</label><select className="w-full border p-2 rounded" value={formData.activity} onChange={e=>h('activity',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{activityOptions.map(a=><option key={a} value={a}>{a}</option>)}</select></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">DURAÇÃO</label><select className="w-full border p-2 rounded" value={formData.duration} onChange={e=>h('duration',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{durationOptions.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
                       
-                      <div><label className="text-xs font-bold text-gray-500">PRAZO DATA</label><input type="date" className="w-full border p-2 rounded" value={formData.deadlineDate} onChange={e=>h('deadlineDate',e.target.value)} /></div>
-                      <div><label className="text-xs font-bold text-gray-500">PRAZO HORA</label><input type="time" className="w-full border p-2 rounded" value={formData.deadlineTime} onChange={e=>h('deadlineTime',e.target.value)} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">PRAZO DATA</label><input type="date" className="w-full border p-2 rounded" value={formData.deadlineDate} onChange={e=>h('deadlineDate',e.target.value)} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">PRAZO HORA</label><input type="time" className="w-full border p-2 rounded" value={formData.deadlineTime} onChange={e=>h('deadlineTime',e.target.value)} style={{ minWidth: 0 }} /></div>
                       
-                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">LINK</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.link} onChange={e=>h('link',e.target.value)} {...(linkHandlers || {})} /></div>
-                      <div className="col-span-2"><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
+                      <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">LINK</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.link} onChange={e=>h('link',e.target.value)} {...(linkHandlers || {})} style={{ minWidth: 0 }} /></div>
+                      <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded border mb-4">
+                  <div className="bg-gray-50 p-3 rounded border mb-4" style={{ minWidth: 0 }}>
                       <label className="text-xs font-bold text-gray-500">ANOTAÇÕES</label>
                       <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1">{(formData.notes||[]).map((n,i)=><div key={i} className="bg-white p-1 rounded border">{n.text}</div>)}</div>
-                      <div className="flex gap-2"><input className="flex-grow border-2 border-blue-500 p-1 rounded" value={note} onChange={e=>setNote(e.target.value)} {...(noteHandlers || {})} /><button type="button" onClick={()=>{if(note) h('notes', [...(formData.notes||[]), {text:note, timestamp:new Date().toISOString()}]); setNote('');}} className="px-3 bg-blue-100 text-blue-700 rounded">Add</button></div>
+                      <div className="flex gap-2" style={{ minWidth: 0 }}><input className="flex-grow border-2 border-blue-500 p-1 rounded min-w-0" value={note} onChange={e=>setNote(e.target.value)} {...(noteHandlers || {})} style={{ minWidth: 0 }} /><button type="button" onClick={()=>{if(note) h('notes', [...(formData.notes||[]), {text:note, timestamp:new Date().toISOString()}]); setNote('');}} className="px-3 bg-blue-100 text-blue-700 rounded flex-shrink-0">Add</button></div>
                   </div>
                   <div className="flex justify-between border-t pt-4">
                       {initialData.id && <button type="button" onClick={onDelete} className="text-red-500 font-bold">Excluir</button>}
