@@ -1298,7 +1298,7 @@
 
                 {showAddCard && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
-                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-3 sm:p-4 md:p-6 max-h-[90vh] overflow-y-auto" style={{ maxWidth: 'calc(100vw - 1rem)' }}>
+                        <div className="bg-white rounded-xl shadow-2xl w-full p-3 sm:p-4 md:p-6 max-h-[90vh] overflow-y-auto" style={{ maxWidth: 'min(700px, calc(100vw - 1rem))' }}>
                             <div className="flex justify-between mb-4"><h2 className="text-2xl font-bold">{editingCardId ? 'Editar' : 'Novo'} Card</h2><button onClick={()=>setShowAddCard(false)}>✕</button></div>
                             <CardForm 
                                 initialData={editingCardId ? clients.find(c=>c.id===editingCardId) : uiState.newClient}
