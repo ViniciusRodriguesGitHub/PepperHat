@@ -1042,7 +1042,7 @@
         const getColumns = () => boardState.columnOrder.map(id => boardState.columns[id]).filter(Boolean);
 
         return (
-            <div className="max-w-full mx-auto p-4 sm:p-8 fade-in">
+            <div className="max-w-full mx-auto p-2 sm:p-4 md:p-8 fade-in">
                 {notification && <div className={`fixed top-4 right-4 p-4 rounded shadow-xl z-50 text-white ${notification.type==='error'?'bg-red-500':'bg-green-600'}`}>{notification.msg} {syncError && <button onClick={()=>onSwitchMode('private')} className="ml-2 underline">Mudar Pessoal</button>}</div>}
                 
                 {confirmation.isOpen && (
@@ -1216,7 +1216,7 @@
                         </div>
                     </div>
                 ) : currentView === 'kanban' ? (
-                    <div ref={bottomScrollRef} className="flex-grow overflow-x-auto overflow-y-hidden flex gap-4 pb-2 custom-scrollbar">
+                    <div ref={bottomScrollRef} className="flex-grow overflow-x-auto overflow-y-hidden flex gap-2 sm:gap-4 pb-2 custom-scrollbar" style={{ minWidth: 0, WebkitOverflowScrolling: 'touch' }}>
                         {(boardState.columnOrder||[]).map(colId => {
                             const col = boardState.columns[colId];
                             if(!col) return null;
@@ -1236,7 +1236,7 @@
                             return (
                                 <div key={col.id} onDragOver={e=>{e.preventDefault(); if(draggedItem) setDropTarget({ columnId: colId, index: colCards.length });}} onDrop={e=>handleDrop(e, colId)} onDragLeave={()=>setDropTarget(null)}
                                      className="flex-shrink-0 flex flex-col bg-gray-50 rounded-xl shadow border border-gray-200 h-full max-h-full relative"
-                                     style={{ width: width, minWidth: 220, backgroundColor: col.color || '#f3f4f6' }}>
+                                     style={{ width: width, minWidth: 'min(220px, calc(100vw - 3rem))', maxWidth: 'calc(100vw - 3rem)', backgroundColor: col.color || '#f3f4f6' }}>
                                     
                                     <div className="p-3 font-bold text-gray-700 flex justify-between items-center border-b border-black/5">
                                         <span>{col.title} <span className="text-xs bg-white/50 px-1 rounded">{colCards.length}</span></span>
