@@ -1759,8 +1759,52 @@
                       
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">ENDEREÇO</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.address} onChange={e=>h('address',e.target.value)} {...(addressHandlers || {})} style={{ minWidth: 0 }} /></div>
                       
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">ATIVIDADE</label><select className="w-full border p-2 rounded" value={formData.activity} onChange={e=>h('activity',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{activityOptions.map(a=><option key={a} value={a}>{a}</option>)}</select></div>
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">DURAÇÃO</label><select className="w-full border p-2 rounded" value={formData.duration} onChange={e=>h('duration',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{durationOptions.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+                      <div style={{ minWidth: 0 }}>
+                          <label className="text-xs font-bold text-gray-500">ATIVIDADE</label>
+                          <div className="flex gap-2 mt-1">
+                              <button 
+                                  type="button"
+                                  onClick={() => h('activity', formData.activity === 'Interna' ? '' : 'Interna')}
+                                  className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
+                                      formData.activity === 'Interna' 
+                                          ? 'bg-blue-500 text-white border-blue-600 shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                  }`}
+                              >
+                                  🏠 Interna
+                              </button>
+                              <button 
+                                  type="button"
+                                  onClick={() => h('activity', formData.activity === 'Externa' ? '' : 'Externa')}
+                                  className={`flex-1 px-3 py-2 rounded border-2 transition-all text-sm font-medium ${
+                                      formData.activity === 'Externa' 
+                                          ? 'bg-blue-500 text-white border-blue-600 shadow-md' 
+                                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                  }`}
+                              >
+                                  🚗 Externa
+                              </button>
+                          </div>
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                          <label className="text-xs font-bold text-gray-500">DURAÇÃO <span className="text-gray-400 font-normal">(tempo estimado)</span></label>
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                              {['Minutos', 'Horas', 'Dia', 'Dias'].map(d => (
+                                  <button
+                                      key={d}
+                                      type="button"
+                                      onClick={() => h('duration', formData.duration === d ? '' : d)}
+                                      className={`px-3 py-2 rounded border-2 transition-all text-xs font-medium ${
+                                          formData.duration === d
+                                              ? 'bg-purple-500 text-white border-purple-600 shadow-md'
+                                              : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400 hover:bg-purple-50'
+                                      }`}
+                                  >
+                                      {d}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
                       
                       <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">PRAZO DATA</label><input type="date" className="w-full border p-2 rounded" value={formData.deadlineDate} onChange={e=>h('deadlineDate',e.target.value)} style={{ minWidth: 0 }} /></div>
                       <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">PRAZO HORA</label><input type="time" className="w-full border p-2 rounded" value={formData.deadlineTime} onChange={e=>h('deadlineTime',e.target.value)} style={{ minWidth: 0 }} /></div>
