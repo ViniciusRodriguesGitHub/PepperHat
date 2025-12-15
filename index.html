@@ -1848,29 +1848,46 @@
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">LINK</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.link} onChange={e=>h('link',e.target.value)} {...(linkHandlers || {})} style={{ minWidth: 0 }} /></div>
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
                   </div>
-                     <div className="bg-gray-50 p-3 rounded border mb-4" style={{ minWidth: 0 }}>
-                     <label className="text-xs font-bold text-gray-500">ANOTAÇÕES</label>
-                     <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1">
-                       {(formData.notes||[]).map((n,i)=>{
-                         let prefix = '';
-                         if (n.timestamp) {
-                           const d = new Date(n.timestamp);
-                           if (!isNaN(d.getTime())) {
-                             const dia   = String(d.getDate()).padStart(2,'0');
-                             const mes   = String(d.getMonth()+1).padStart(2,'0');
-                             const hora  = String(d.getHours()).padStart(2,'0');
-                             const min   = String(d.getMinutes()).padStart(2,'0');
-                             prefix = `${dia}/${mes} ${hora}:${min} · `;
-                           }
-                         }
-                         return (
-                           <div key={i} className="bg-white p-1 rounded border">
-                             {prefix && <span className="text-[10px] text-gray-400 font-mono mr-1">{prefix}</span>}
-                             <span>{n.text}</span>
-                           </div>
-                         );
-                       })}
-                     </div>
+                    <div className="bg-gray-50 p-3 rounded border mb-4" style={{ minWidth: 0 }}>
+                    <label className="text-xs font-bold text-gray-500">ANOTAÇÕES</label>
+                    <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1">
+                      {(formData.notes||[]).map((n,i)=>{
+                        let prefix = '';
+                        if (n.timestamp) {
+                          const d = new Date(n.timestamp);
+                          if (!isNaN(d.getTime())) {
+                            const dia   = String(d.getDate()).padStart(2,'0');
+                            const mes   = String(d.getMonth()+1).padStart(2,'0');
+                            const hora  = String(d.getHours()).padStart(2,'0');
+                            const min   = String(d.getMinutes()).padStart(2,'0');
+                            prefix = `${dia}/${mes} ${hora}:${min} · `;
+                          }
+                        }
+                        const handleDeleteNote = (e) => {
+                          e.stopPropagation();
+                          if (confirm('Tem certeza que deseja excluir esta anotação?')) {
+                            const newNotes = (formData.notes || []).filter((_, idx) => idx !== i);
+                            h('notes', newNotes);
+                          }
+                        };
+                        return (
+                          <div key={i} className="bg-white p-1 rounded border flex items-start justify-between gap-1">
+                            <div className="flex-1">
+                              {prefix && <span className="text-[10px] text-gray-400 font-mono mr-1">{prefix}</span>}
+                              <span>{n.text}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleDeleteNote}
+                              className="ml-1 text-[10px] text-red-400 hover:text-red-600 flex-shrink-0"
+                              title="Excluir anotação"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                      <div className="flex gap-2" style={{ minWidth: 0 }}>
                        <input
                          className="flex-grow border-2 border-blue-500 p-1 rounded min-w-0"
