@@ -321,13 +321,14 @@
 
       // --- KANBAN BOARD (CORE) ---
       function KanbanBoard({ user, projectId, storageMode, onSwitchMode, onBack }) {
-        const [boardState, setBoardState] = useState(defaultBoardState);
-        const [clients, setClients] = useState([]);
-        const [pageTitle, setPageTitle] = useState('Pepper Hat Funil');
-        const [isSaving, setIsSaving] = useState(false);
-        
-        // UI
-        const [currentView, setCurrentView] = useState('kanban');
+      const [boardState, setBoardState] = useState(defaultBoardState);
+      const [clients, setClients] = useState([]);
+      const [logs, setLogs] = useState([]);
+      const [pageTitle, setPageTitle] = useState('Pepper Hat Funil');
+      const [isSaving, setIsSaving] = useState(false);
+      
+      // UI
+      const [currentView, setCurrentView] = useState('kanban');
         const [showAdminMenu, setShowAdminMenu] = useState(false);
         const [showAddCard, setShowAddCard] = useState(false);
         const [editingCardId, setEditingCardId] = useState(null);
@@ -416,6 +417,7 @@
                             const sortedClients = [...d.clients].sort((a, b) => (a.order || 0) - (b.order || 0));
                             setClients(sortedClients);
                         }
+                        if (d.logs) setLogs(d.logs);
                         if (d.pageTitle) setPageTitle(d.pageTitle); 
                     }
                 } else {
@@ -449,8 +451,15 @@
         const triggerSave = (data) => {
             if(data.board) setBoardState(data.board);
             if(data.clients) setClients(data.clients);
+            if(data.logs) setLogs(data.logs);
             pendingSaveRef.current = { ...pendingSaveRef.current, ...data };
             debouncedCommit();
+        };
+
+        const addLogEntry = (entry) => {
+            const base = { id: uid(), timestamp: new Date().toISOString() };
+            const newLogs = [...logs, { ...base, ...entry }];
+            triggerSave({ logs: newLogs });
         };
 
         // Actions
@@ -471,6 +480,15 @@
                     const oldCol = boardState.columns[c.columnId]?.title || c.columnId;
                     const newCol = boardState.columns[targetCol]?.title || targetCol;
                     const notes = [...(c.notes||[]), { text: `Movido: ${oldCol} -> ${newCol}`, timestamp: new Date().toISOString() }];
+                    addLogEntry({
+                        kind: 'card',
+                        action: 'move',
+                        cardId: c.id,
+                        cardName: c.name,
+                        changes: [
+                            { field: 'coluna', before: oldCol, after: newCol }
+                        ]
+                    });
                     return { ...c, columnId: targetCol, lastUpdated: new Date().toISOString(), notes, pulsingDisabled: false };
                 }
                 return c;
@@ -529,13 +547,31 @@
             if(newIdx >= 0 && newIdx < order.length && !['arquivados','descartados'].includes(order[newIdx])) {
                 [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
                 triggerSave({ board: { ...boardState, columnOrder: order } });
+                const col = boardState.columns[id];
+                addLogEntry({
+                    kind: 'column',
+                    action: 'move',
+                    columnId: id,
+                    title: col?.title || id,
+                    changes: [
+                        { field: 'posição', before: idx, after: newIdx }
+                    ]
+                });
             }
         };
 
         const changeColumnColor = (id) => {
             const col = boardState.columns[id];
+            const oldColor = col?.color || null;
             const newColor = softPastelColors[Math.floor(Math.random()*softPastelColors.length)];
             triggerSave({ board: { ...boardState, columns: { ...boardState.columns, [id]: { ...col, color: newColor } } } });
+            addLogEntry({
+                kind: 'column',
+                action: 'color',
+                columnId: id,
+                title: col?.title || id,
+                changes: oldColor ? [{ field: 'cor', before: oldColor, after: newColor }] : []
+            });
         };
 
         const handleUndo = () => {
@@ -1140,9 +1176,9 @@
                     </div>
                 </header>
 
-                <div className="flex flex-wrap gap-2 mb-4 items-center bg-white p-2 rounded shadow-sm shrink-0">
+        <div className="flex flex-wrap gap-2 mb-4 items-center bg-white p-2 rounded shadow-sm shrink-0">
                     <div className="flex bg-gray-100 rounded p-1">
-                        {['kanban', 'calendar', 'list'].map(v => <button key={v} onClick={()=>setCurrentView(v)} className={`px-3 py-1 rounded text-sm capitalize ${currentView===v ? 'bg-white shadow font-bold' : 'text-gray-500'}`}>{v}</button>)}
+                        {['kanban', 'calendar', 'list', 'logs'].map(v => <button key={v} onClick={()=>setCurrentView(v)} className={`px-3 py-1 rounded text-sm capitalize ${currentView===v ? 'bg-white shadow font-bold' : 'text-gray-500'}`}>{v}</button>)}
                     </div>
                     <div className="w-px h-6 bg-gray-300 mx-1"></div>
                     <button onClick={()=>setCompactCards(!compactCards)} className="text-sm bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">{compactCards ? 'Expandir' : 'Compactar'}</button>
@@ -1260,6 +1296,15 @@
                                                 )}
                                                 <button onClick={() => requestConfirmation('Excluir Coluna', `Tem certeza que deseja excluir a coluna "${col.title}"?`, () => {
                                                     setUndoStack({ type: 'column', data: col, relatedClients: colCards });
+                                                    addLogEntry({
+                                                        kind: 'column',
+                                                        action: 'delete',
+                                                        columnId: colId,
+                                                        title: col.title,
+                                                        changes: [
+                                                            { field: 'cards_afetados', before: colCards.length, after: 0 }
+                                                        ]
+                                                    });
                                                     triggerSave({ board: { ...boardState, columns: Object.fromEntries(Object.entries(boardState.columns).filter(([k])=>k!==colId)), columnOrder: boardState.columnOrder.filter(id=>id!==colId) }, clients: clients.filter(c => c.columnId !== colId) });
                                                 })} className="text-xs hover:text-red-600">🗑</button>
                                             </div>
@@ -1299,9 +1344,59 @@
                     </div>
                 ) : null}
 
-                {currentView !== 'kanban' && (
+                {(currentView === 'calendar' || currentView === 'list') && (
                     <div className="bg-white rounded-xl shadow p-6 h-full overflow-auto">
                         <CalendarDisplay clients={clients} view={currentView} selectedDate={selectedDate} setSelectedDate={setSelectedDate} setEditingCardId={(id)=>{setEditingCardId(id); setShowAddCard(true);}} filters={{filterCategory, searchTerm}} />
+                    </div>
+                )}
+
+                {currentView === 'logs' && (
+                    <div className="bg-white rounded-xl shadow p-4 h-full overflow-auto text-xs leading-tight">
+                        <h2 className="text-sm font-bold mb-2 text-gray-700">📜 Logs de atividade</h2>
+                        {(!logs || logs.length === 0) && (
+                            <p className="text-[11px] text-gray-400 italic">Nenhum registro ainda. Crie, edite ou exclua cards/colunas para começar o histórico.</p>
+                        )}
+                        <div className="mt-1 space-y-1 font-mono">
+                            {[...logs].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).map((entry, idx) => {
+                                const d = new Date(entry.timestamp);
+                                const dia   = String(d.getDate()).padStart(2,'0');
+                                const mes   = String(d.getMonth()+1).padStart(2,'0');
+                                const hora  = String(d.getHours()).padStart(2,'0');
+                                const min   = String(d.getMinutes()).padStart(2,'0');
+                                const sec   = String(d.getSeconds()).padStart(2,'0');
+                                const ts = `${dia}/${mes} ${hora}:${min}:${sec}`;
+                                const kindLabel = entry.kind === 'column' ? 'COLUNA' : 'CARD';
+                                return (
+                                    <div key={entry.id || idx} className="border-b border-gray-100 pb-1 last:border-b-0">
+                                        <div className="text-[11px] text-gray-700">
+                                            <span className="text-[10px] text-gray-400 mr-1">[{ts}]</span>
+                                            <span className="font-semibold">{kindLabel}</span>
+                                            <span className="mx-1 text-gray-400">|</span>
+                                            <span className="text-gray-600 uppercase">{entry.action}</span>
+                                            {entry.cardName && <span className="ml-1 text-gray-500">"{entry.cardName}"</span>}
+                                            {entry.title && <span className="ml-1 text-gray-500">"{entry.title}"</span>}
+                                        </div>
+                                        {entry.changes && entry.changes.length > 0 && (
+                                            <ul className="ml-3 mt-0.5 text-[10px] text-gray-500 space-y-0.5 list-disc">
+                                                {entry.changes.map((ch, ci) => (
+                                                    <li key={ci}>
+                                                        <span className="font-mono text-gray-600">{ch.field}</span>
+                                                        <span className="mx-1 text-gray-400">:</span>
+                                                        {'before' in ch && ch.before !== undefined && ch.before !== null && String(ch.before) !== '' && (
+                                                            <>
+                                                                <span className="line-through text-red-400">{String(ch.before)}</span>
+                                                                <span className="mx-1 text-gray-400">→</span>
+                                                            </>
+                                                        )}
+                                                        <span className="text-green-600">{String(ch.after ?? '')}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
@@ -1315,9 +1410,30 @@
                                 onManageCategories={()=>setShowManageCategories(true)}
                                 onManageMembers={()=>setShowManageMembers(true)}
                                 onSave={(data) => {
-                                    const newData = { ...data, lastUpdated: new Date().toISOString() };
-                                    if(editingCardId) triggerSave({ clients: clients.map(c => c.id === editingCardId ? newData : c) });
-                                    else {
+                                    const nowIso = new Date().toISOString();
+                                    const newData = { ...data, lastUpdated: nowIso };
+                                    if(editingCardId) {
+                                        const oldCard = clients.find(c => c.id === editingCardId) || {};
+                                        const trackedFields = ['name','email','phone','category','assignedTo','address','activity','deadlineDate','deadlineTime','duration','rating','link','columnId'];
+                                        const changes = [];
+                                        trackedFields.forEach(field => {
+                                            const before = oldCard[field];
+                                            const after = newData[field];
+                                            if (JSON.stringify(before) !== JSON.stringify(after)) {
+                                                changes.push({ field, before, after });
+                                            }
+                                        });
+                                        if (changes.length > 0) {
+                                            addLogEntry({
+                                                kind: 'card',
+                                                action: 'edit',
+                                                cardId: editingCardId,
+                                                cardName: newData.name || oldCard.name || '',
+                                                changes
+                                            });
+                                        }
+                                        triggerSave({ clients: clients.map(c => c.id === editingCardId ? newData : c) });
+                                    } else {
                                         if(!data.name) { notify("Preencha o Nome", 'error'); return; }
                                         const defaultColId = getDefaultColumnId();
                                         if (!newData.columnId && defaultColId) {
@@ -1327,7 +1443,19 @@
                                             notify("É necessário ter pelo menos uma coluna para criar um card.", 'error');
                                             return;
                                         }
-                                        triggerSave({ clients: [...clients, { id: uid(), createdAt: new Date().toISOString(), ...newData }] });
+                                        const newId = uid();
+                                        const createdAt = nowIso;
+                                        const newClient = { id: newId, createdAt, ...newData };
+                                        triggerSave({ clients: [...clients, newClient] });
+                                        addLogEntry({
+                                            kind: 'card',
+                                            action: 'create',
+                                            cardId: newId,
+                                            cardName: newData.name,
+                                            changes: [
+                                                { field: 'coluna', before: '', after: boardState.columns[newData.columnId]?.title || newData.columnId }
+                                            ]
+                                        });
                                     }
                                     setShowAddCard(false);
                                 }}
@@ -1339,6 +1467,18 @@
                                         if (deleteFromCalendar) {
                                             await deleteCalendarEvent(card.googleCalendarEventId);
                                         }
+                                    }
+                                    if (card) {
+                                        const colTitle = boardState.columns[card.columnId]?.title || card.columnId;
+                                        addLogEntry({
+                                            kind: 'card',
+                                            action: 'delete',
+                                            cardId: card.id,
+                                            cardName: card.name,
+                                            changes: [
+                                                { field: 'coluna', before: colTitle, after: '' }
+                                            ]
+                                        });
                                     }
                                     triggerSave({ clients: clients.filter(c => c.id !== editingCardId) });
                                     setShowAddCard(false);
@@ -1352,7 +1492,7 @@
                 {showManageCategories && <ManageItemsModal title="Gerenciar Categorias" items={boardState.categories} onClose={()=>setShowManageCategories(false)} onSave={(items) => triggerSave({ board: {...boardState, categories: items} })} />}
                 {showManageMembers && <ManageItemsModal title="Gerenciar Responsáveis" items={boardState.teamMembers} onClose={()=>setShowManageMembers(false)} onSave={(items) => triggerSave({ board: {...boardState, teamMembers: items} })} />}
                 {showCalendarGuide && <GoogleCalendarGuideModal onClose={()=>setShowCalendarGuide(false)} />}
-                {isAddingColumn && <SimpleModal title="Nova Coluna" onClose={()=>setIsAddingColumn(false)} onSave={v => { const id=v.toLowerCase().replace(/\s/g,'-'); triggerSave({ board: {...boardState, columns: {...boardState.columns, [id]:{id, title:v}}, columnOrder: [...boardState.columnOrder, id]} }); }} />}
+                {isAddingColumn && <SimpleModal title="Nova Coluna" onClose={()=>setIsAddingColumn(false)} onSave={v => { const id=v.toLowerCase().replace(/\s/g,'-'); triggerSave({ board: {...boardState, columns: {...boardState.columns, [id]:{id, title:v}}, columnOrder: [...boardState.columnOrder, id]} }); addLogEntry({ kind: 'column', action: 'create', columnId: id, title: v }); }} />}
             </div>
         );
       }
