@@ -1087,7 +1087,7 @@
         const getColumns = () => boardState.columnOrder.map(id => boardState.columns[id]).filter(Boolean);
 
         return (
-            <div className="max-w-full mx-auto p-2 sm:p-4 md:p-8 fade-in">
+            <div className="max-w-full mx-auto p-2 sm:p-4 md:p-8 fade-in bg-stone-50">
                 {notification && <div className={`fixed top-4 right-4 p-4 rounded shadow-xl z-50 text-white ${notification.type==='error'?'bg-red-500':'bg-green-600'}`}>{notification.msg} {syncError && <button onClick={()=>onSwitchMode('private')} className="ml-2 underline">Mudar Pessoal</button>}</div>}
                 
                 {confirmation.isOpen && (
