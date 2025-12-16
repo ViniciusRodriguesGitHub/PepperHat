@@ -1993,9 +1993,9 @@
                       <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">💲VALOR</label><input type="text" className="w-full border-2 border-blue-500 p-2 rounded" value={formData.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.value) : 'R$ 0,00'} onChange={e=>{const val=e.target.value.replace(/[^\d,]/g,'').replace(',','.'); h('value',val?parseFloat(val):0);}} style={{ minWidth: 0 }} /></div>
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
                   </div>
-                    <div className="bg-gray-50 p-3 rounded border mb-4 text-center" style={{ minWidth: 0 }}>
+                    <div className="bg-gray-50 p-3 rounded border mb-4 text-left" style={{ minWidth: 0 }}>
                     <label className="text-xs font-bold text-gray-500 text-left w-full block">✏️ ANOTAÇÕES</label>
-                    <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1 text-center">
+                    <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1 text-left">
                       {(formData.notes||[]).map((n,i)=>{
                         let prefix = '';
                         if (n.timestamp) {
