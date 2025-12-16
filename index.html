@@ -1904,7 +1904,7 @@
                       </div>
                       <div style={{ minWidth: 0 }}>
                           <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-gray-500">👤RESPONSÁVEL</label>
+                              <label className="text-xs font-bold text-gray-500">👤 RESPONSÁVEL</label>
                               <button type="button" onClick={onManageMembers} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
                           </div>
                           <select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select>
@@ -1994,7 +1994,7 @@
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
                   </div>
                     <div className="bg-gray-50 p-3 rounded border mb-4 text-center" style={{ minWidth: 0 }}>
-                    <label className="text-xs font-bold text-gray-500 text-center w-full block">✏️ ANOTAÇÕES</label>
+                    <label className="text-xs font-bold text-gray-500 text-left w-full block">✏️ ANOTAÇÕES</label>
                     <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1 text-center">
                       {(formData.notes||[]).map((n,i)=>{
                         let prefix = '';
