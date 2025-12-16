@@ -1310,7 +1310,7 @@
                                             </div>
                                         ) : (
                                             <div className="text-xs font-mono text-green-600">
-                                                💲{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(colCards.reduce((sum, card) => sum + (card.value || 0), 0))}
+                                                💲{new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(colCards.reduce((sum, card) => sum + (card.value || 0), 0))}
                                             </div>
                                         )}
                                     </div>
@@ -1883,7 +1883,7 @@
               <form onSubmit={e => { e.preventDefault(); onSave(formData); }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4" style={{ minWidth: 0 }}>
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}>
-                          <label className="text-xs font-bold text-gray-500">NOME</label>
+                          <label className="text-xs font-bold text-gray-500">🪪NOME</label>
                           <input 
                               className="w-full border-2 border-blue-500 p-2 rounded" 
                               value={formData.name} 
@@ -1893,18 +1893,18 @@
                               style={{ minWidth: 0 }}
                           />
                       </div>
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">EMAIL</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.email} onChange={e=>h('email',e.target.value)} {...(emailHandlers || {})} style={{ minWidth: 0 }} /></div>
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">TELEFONE</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.phone} onChange={e=>h('phone',e.target.value)} {...(phoneHandlers || {})} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">📧EMAIL</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.email} onChange={e=>h('email',e.target.value)} {...(emailHandlers || {})} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">📞TELEFONE</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.phone} onChange={e=>h('phone',e.target.value)} {...(phoneHandlers || {})} style={{ minWidth: 0 }} /></div>
                       <div style={{ minWidth: 0 }}>
                           <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-gray-500">CATEGORIA</label>
+                              <label className="text-xs font-bold text-gray-500">🔽CATEGORIA</label>
                               <button type="button" onClick={onManageCategories} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
                           </div>
                           <select className="w-full border p-2 rounded" value={formData.category} onChange={e=>h('category',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
                       </div>
                       <div style={{ minWidth: 0 }}>
                           <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-gray-500">RESPONSÁVEL</label>
+                              <label className="text-xs font-bold text-gray-500">👤RESPONSÁVEL</label>
                               <button type="button" onClick={onManageMembers} className="text-[10px] text-blue-600 hover:underline">Gerenciar</button>
                           </div>
                           <select className="w-full border p-2 rounded" value={formData.assignedTo} onChange={e=>h('assignedTo',e.target.value)} style={{ minWidth: 0 }}><option value="">-</option>{teamMembers.map(m=><option key={m} value={m}>{m}</option>)}</select>
@@ -1986,15 +1986,15 @@
                           </div>
                       </div>
                       
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">PRAZO DATA</label><input type="date" className="w-full border p-2 rounded" value={formData.deadlineDate} onChange={e=>h('deadlineDate',e.target.value)} style={{ minWidth: 0 }} /></div>
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">PRAZO HORA</label><input type="time" className="w-full border p-2 rounded" value={formData.deadlineTime} onChange={e=>h('deadlineTime',e.target.value)} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">📅PRAZO DATA</label><input type="date" className="w-full border p-2 rounded" value={formData.deadlineDate} onChange={e=>h('deadlineDate',e.target.value)} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">⏱️PRAZO HORA</label><input type="time" className="w-full border p-2 rounded" value={formData.deadlineTime} onChange={e=>h('deadlineTime',e.target.value)} style={{ minWidth: 0 }} /></div>
                       
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">LINK</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.link} onChange={e=>h('link',e.target.value)} {...(linkHandlers || {})} style={{ minWidth: 0 }} /></div>
-                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">VALOR</label><input type="text" className="w-full border-2 border-blue-500 p-2 rounded" value={formData.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.value) : 'R$ 0,00'} onChange={e=>{const val=e.target.value.replace(/[^\d,]/g,'').replace(',','.'); h('value',val?parseFloat(val):0);}} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">🔗LINK</label><input className="w-full border-2 border-blue-500 p-2 rounded" value={formData.link} onChange={e=>h('link',e.target.value)} {...(linkHandlers || {})} style={{ minWidth: 0 }} /></div>
+                      <div style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">💲VALOR</label><input type="text" className="w-full border-2 border-blue-500 p-2 rounded" value={formData.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.value) : 'R$ 0,00'} onChange={e=>{const val=e.target.value.replace(/[^\d,]/g,'').replace(',','.'); h('value',val?parseFloat(val):0);}} style={{ minWidth: 0 }} /></div>
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}><label className="text-xs font-bold text-gray-500">AVALIAÇÃO</label><div className="flex gap-1">{[1,2,3,4,5].map(s=><button type="button" key={s} onClick={()=>h('rating',s)} className={`text-xl ${s<=(formData.rating||0)?'text-yellow-400':'text-gray-300'}`}>★</button>)}</div></div>
                   </div>
                     <div className="bg-gray-50 p-3 rounded border mb-4" style={{ minWidth: 0 }}>
-                    <label className="text-xs font-bold text-gray-500">ANOTAÇÕES</label>
+                    <label className="text-xs font-bold text-gray-500">✏️ANOTAÇÕES</label>
                     <div className="h-24 overflow-y-auto mb-2 text-sm space-y-1">
                       {(formData.notes||[]).map((n,i)=>{
                         let prefix = '';
