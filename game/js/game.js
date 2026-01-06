@@ -247,6 +247,553 @@
     normalizedDistance: 1 // New: Stores the normalized distance for border width calculation
   }; // Stores opacity and speed for the pulsating border effect
 
+  // Adaptive Difficulty System - Adjusts game difficulty based on player performance
+  const adaptiveDifficulty = {
+    playerStats: {
+      deaths: 0,
+      distanceTraveled: 0,
+      itemsCollected: 0,
+      timePlayed: 0,
+      questsCompleted: 0,
+      sprintUsage: 0
+    },
+    difficultyModifiers: {
+      enemySpeed: 1.0,
+      objectFrequency: 1.0,
+      staminaDrain: 1.0,
+      jumpPower: 1.0
+    },
+    performanceMetrics: {
+      survivalRate: 1.0, // Distance per death
+      collectionRate: 0, // Items per minute
+      explorationRate: 0, // Houses entered per minute
+      skillRating: 0 // Overall skill assessment
+    },
+
+    updateStats: function(dt) {
+      this.playerStats.timePlayed += dt;
+
+      // Update performance metrics
+      if (this.playerStats.deaths > 0) {
+        this.performanceMetrics.survivalRate = this.playerStats.distanceTraveled / this.playerStats.deaths;
+      }
+
+      if (this.playerStats.timePlayed > 0) {
+        this.performanceMetrics.collectionRate = (this.playerStats.itemsCollected * 60) / this.playerStats.timePlayed;
+        this.performanceMetrics.explorationRate = (this.playerStats.questsCompleted * 60) / this.playerStats.timePlayed;
+      }
+
+      // Calculate overall skill rating (0-1 scale)
+      const survivalScore = Math.min(1.0, this.performanceMetrics.survivalRate / 500); // 500m per death is good
+      const collectionScore = Math.min(1.0, this.performanceMetrics.collectionRate / 2); // 2 items per minute is good
+      const explorationScore = Math.min(1.0, this.performanceMetrics.explorationRate / 0.5); // 1 house per 2 minutes is good
+
+      this.performanceMetrics.skillRating = (survivalScore + collectionScore + explorationScore) / 3;
+
+      // Adjust difficulty modifiers based on skill rating
+      this.adjustDifficulty();
+    },
+
+    recordEvent: function(eventType, value = 1) {
+      switch (eventType) {
+        case 'death':
+          this.playerStats.deaths += value;
+          break;
+        case 'distance':
+          this.playerStats.distanceTraveled = Math.max(this.playerStats.distanceTraveled, value);
+          break;
+        case 'item_collected':
+          this.playerStats.itemsCollected += value;
+          break;
+        case 'quest_completed':
+          this.playerStats.questsCompleted += value;
+          break;
+        case 'sprint_used':
+          this.playerStats.sprintUsage += value;
+          break;
+      }
+    },
+
+    adjustDifficulty: function() {
+      const skill = this.performanceMetrics.skillRating;
+
+      // Adjust enemy speed based on player skill
+      if (skill < 0.3) {
+        // Beginner: slower enemies
+        this.difficultyModifiers.enemySpeed = 0.7;
+      } else if (skill < 0.6) {
+        // Intermediate: normal speed
+        this.difficultyModifiers.enemySpeed = 1.0;
+      } else {
+        // Advanced: faster enemies
+        this.difficultyModifiers.enemySpeed = 1.3;
+      }
+
+      // Adjust object frequency
+      if (skill < 0.4) {
+        // More collectibles for beginners
+        this.difficultyModifiers.objectFrequency = 1.5;
+      } else if (skill < 0.7) {
+        // Normal frequency
+        this.difficultyModifiers.objectFrequency = 1.0;
+      } else {
+        // Fewer collectibles, more challenges
+        this.difficultyModifiers.objectFrequency = 0.7;
+      }
+
+      // Adjust stamina drain
+      if (skill < 0.5) {
+        // Easier stamina management for beginners
+        this.difficultyModifiers.staminaDrain = 0.8;
+      } else {
+        // Normal stamina drain
+        this.difficultyModifiers.staminaDrain = 1.0;
+      }
+
+      // Apply difficulty modifiers
+      enemy.speed = GameConfig.ENEMY.SPEED * this.difficultyModifiers.enemySpeed;
+      staminaBar.drainSpeed = GameConfig.STAMINA_BAR.DRAIN_SPEED * this.difficultyModifiers.staminaDrain;
+    },
+
+    getDifficultyDescription: function() {
+      const skill = this.performanceMetrics.skillRating;
+      if (skill < 0.3) return "Modo Iniciante - Facilitando sua jornada!";
+      if (skill < 0.6) return "Modo Intermediário - Desafiando suas habilidades!";
+      return "Modo Avançado - Mestre do Pepper Hat!";
+    },
+
+    render: function(ctx) {
+      // Show current difficulty level
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'left';
+      const desc = this.getDifficultyDescription();
+      ctx.fillText(desc, 10, GAME_HEIGHT - 20);
+
+      // Show skill rating for debugging (can be removed in production)
+      ctx.fillStyle = '#FFFF00';
+      ctx.font = '10px Arial';
+      ctx.fillText(`Habilidade: ${(this.performanceMetrics.skillRating * 100).toFixed(0)}%`, 10, GAME_HEIGHT - 5);
+    }
+  };
+
+  // Object Pooling System - Reuses objects to improve performance
+  const objectPool = {
+    pools: new Map(),
+
+    createPool: function(type, factory, initialSize = 10) {
+      if (!this.pools.has(type)) {
+        this.pools.set(type, []);
+      }
+      const pool = this.pools.get(type);
+
+      // Pre-populate pool
+      for (let i = 0; i < initialSize; i++) {
+        pool.push(factory());
+      }
+    },
+
+    get: function(type, factory) {
+      const pool = this.pools.get(type);
+      if (pool && pool.length > 0) {
+        return pool.pop();
+      }
+      // Create new object if pool is empty
+      return factory ? factory() : null;
+    },
+
+    release: function(type, obj) {
+      const pool = this.pools.get(type);
+      if (pool) {
+        // Reset object to default state
+        this.resetObject(obj);
+        pool.push(obj);
+      }
+    },
+
+    resetObject: function(obj) {
+      // Reset common properties
+      if (obj.lifetime !== undefined) obj.lifetime = 0;
+      if (obj.alpha !== undefined) obj.alpha = 1.0;
+      if (obj.x !== undefined) obj.x = 0;
+      if (obj.y !== undefined) obj.y = 0;
+      if (obj.vx !== undefined) obj.vx = 0;
+      if (obj.vy !== undefined) obj.vy = 0;
+    },
+
+    getPoolStats: function() {
+      const stats = {};
+      for (const [type, pool] of this.pools) {
+        stats[type] = pool.length;
+      }
+      return stats;
+    }
+  };
+
+  // Enhanced Visual Feedback System - Particles, effects, and better UI
+  const visualEffects = {
+    particles: [],
+    screenShake: { intensity: 0, duration: 0 },
+    screenFlash: { color: null, intensity: 0, duration: 0 },
+
+    init: function() {
+      // Initialize particle pool
+      objectPool.createPool('particle', () => ({
+        x: 0, y: 0, vx: 0, vy: 0,
+        color: '#FFFFFF', size: 1,
+        lifetime: 0, maxLifetime: 0, alpha: 1.0,
+        active: false
+      }), 50); // Pre-create 50 particles
+    },
+
+    createParticle: function(x, y, vx, vy, color, size, lifetime) {
+      const particle = objectPool.get('particle', () => ({
+        x: 0, y: 0, vx: 0, vy: 0,
+        color: '#FFFFFF', size: 1,
+        lifetime: 0, maxLifetime: 0, alpha: 1.0,
+        active: false
+      }));
+
+      if (particle) {
+        particle.x = x;
+        particle.y = y;
+        particle.vx = vx;
+        particle.vy = vy;
+        particle.color = color;
+        particle.size = size;
+        particle.lifetime = lifetime;
+        particle.maxLifetime = lifetime;
+        particle.alpha = 1.0;
+        particle.active = true;
+
+        this.particles.push(particle);
+      }
+    },
+
+    triggerScreenShake: function(intensity, duration) {
+      this.screenShake.intensity = intensity;
+      this.screenShake.duration = duration;
+    },
+
+    triggerScreenFlash: function(color, intensity, duration) {
+      this.screenFlash.color = color;
+      this.screenFlash.intensity = intensity;
+      this.screenFlash.duration = duration;
+    },
+
+    update: function(dt) {
+      // Update particles
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        const particle = this.particles[i];
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.lifetime -= dt;
+        particle.alpha = particle.lifetime / particle.maxLifetime;
+
+        if (particle.lifetime <= 0) {
+          // Return particle to pool instead of destroying
+          objectPool.release('particle', particle);
+          this.particles.splice(i, 1);
+        }
+      }
+
+      // Update screen shake
+      if (this.screenShake.duration > 0) {
+        this.screenShake.duration -= dt;
+      } else {
+        this.screenShake.intensity = 0;
+      }
+
+      // Update screen flash
+      if (this.screenFlash.duration > 0) {
+        this.screenFlash.duration -= dt;
+        this.screenFlash.intensity = Math.max(0, this.screenFlash.intensity - dt * 2);
+      } else {
+        this.screenFlash.color = null;
+        this.screenFlash.intensity = 0;
+      }
+    },
+
+    render: function(ctx) {
+      // Apply screen shake
+      const shakeX = (Math.random() - 0.5) * this.screenShake.intensity * 2;
+      const shakeY = (Math.random() - 0.5) * this.screenShake.intensity * 2;
+
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+
+      // Apply screen flash
+      if (this.screenFlash.color && this.screenFlash.intensity > 0) {
+        ctx.fillStyle = this.screenFlash.color;
+        ctx.globalAlpha = this.screenFlash.intensity * 0.3;
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Render particles
+      for (const particle of this.particles) {
+        ctx.save();
+        ctx.globalAlpha = particle.alpha;
+        ctx.fillStyle = particle.color;
+        ctx.fillRect(particle.x - particle.size / 2, particle.y - particle.size / 2, particle.size, particle.size);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    },
+
+    // Effect triggers for different events
+    onItemCollected: function(x, y) {
+      // Create sparkle particles
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const speed = 50 + Math.random() * 50;
+        this.createParticle(
+          x, y,
+          Math.cos(angle) * speed, Math.sin(angle) * speed,
+          '#FFD700', 3, 0.5
+        );
+      }
+      this.triggerScreenFlash('#FFFFFF', 0.2, 0.1);
+    },
+
+    onQuestCompleted: function() {
+      // Create celebration particles
+      for (let i = 0; i < 20; i++) {
+        this.createParticle(
+          GAME_WIDTH / 2 + (Math.random() - 0.5) * 200,
+          GAME_HEIGHT / 2 + (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100,
+          ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1'][Math.floor(Math.random() * 4)],
+          4, 2.0
+        );
+      }
+      this.triggerScreenShake(5, 0.3);
+      this.triggerScreenFlash('#FFFFFF', 0.5, 0.2);
+    },
+
+    onSpeedBoostActivated: function(x, y) {
+      // Create speed lines effect
+      for (let i = 0; i < 12; i++) {
+        this.createParticle(
+          x + (Math.random() - 0.5) * 60, y,
+          (Math.random() - 0.5) * 200, Math.random() * -50,
+          '#FFD700', 2, 0.3
+        );
+      }
+    },
+
+    onCrateBroken: function(x, y) {
+      // Create debris particles
+      for (let i = 0; i < 6; i++) {
+        this.createParticle(
+          x + (Math.random() - 0.5) * 20, y,
+          (Math.random() - 0.5) * 80, Math.random() * -60,
+          '#8B4513', 2, 0.8
+        );
+      }
+      this.triggerScreenShake(2, 0.1);
+    },
+
+    onSprintActivated: function(x, y) {
+      // Create speed trail effect
+      for (let i = 0; i < 5; i++) {
+        this.createParticle(
+          x - 20, y + (Math.random() - 0.5) * 20,
+          -100 - Math.random() * 50, (Math.random() - 0.5) * 20,
+          '#00FF00', 3, 0.2
+        );
+      }
+    }
+  };
+  };
+
+  // Quest System - Progressive objectives to give purpose to gameplay
+  const questSystem = {
+    currentQuest: 0,
+    quests: [
+      {
+        id: 'welcome',
+        title: 'Bem-vindo ao Pepper Hat!',
+        description: 'Colete 5 itens musicais',
+        type: 'collect_notes',
+        target: 5,
+        progress: 0,
+        completed: false,
+        reward: { type: 'message', text: 'Parabéns! Você dominou os básicos!' }
+      },
+      {
+        id: 'explorer',
+        title: 'Explorador',
+        description: 'Entre em 3 casas diferentes',
+        type: 'enter_houses',
+        target: 3,
+        progress: 0,
+        completed: false,
+        reward: { type: 'stamina_boost', amount: 0.5 }
+      },
+      {
+        id: 'sprinter',
+        title: 'Corredor Veloz',
+        description: 'Use o sprint 10 vezes',
+        type: 'use_sprint',
+        target: 10,
+        progress: 0,
+        completed: false,
+        reward: { type: 'speed_boost', amount: 1.2 }
+      },
+      {
+        id: 'survivor',
+        title: 'Sobrevivente',
+        description: 'Alcance 2000 metros de distância',
+        type: 'distance',
+        target: 2000,
+        progress: 0,
+        completed: false,
+        reward: { type: 'message', text: 'Incrível! Você é um verdadeiro explorador!' }
+      },
+      {
+        id: 'collector',
+        title: 'Colecionador',
+        description: 'Colete 20 itens no total',
+        type: 'collect_total',
+        target: 20,
+        progress: 0,
+        completed: false,
+        reward: { type: 'stamina_boost', amount: 1.0 }
+      }
+    ],
+    activeNotification: null,
+    notificationTimer: 0,
+
+    updateProgress: function(type, amount = 1) {
+      if (this.currentQuest >= this.quests.length) return;
+
+      const quest = this.quests[this.currentQuest];
+      if (quest.completed) return;
+
+      // Update progress based on type
+      switch (type) {
+        case 'collect_note':
+          if (quest.type === 'collect_notes' || quest.type === 'collect_total') {
+            quest.progress += amount;
+          }
+          break;
+        case 'collect_record':
+          if (quest.type === 'collect_total') {
+            quest.progress += amount;
+          }
+          break;
+        case 'enter_house':
+          if (quest.type === 'enter_houses') {
+            quest.progress += amount;
+          }
+          break;
+        case 'use_sprint':
+          if (quest.type === 'use_sprint') {
+            quest.progress += amount;
+          }
+          break;
+        case 'distance':
+          if (quest.type === 'distance') {
+            quest.progress = Math.max(quest.progress, amount);
+          }
+          break;
+      }
+
+      // Check if quest is completed
+      if (quest.progress >= quest.target && !quest.completed) {
+        quest.completed = true;
+        this.showNotification(`🎉 ${quest.title} Concluída!\n${quest.reward.text || 'Recompensa recebida!'}`);
+        this.applyReward(quest.reward);
+
+        // Record quest completion in adaptive difficulty
+        adaptiveDifficulty.recordEvent('quest_completed');
+
+        // Trigger visual celebration effect
+        visualEffects.onQuestCompleted();
+
+        // Move to next quest after a delay
+        setTimeout(() => {
+          this.currentQuest++;
+          if (this.currentQuest < this.quests.length) {
+            const nextQuest = this.quests[this.currentQuest];
+            this.showNotification(`📋 Nova Missão:\n${nextQuest.title}\n${nextQuest.description}`);
+          }
+        }, 3000);
+      }
+    },
+
+    applyReward: function(reward) {
+      switch (reward.type) {
+        case 'stamina_boost':
+          staminaBar.fill = Math.min(1.0, staminaBar.fill + reward.amount);
+          break;
+        case 'speed_boost':
+          player.baseMoveSpeed *= reward.amount;
+          setTimeout(() => {
+            player.baseMoveSpeed /= reward.amount;
+          }, 10000); // 10 seconds boost
+          break;
+        case 'message':
+          // Message already shown in notification
+          break;
+      }
+    },
+
+    showNotification: function(message) {
+      this.activeNotification = message;
+      this.notificationTimer = 180; // 3 seconds at 60fps
+    },
+
+    update: function(dt) {
+      if (this.notificationTimer > 0) {
+        this.notificationTimer -= dt * 60; // Assuming 60fps
+        if (this.notificationTimer <= 0) {
+          this.activeNotification = null;
+        }
+      }
+    },
+
+    render: function(ctx) {
+      if (this.activeNotification) {
+        const alpha = Math.min(1.0, this.notificationTimer / 60); // Fade in/out
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(GAME_WIDTH / 2 - 200, GAME_HEIGHT / 2 - 50, 400, 100);
+
+        // Border
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(GAME_WIDTH / 2 - 200, GAME_HEIGHT / 2 - 50, 400, 100);
+
+        // Text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        const lines = this.activeNotification.split('\n');
+        lines.forEach((line, index) => {
+          ctx.fillText(line, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20 + index * 20);
+        });
+
+        ctx.restore();
+      }
+
+      // Show current quest progress
+      if (this.currentQuest < this.quests.length) {
+        const quest = this.quests[this.currentQuest];
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Missão: ${quest.description}`, 10, GAME_HEIGHT - 60);
+        ctx.fillText(`Progresso: ${Math.min(quest.progress, quest.target)}/${quest.target}`, 10, GAME_HEIGHT - 40);
+      }
+    }
+  };
+
   // Player state
   const player = {
     x: GAME_WIDTH / 2 - GameConfig.PLAYER.INITIAL_X_OFFSET, // Centered horizontally using a direct value (50 / 2 = 25)
@@ -1469,6 +2016,15 @@
       return; // Stop all game updates if in menu or game over state
     }
 
+    // Update quest system
+    questSystem.update(dt);
+
+    // Update adaptive difficulty system
+    adaptiveDifficulty.updateStats(dt);
+
+    // Update visual effects system
+    visualEffects.update(dt);
+
     // Calculate sprinting state once for the entire update
     const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
 
@@ -1556,6 +2112,10 @@
       if (px1 < ex2 && px2 > ex1 && py1 < ey2 && py2 > ey1) {
         if (difficulty === 'normal') { // Only die in normal mode
           isGameOver = true; // Player collided with enemy
+
+          // Record death in adaptive difficulty system
+          adaptiveDifficulty.recordEvent('death');
+
           // Update high scores only if in normal mode and player died
           if (currentGameState !== 'gameOver' && difficulty !== 'easy') { // Only run this logic once when game over state is triggered
             highScores.push(Math.floor(playerDistanceWalked / 10)); // Add current distance (in meters)
@@ -1595,6 +2155,7 @@
               }
               houseFurniture = lastEntranceDoor.houseInterior; // Set current houseFurniture to this house's interior
               isInHouse = true;
+              questSystem.updateProgress('enter_house');
               // Reposition player inside the house, in front of the exit door
               player.x = GAME_WIDTH / 2;
               // Position player on the house floor (will be set correctly in drawRoom)
@@ -1653,7 +2214,12 @@
     if (!isInHouse) { // Only update distance if not inside a house
       if (difficulty !== 'easy') { // Only count distance if not in easy mode
         maxPlayerX = Math.max(maxPlayerX, player.x); // Store the maximum x-coordinate reached
-        playerDistanceWalked = Math.floor(maxPlayerX / 10); // Display distance in meters based on max x
+        const newDistance = Math.floor(maxPlayerX / 10); // Display distance in meters based on max x
+        if (newDistance > playerDistanceWalked) {
+          playerDistanceWalked = newDistance;
+          questSystem.updateProgress('distance', playerDistanceWalked);
+          adaptiveDifficulty.recordEvent('distance', playerDistanceWalked);
+        }
       }
     }
 
@@ -1792,6 +2358,9 @@
             player.vx *= 1.5; // Boost horizontal velocity
             obj.color = '#FFA500'; // Change to orange to show activation
 
+            // Trigger visual effect
+            visualEffects.onSpeedBoostActivated(obj.x, obj.y);
+
             // Reset activation after 2 seconds
             setTimeout(() => {
               obj.activated = false;
@@ -1820,6 +2389,9 @@
 
             // Give player a small bounce
             player.vy = -200; // Small upward bounce
+
+            // Trigger visual effect
+            visualEffects.onCrateBroken(obj.x + obj.width / 2, obj.y);
 
             // Spawn collectible from broken crate
             if (Math.random() < 0.3) { // 30% chance
@@ -1899,6 +2471,11 @@
     if (isSprinting && !isInHouse) {
       // Sprint mode: High speed but drains stamina quickly
       staminaBar.fill -= staminaBar.drainSpeed * 2.0 * dt; // Double drain rate
+      questSystem.updateProgress('use_sprint');
+      adaptiveDifficulty.recordEvent('sprint_used');
+
+      // Trigger visual effect for sprint activation
+      visualEffects.onSprintActivated(player.x, player.y);
     } else {
       // Normal recovery - faster when not moving or crouching
       let recoveryRate = staminaBar.recoverSpeed;
@@ -1972,8 +2549,14 @@
           if (difficulty !== 'easy') { // Only count scores if not in easy mode
             if (item.itemType === 'note') {
               noteCount++;
+              questSystem.updateProgress('collect_note');
+              adaptiveDifficulty.recordEvent('item_collected');
+              visualEffects.onItemCollected(item.x, item.y);
             } else if (item.itemType === 'record') {
               recordCount++;
+              questSystem.updateProgress('collect_record');
+              adaptiveDifficulty.recordEvent('item_collected');
+              visualEffects.onItemCollected(item.x, item.y);
             }
           }
         }
@@ -2257,6 +2840,15 @@
       ctx.fillText('SPRINTING!', staminaBar.x + staminaBar.width / 2, staminaBar.y - 8);
     }
 
+    // Render quest system
+    questSystem.render(ctx);
+
+    // Render adaptive difficulty system
+    adaptiveDifficulty.render(ctx);
+
+    // Render visual effects system
+    visualEffects.render(ctx);
+
     ctx.restore(); // Restore the original canvas state
   }
 
@@ -2319,6 +2911,8 @@
 
   // Initialize the game once assets have loaded
   loadImages().then(() => {
+    // Initialize systems
+    visualEffects.init();
     // Calculate ground Y coordinate from the ground image height
     if (images.ground) {
       groundY = GAME_HEIGHT - images.ground.height;

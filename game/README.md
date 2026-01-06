@@ -72,6 +72,10 @@ game/
 - **Power Jump:** Pulo com aceleração horizontal quando a barra vermelha está cheia
 - **Plataformas de Speed Boost:** Plataformas douradas que dão impulso extra temporário
 - **Caixas Quebráveis:** Caixas marrons que se quebram ao pular em cima, podendo soltar itens
+- **Sistema de Quests:** Missões progressivas que dão propósito ao jogo e recompensas
+- **Dificuldade Adaptativa:** Ajusta automaticamente a dificuldade baseada no desempenho do jogador
+- **Efeitos Visuais Avançados:** Partículas, screen shake, flash effects para feedback imersivo
+- **Object Pooling:** Sistema de reutilização de objetos para melhor performance
 - **Casas Interiores:** Explore o interior das casas com mobília gerada
 - **Sistema de Pontuação:** High scores salvos localmente
 - **Responsivo:** Funciona em desktop e mobile
@@ -96,7 +100,39 @@ game/
 - Evite os inimigos roxos
 - Explore casas e interiores
 - Alcance a maior distância possível
+- Complete missões progressivas
 - Compita no ranking de high scores
+
+## 📋 Sistema de Quests
+
+O jogo inclui um sistema de missões progressivas que guiam o jogador através de diferentes objetivos:
+
+1. **Bem-vindo ao Pepper Hat!** - Colete 5 itens musicais
+2. **Explorador** - Entre em 3 casas diferentes
+3. **Corredor Veloz** - Use o sprint 10 vezes
+4. **Sobrevivente** - Alcance 2000 metros de distância
+5. **Colecionador** - Colete 20 itens no total
+
+Cada missão concluída oferece recompensas como bônus de estamina, velocidade temporária ou mensagens de incentivo.
+
+## 🎯 Dificuldade Adaptativa
+
+O jogo monitora seu desempenho e ajusta automaticamente a dificuldade:
+
+- **Taxa de Sobrevivência:** Distância percorrida por morte
+- **Taxa de Coleta:** Itens coletados por minuto
+- **Taxa de Exploração:** Casas visitadas por minuto
+
+Com base nessas métricas, o jogo ajusta:
+- Velocidade dos inimigos
+- Frequência de objetos coletáveis
+- Drenagem de estamina
+- Potência do pulo
+
+O sistema classifica seu nível de habilidade como:
+- **Iniciante:** Facilitando sua jornada
+- **Intermediário:** Desafiando suas habilidades
+- **Avançado:** Para mestres do Pepper Hat
 
 ## 🔧 Desenvolvimento
 
