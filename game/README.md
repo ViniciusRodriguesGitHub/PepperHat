@@ -48,6 +48,14 @@ game/
 
 - **Touch (Mobile):**
   - Botões virtuais na tela
+
+### Itens Colecionáveis
+- 🎵 **Nota Musical** - Item comum (+1 ponto)
+- 💿 **Disco de Vinil** - Item comum (+1 ponto)
+- 🎵 **Nota Dourada** - Raro (+2 pontos + velocidade temporária)
+- 💎 **Cristal de Energia** - Raro (estamina completa)
+- ⚡ **Boost de Velocidade** - Raro (+30% velocidade por 8s)
+- 🎁 **Caixa Misteriosa** - Ultra raro (efeito aleatório)
   - Toque na metade esquerda da tela para agachar
   - Toque na metade direita da tela para pular
 
@@ -78,6 +86,30 @@ game/
 - **Object Pooling:** Sistema de reutilização de objetos para melhor performance
 - **Casas Interiores:** Explore o interior das casas com mobília gerada
 - **Sistema de Pontuação:** High scores salvos localmente
+
+## 🏢 Prédios Especiais
+
+O jogo agora inclui vários tipos de prédios com funcionalidades únicas:
+
+### 🏥 Hospital
+- **Função:** Restaura completamente a estamina do jogador
+- **Visual:** Prédio branco com cruz vermelha
+- **Ação:** Entre para curar ferimentos
+
+### 🚒 Bombeiros
+- **Função:** Boost de velocidade temporário (+50% por 15 segundos)
+- **Visual:** Prédio vermelho com caminhão de bombeiros
+- **Ação:** Entre para ganhar velocidade extra
+
+### 🛒 Loja
+- **Função:** Gera 3 itens coletáveis extras
+- **Visual:** Prédio amarelo com sinal de "SHOP"
+- **Ação:** Entre para encontrar itens
+
+### 🏪 Supermercado
+- **Função:** Gera 8 itens coletáveis extras
+- **Visual:** Prédio verde com sinal de "SUPERMARKET"
+- **Ação:** Entre para grande quantidade de itens
 - **Responsivo:** Funciona em desktop e mobile
 
 ## 🛠️ Tecnologias Utilizadas
@@ -114,6 +146,19 @@ O jogo inclui um sistema de missões progressivas que guiam o jogador através d
 5. **Colecionador** - Colete 20 itens no total
 
 Cada missão concluída oferece recompensas como bônus de estamina, velocidade temporária ou mensagens de incentivo.
+
+### 📋 Lista Completa de Missões
+
+1. **Bem-vindo ao Pepper Hat!** - Colete 5 notas musicais
+2. **Explorador** - Entre em 3 casas diferentes (+50% estamina)
+3. **Corredor Veloz** - Use sprint 10 vezes (+20% velocidade)
+4. **Caçador de Prédios** - Visite 2 tipos diferentes de prédios especiais
+5. **Curandeiro** - Visite um hospital (+100% estamina)
+6. **Demônio da Velocidade** - Visite um bombeiro (+30% velocidade)
+7. **Comprador** - Visite uma loja (+75% estamina)
+8. **Sobrevivente** - Alcance 2000 metros de distância
+9. **Colecionador** - Colete 20 itens no total (+100% estamina)
+10. **Mestre Explorador** - Visite todos os tipos de prédios (🏆 CONQUISTA FINAL!)
 
 ## 🎯 Dificuldade Adaptativa
 

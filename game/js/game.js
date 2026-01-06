@@ -125,12 +125,16 @@
     GENERATION: {
       VIEW_RANGE: 1.5, // Multiplied by GAME_WIDTH
       BUFFER: 0.5, // Multiplied by GAME_WIDTH
-      PROB_HOUSE: 0.4,
-      PROB_TREE: 0.3,
-      PROB_STREETLIGHT: 0.1,
-      PROB_FENCE: 0.1,
-      PROB_BUSH: 0.05,
-      PROB_POLE: 0.05,
+      PROB_HOUSE: 0.25,        // Reduced to make room for new buildings
+      PROB_HOSPITAL: 0.08,     // New: Hospital buildings
+      PROB_FIRE_STATION: 0.06, // New: Fire station buildings
+      PROB_STORE: 0.08,        // New: General stores
+      PROB_SUPERMARKET: 0.05,  // New: Supermarkets
+      PROB_TREE: 0.25,         // Reduced slightly
+      PROB_STREETLIGHT: 0.08,  // Reduced slightly
+      PROB_FENCE: 0.08,        // Reduced slightly
+      PROB_BUSH: 0.04,         // Reduced slightly
+      PROB_POLE: 0.04,         // Reduced slightly
       PROB_BACKGROUND_HOUSE: 0.3,
       PROB_HAS_WINDOW: 0.7,
       PROB_HAS_DOOR: 0.8,
@@ -660,8 +664,59 @@
         progress: 0,
         completed: false,
         reward: { type: 'stamina_boost', amount: 1.0 }
+      },
+      {
+        id: 'building_hunter',
+        title: 'Caçador de Prédios',
+        description: 'Visite 2 tipos diferentes de prédios especiais',
+        type: 'visit_special_buildings',
+        target: 2,
+        progress: 0,
+        completed: false,
+        reward: { type: 'message', text: 'Descobriu os prédios especiais da cidade!' }
+      },
+      {
+        id: 'healer',
+        title: 'Curandeiro',
+        description: 'Visite um hospital',
+        type: 'visit_hospital',
+        target: 1,
+        progress: 0,
+        completed: false,
+        reward: { type: 'stamina_boost', amount: 1.0 }
+      },
+      {
+        id: 'speed_demon',
+        title: 'Demônio da Velocidade',
+        description: 'Visite um bombeiro para boost de velocidade',
+        type: 'visit_fire_station',
+        target: 1,
+        progress: 0,
+        completed: false,
+        reward: { type: 'speed_boost', amount: 1.3 }
+      },
+      {
+        id: 'shopper',
+        title: 'Comprador',
+        description: 'Visite uma loja para itens extras',
+        type: 'visit_store',
+        target: 1,
+        progress: 0,
+        completed: false,
+        reward: { type: 'stamina_boost', amount: 0.75 }
+      },
+      {
+        id: 'master_explorer',
+        title: 'Mestre Explorador',
+        description: 'Visite todos os tipos de prédios',
+        type: 'visit_all_buildings',
+        target: 4,
+        progress: 0,
+        completed: false,
+        reward: { type: 'message', text: '🏆 PARABÉNS! Você é o Mestre Explorador de Pepper Hat!' }
       }
     ],
+    visitedBuildings: new Set(),
     activeNotification: null,
     notificationTimer: 0,
 
@@ -696,6 +751,38 @@
         case 'distance':
           if (quest.type === 'distance') {
             quest.progress = Math.max(quest.progress, amount);
+          }
+          break;
+        case 'visit_hospital':
+          if (quest.type === 'visit_hospital' || quest.type === 'visit_special_buildings' || quest.type === 'visit_all_buildings') {
+            if (!this.visitedBuildings.has('hospital')) {
+              this.visitedBuildings.add('hospital');
+              quest.progress += amount;
+            }
+          }
+          break;
+        case 'visit_fire_station':
+          if (quest.type === 'visit_fire_station' || quest.type === 'visit_special_buildings' || quest.type === 'visit_all_buildings') {
+            if (!this.visitedBuildings.has('fire_station')) {
+              this.visitedBuildings.add('fire_station');
+              quest.progress += amount;
+            }
+          }
+          break;
+        case 'visit_store':
+          if (quest.type === 'visit_store' || quest.type === 'visit_special_buildings' || quest.type === 'visit_all_buildings') {
+            if (!this.visitedBuildings.has('store')) {
+              this.visitedBuildings.add('store');
+              quest.progress += amount;
+            }
+          }
+          break;
+        case 'visit_supermarket':
+          if (quest.type === 'visit_all_buildings') {
+            if (!this.visitedBuildings.has('supermarket')) {
+              this.visitedBuildings.add('supermarket');
+              quest.progress += amount;
+            }
           }
           break;
       }
@@ -1046,7 +1133,115 @@
           } : null,
           houseInterior: hasDoor ? null : null, // New: Stores generated furniture for this house
         });
-      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_TREE)) { // Tree
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL)) { // Hospital
+        const buildingWidth = 180 + Math.random() * 60; // Hospitals are larger
+        const buildingHeight = 120 + Math.random() * 40;
+
+        worldObjects.push({
+          type: 'structure',
+          buildingType: 'hospital',
+          x: currentX,
+          y: groundY - buildingHeight,
+          width: buildingWidth,
+          height: buildingHeight,
+          bodyColor: '#FFFFFF', // White building
+          windowColor: '#87CEEB', // Light blue windows
+          doorColor: '#8B4513', // Brown doors
+          hasRoof: true,
+          layer: 'foreground',
+          isWalkable: true,
+          walkableSurfaceY: groundY - buildingHeight,
+          doorArea: {
+            x_offset: buildingWidth / 2 - 20,
+            y_offset: buildingHeight - 60,
+            width: 40,
+            height: 60,
+          },
+          houseInterior: null,
+          specialFunction: 'healing', // Can heal player
+        });
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION)) { // Fire Station
+        const buildingWidth = 160 + Math.random() * 50;
+        const buildingHeight = 110 + Math.random() * 30;
+
+        worldObjects.push({
+          type: 'structure',
+          buildingType: 'fire_station',
+          x: currentX,
+          y: groundY - buildingHeight,
+          width: buildingWidth,
+          height: buildingHeight,
+          bodyColor: '#DC143C', // Red building
+          windowColor: '#FFFFFF', // White windows
+          doorColor: '#654321', // Dark brown doors
+          hasRoof: true,
+          layer: 'foreground',
+          isWalkable: true,
+          walkableSurfaceY: groundY - buildingHeight,
+          doorArea: {
+            x_offset: buildingWidth / 2 - 15,
+            y_offset: buildingHeight - 50,
+            width: 30,
+            height: 50,
+          },
+          houseInterior: null,
+          specialFunction: 'speed_boost', // Temporary speed boost
+        });
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION + GameConfig.GENERATION.PROB_STORE)) { // Store
+        const buildingWidth = 120 + Math.random() * 40;
+        const buildingHeight = 90 + Math.random() * 30;
+
+        worldObjects.push({
+          type: 'structure',
+          buildingType: 'store',
+          x: currentX,
+          y: groundY - buildingHeight,
+          width: buildingWidth,
+          height: buildingHeight,
+          bodyColor: '#FFD700', // Gold/yellow building
+          windowColor: '#FFFFFF',
+          doorColor: '#8B4513',
+          hasRoof: true,
+          layer: 'foreground',
+          isWalkable: true,
+          walkableSurfaceY: groundY - buildingHeight,
+          doorArea: {
+            x_offset: buildingWidth / 2 - 12,
+            y_offset: buildingHeight - 45,
+            width: 24,
+            height: 45,
+          },
+          houseInterior: null,
+          specialFunction: 'shopping', // Extra collectibles
+        });
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION + GameConfig.GENERATION.PROB_STORE + GameConfig.GENERATION.PROB_SUPERMARKET)) { // Supermarket
+        const buildingWidth = 200 + Math.random() * 80; // Supermarkets are largest
+        const buildingHeight = 100 + Math.random() * 40;
+
+        worldObjects.push({
+          type: 'structure',
+          buildingType: 'supermarket',
+          x: currentX,
+          y: groundY - buildingHeight,
+          width: buildingWidth,
+          height: buildingHeight,
+          bodyColor: '#32CD32', // Lime green building
+          windowColor: '#FFFFFF',
+          doorColor: '#654321',
+          hasRoof: true,
+          layer: 'foreground',
+          isWalkable: true,
+          walkableSurfaceY: groundY - buildingHeight,
+          doorArea: {
+            x_offset: buildingWidth / 2 - 25,
+            y_offset: buildingHeight - 55,
+            width: 50,
+            height: 55,
+          },
+          houseInterior: null,
+          specialFunction: 'bulk_shopping', // Many collectibles
+        });
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION + GameConfig.GENERATION.PROB_STORE + GameConfig.GENERATION.PROB_SUPERMARKET + GameConfig.GENERATION.PROB_TREE)) { // Tree
         const trunkHeight = 80 + Math.random() * 70; // Random height between 80-150
         const canopyRadius = 50 + Math.random() * 50; // Random radius between 50-100
         worldObjects.push({
@@ -1141,10 +1336,24 @@
       }
       currentX += segmentWidth + Math.random() * 100; // Advance position with some randomness
 
-      // 20% chance to place a collectible
+      // Chance to place collectibles (regular and special)
       if (Math.random() < GameConfig.GENERATION.PROB_COLLECTIBLE) {
-        const itemType = Math.random() < GameConfig.GENERATION.PROB_NOTE_COLLECTIBLE ? 'note' : 'record';
-        const itemSize = 24; // Standard size for collectibles
+        let itemType;
+        const rand = Math.random();
+
+        // 80% regular items, 20% special items
+        if (rand < 0.8) {
+          itemType = Math.random() < GameConfig.GENERATION.PROB_NOTE_COLLECTIBLE ? 'note' : 'record';
+        } else {
+          // Special rare items
+          const specialRand = Math.random();
+          if (specialRand < 0.4) itemType = 'golden_note';      // Rare: Double points + speed boost
+          else if (specialRand < 0.7) itemType = 'energy_crystal'; // Rare: Full stamina restore
+          else if (specialRand < 0.9) itemType = 'speed_boost';    // Rare: Temporary speed
+          else itemType = 'mystery_box';                         // Ultra rare: Random effect
+        }
+
+        const itemSize = itemType.includes('crystal') || itemType.includes('box') ? 28 : 24;
         worldObjects.push({
           type: 'collectible',
           itemType: itemType,
@@ -1386,11 +1595,78 @@
   }
 
   // Function to draw a generic structure (house, building, dog house)
-  function drawStructure(x, y, width, height, bodyColor, windowColor, doorColor, hasRoof, parallaxScrollX) {
+  function drawStructure(x, y, width, height, bodyColor, windowColor, doorColor, hasRoof, parallaxScrollX, buildingType) {
     const drawX = x - parallaxScrollX;
+
     // Main body
     ctx.fillStyle = bodyColor;
     ctx.fillRect(drawX, y, width, height);
+
+    // Special building features based on type
+    if (buildingType === 'hospital') {
+      // Red cross on hospital
+      ctx.fillStyle = '#FF0000';
+      const crossSize = Math.min(width, height) * 0.15;
+      const crossX = drawX + width * 0.75;
+      const crossY = y + height * 0.2;
+      // Horizontal line
+      ctx.fillRect(crossX - crossSize/2, crossY - crossSize/6, crossSize, crossSize/3);
+      // Vertical line
+      ctx.fillRect(crossX - crossSize/6, crossY - crossSize/2, crossSize/3, crossSize);
+
+      // Hospital sign
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '8px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏥', crossX, crossY + height * 0.1);
+
+    } else if (buildingType === 'fire_station') {
+      // Fire truck silhouette
+      ctx.fillStyle = '#FF4500';
+      const truckX = drawX + width * 0.6;
+      const truckY = y + height * 0.6;
+      // Truck body
+      ctx.fillRect(truckX, truckY, width * 0.25, height * 0.15);
+      // Ladder
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(truckX + width * 0.08, truckY - height * 0.2, 2, height * 0.2);
+
+      // Fire station sign
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '7px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('🚒', truckX + width * 0.12, truckY + height * 0.05);
+
+    } else if (buildingType === 'store') {
+      // Store sign
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(drawX + width * 0.2, y + height * 0.1, width * 0.6, height * 0.15);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '6px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('SHOP', drawX + width * 0.5, y + height * 0.17);
+
+      // Shopping bags
+      ctx.fillStyle = '#FFD700';
+      ctx.font = '8px Arial';
+      ctx.fillText('🛒', drawX + width * 0.8, y + height * 0.3);
+
+    } else if (buildingType === 'supermarket') {
+      // Supermarket sign
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(drawX + width * 0.15, y + height * 0.05, width * 0.7, height * 0.2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '5px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('SUPERMARKET', drawX + width * 0.5, y + height * 0.12);
+      ctx.font = '4px Arial';
+      ctx.fillText('24/7', drawX + width * 0.5, y + height * 0.18);
+
+      // Shopping cart
+      ctx.fillStyle = '#C0C0C0';
+      ctx.font = '10px Arial';
+      ctx.fillText('🛒', drawX + width * 0.85, y + height * 0.35);
+    }
 
     // Window (if applicable)
     if (windowColor) {
@@ -1404,6 +1680,20 @@
       const windowY = y + (height / 4);
       ctx.fillStyle = windowColor;
       ctx.fillRect(windowX, windowY, windowSize, windowSize);
+
+      // Window frames for special buildings
+      if (buildingType && ['hospital', 'fire_station'].includes(buildingType)) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(windowX, windowY, windowSize, windowSize);
+        // Cross pattern for windows
+        ctx.beginPath();
+        ctx.moveTo(windowX + windowSize/2, windowY);
+        ctx.lineTo(windowX + windowSize/2, windowY + windowSize);
+        ctx.moveTo(windowX, windowY + windowSize/2);
+        ctx.lineTo(windowX + windowSize, windowY + windowSize/2);
+        ctx.stroke();
+      }
     }
 
     // Door (if applicable)
@@ -1419,6 +1709,10 @@
       const doorY = y + height - doorHeight;
       ctx.fillStyle = doorColor;
       ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+
+      // Door handle
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillRect(doorX + doorWidth - 5, doorY + doorHeight/2 - 2, 3, 4);
     }
 
     // Roof (if applicable)
@@ -1430,6 +1724,12 @@
       ctx.lineTo(drawX + (width / 2), y - (height / 3));
       ctx.closePath();
       ctx.fill();
+
+      // Chimney for special buildings
+      if (buildingType === 'fire_station') {
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(drawX + width * 0.8, y - height * 0.4, width * 0.08, height * 0.2);
+      }
     }
   }
 
@@ -1458,9 +1758,95 @@
   // Function to draw a collectible item
   function drawCollectible(x, y, size, itemType, parallaxScrollX) {
     const drawX = x - parallaxScrollX;
-    const img = itemType === 'note' ? images.note : images.record;
-    if (img) {
-      ctx.drawImage(img, drawX, y, size, size);
+
+    if (itemType === 'note') {
+      const img = images.note;
+      if (img) {
+        ctx.drawImage(img, drawX, y, size, size);
+      }
+    } else if (itemType === 'record') {
+      const img = images.record;
+      if (img) {
+        ctx.drawImage(img, drawX, y, size, size);
+      }
+    } else if (itemType === 'golden_note') {
+      // Golden musical note with glow effect
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(drawX + 2, y + 2, size - 4, size - 4);
+      ctx.fillStyle = '#FFA500';
+      ctx.fillRect(drawX + 4, y + 4, size - 8, size - 8);
+
+      // Musical note symbol
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `${size * 0.6}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('♪', drawX + size/2, y + size * 0.7);
+
+      // Glow effect
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 10;
+      ctx.fillRect(drawX, y, size, size);
+      ctx.shadowBlur = 0;
+
+    } else if (itemType === 'energy_crystal') {
+      // Glowing crystal
+      ctx.fillStyle = '#00FFFF';
+      ctx.fillRect(drawX + 2, y + 2, size - 4, size - 4);
+
+      // Crystal facets
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.moveTo(drawX + size/2, y);
+      ctx.lineTo(drawX + size, y + size/2);
+      ctx.lineTo(drawX + size/2, y + size);
+      ctx.lineTo(drawX, y + size/2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Glow effect
+      ctx.shadowColor = '#00FFFF';
+      ctx.shadowBlur = 15;
+      ctx.fillRect(drawX, y, size, size);
+      ctx.shadowBlur = 0;
+
+    } else if (itemType === 'speed_boost') {
+      // Speed lightning bolt
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillRect(drawX + 2, y + 2, size - 4, size - 4);
+
+      // Lightning symbol
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.moveTo(drawX + size * 0.3, y + size * 0.2);
+      ctx.lineTo(drawX + size * 0.5, y + size * 0.2);
+      ctx.lineTo(drawX + size * 0.4, y + size * 0.4);
+      ctx.lineTo(drawX + size * 0.6, y + size * 0.8);
+      ctx.lineTo(drawX + size * 0.4, y + size * 0.6);
+      ctx.lineTo(drawX + size * 0.2, y + size * 0.8);
+      ctx.closePath();
+      ctx.fill();
+
+    } else if (itemType === 'mystery_box') {
+      // Mystery box with question mark
+      ctx.fillStyle = '#8B4513'; // Brown box
+      ctx.fillRect(drawX, y, size, size);
+
+      // Box border
+      ctx.strokeStyle = '#654321';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(drawX, y, size, size);
+
+      // Question mark
+      ctx.fillStyle = '#FFD700';
+      ctx.font = `${size * 0.8}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('?', drawX + size/2, y + size * 0.75);
+
+      // Mystery glow
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 8;
+      ctx.fillRect(drawX, y, size, size);
+      ctx.shadowBlur = 0;
     }
   }
 
@@ -2149,10 +2535,63 @@
             // Simple AABB collision detection
             if (px1 < dx2 && px2 > dx1 && py1 < dy2 && py2 > dy1) {
               lastEntranceDoor = obj; // Store the current door object before potentially generating new furniture
-              if (!lastEntranceDoor.houseInterior) {
-                lastEntranceDoor.houseInterior = generateHouseFurniture(lastEntranceDoor); // Generate and store furniture if not already done
+              // Special building interactions
+              if (obj.buildingType === 'hospital') {
+                // Hospital: Heal player completely
+                staminaBar.fill = 1.0;
+                visualEffects.onQuestCompleted(); // Celebration effect
+                questSystem.updateProgress('visit_hospital');
+                questSystem.showNotification(`🏥 Hospital: Você foi curado completamente!\nEstamina restaurada!`);
+              } else if (obj.buildingType === 'fire_station') {
+                // Fire Station: Temporary speed boost
+                player.baseMoveSpeed *= 1.5;
+                visualEffects.onSpeedBoostActivated(obj.x, obj.y);
+                questSystem.updateProgress('visit_fire_station');
+                questSystem.showNotification(`🚒 Bombeiros: Velocidade aumentada temporariamente!\n(+50% velocidade)`);
+                setTimeout(() => {
+                  player.baseMoveSpeed /= 1.5;
+                  questSystem.showNotification(`🚒 Efeito do bombeiros acabou.`);
+                }, 15000); // 15 seconds
+              } else if (obj.buildingType === 'store') {
+                // Store: Extra collectibles
+                for (let i = 0; i < 3; i++) {
+                  worldObjects.push({
+                    type: 'collectible',
+                    itemType: Math.random() < 0.6 ? 'note' : 'record',
+                    x: obj.x + Math.random() * obj.width,
+                    y: groundY - 30 - Math.random() * 20,
+                    size: 24,
+                    collected: false,
+                    layer: 'foreground',
+                  });
+                }
+                visualEffects.onItemCollected(obj.x + obj.width/2, obj.y);
+                questSystem.updateProgress('visit_store');
+                questSystem.showNotification(`🛒 Loja: Itens extras encontrados!\n3 itens coletáveis gerados.`);
+              } else if (obj.buildingType === 'supermarket') {
+                // Supermarket: Many collectibles
+                for (let i = 0; i < 8; i++) {
+                  worldObjects.push({
+                    type: 'collectible',
+                    itemType: Math.random() < 0.5 ? 'note' : 'record',
+                    x: obj.x + Math.random() * obj.width,
+                    y: groundY - 30 - Math.random() * 20,
+                    size: 24,
+                    collected: false,
+                    layer: 'foreground',
+                  });
+                }
+                visualEffects.onItemCollected(obj.x + obj.width/2, obj.y);
+                questSystem.updateProgress('visit_supermarket');
+                questSystem.showNotification(`🏪 Supermercado: Grande quantidade de itens!\n8 itens coletáveis gerados.`);
+              } else {
+                // Regular house: Generate furniture if needed
+                if (!lastEntranceDoor.houseInterior) {
+                  lastEntranceDoor.houseInterior = generateHouseFurniture(lastEntranceDoor);
+                }
+                houseFurniture = lastEntranceDoor.houseInterior;
               }
-              houseFurniture = lastEntranceDoor.houseInterior; // Set current houseFurniture to this house's interior
+
               isInHouse = true;
               questSystem.updateProgress('enter_house');
               // Reposition player inside the house, in front of the exit door
@@ -2412,7 +2851,8 @@
 
     // Select appropriate animation based on current state. You can
     // expand this logic when you implement walking or jumping
-    if (player.onGround) { // Check grounded animations first
+    if (isInHouse) {
+      // Inside house: always grounded, focus on horizontal movement
       if (input.crouch) {
         player.currentAnim = 'crouch';
       } else if (input.left || input.right) {
@@ -2420,7 +2860,15 @@
       } else {
         player.currentAnim = 'idle';
       }
-    } else { // Not on ground, must be jumping/falling
+    } else if (player.onGround) { // Outside house: check grounded animations
+      if (input.crouch) {
+        player.currentAnim = 'crouch';
+      } else if (input.left || input.right) {
+        player.currentAnim = 'walk';
+      } else {
+        player.currentAnim = 'idle';
+      }
+    } else { // Not on ground, must be jumping/falling (outside house only)
       if (player.vy < 0) {
         player.currentAnim = 'jump';
         player.animIndex = JUMP_ANIM_ASCENDING_INDEX; // 1subindo.png
@@ -2556,7 +3004,51 @@
               questSystem.updateProgress('collect_record');
               adaptiveDifficulty.recordEvent('item_collected');
               visualEffects.onItemCollected(item.x, item.y);
+            } else if (item.itemType === 'golden_note') {
+              noteCount += 2; // Double points
+              player.baseMoveSpeed *= 1.1; // Small speed boost
+              setTimeout(() => { player.baseMoveSpeed /= 1.1; }, 5000); // 5 seconds
+              visualEffects.onQuestCompleted(); // Celebration effect
+              questSystem.showNotification('🎵 Nota Dourada! +2 pontos + velocidade temporária!');
+            } else if (item.itemType === 'energy_crystal') {
+              staminaBar.fill = 1.0; // Full stamina restore
+              visualEffects.onQuestCompleted();
+              questSystem.showNotification('💎 Cristal de Energia! Estamina totalmente restaurada!');
+            } else if (item.itemType === 'speed_boost') {
+              player.baseMoveSpeed *= 1.3; // Significant speed boost
+              setTimeout(() => { player.baseMoveSpeed /= 1.3; }, 8000); // 8 seconds
+              visualEffects.onSpeedBoostActivated(item.x, item.y);
+              questSystem.showNotification('⚡ Boost de Velocidade! +30% velocidade por 8 segundos!');
+            } else if (item.itemType === 'mystery_box') {
+              // Random effect
+              const effects = [
+                () => { staminaBar.fill = 1.0; questSystem.showNotification('🎁 Mistério: Estamina cheia!'); },
+                () => { player.baseMoveSpeed *= 1.5; setTimeout(() => player.baseMoveSpeed /= 1.5, 10000); questSystem.showNotification('🎁 Mistério: Velocidade aumentada!'); },
+                () => { player.vy = -800; questSystem.showNotification('🎁 Mistério: Super pulo!'); }, // Super jump
+                () => { visualEffects.triggerScreenShake(10, 0.5); questSystem.showNotification('🎁 Mistério: Terremoto!'); },
+                () => {
+                  // Spawn extra items
+                  for (let i = 0; i < 5; i++) {
+                    worldObjects.push({
+                      type: 'collectible',
+                      itemType: Math.random() < 0.5 ? 'note' : 'record',
+                      x: item.x + (Math.random() - 0.5) * 100,
+                      y: item.y + Math.random() * 50,
+                      size: 24,
+                      collected: false,
+                      layer: 'foreground',
+                    });
+                  }
+                  questSystem.showNotification('🎁 Mistério: Itens extras gerados!');
+                }
+              ];
+              const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+              randomEffect();
+              visualEffects.onQuestCompleted();
             }
+
+            // Count all collected items for quests
+            questSystem.updateProgress('collect_total');
           }
         }
       }
@@ -2713,7 +3205,7 @@
         const effectiveScrollX = scrollX * parallaxFactor;
 
         if (obj.type === 'structure') {
-          drawStructure(obj.x, obj.y, obj.width, obj.height, obj.bodyColor, obj.windowColor, obj.doorColor, obj.hasRoof, effectiveScrollX);
+          drawStructure(obj.x, obj.y, obj.width, obj.height, obj.bodyColor, obj.windowColor, obj.doorColor, obj.hasRoof, effectiveScrollX, obj.buildingType);
         } else if (obj.type === 'tree') {
           drawTree(obj.x, obj.y, obj.trunkHeight, obj.canopyRadius, obj.trunkColor, obj.canopyColor, effectiveScrollX);
         } else if (obj.type === 'pole') {
