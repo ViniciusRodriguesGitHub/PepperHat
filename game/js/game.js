@@ -1469,6 +1469,9 @@
       return; // Stop all game updates if in menu or game over state
     }
 
+    // Calculate sprinting state once for the entire update
+    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
+
     // dt is delta time in seconds
     // Horizontal movement
     // const baseMoveSpeed = GameConfig.PLAYER.BASE_MOVE_SPEED; // pixels per second - Redundant, now using player.baseMoveSpeed directly
@@ -1476,7 +1479,6 @@
     const gravity = GRAVITY; // pixels per second squared
 
     // Sprint boost system - stamina enables sprinting instead of penalizing movement
-    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
     if (isSprinting) {
       moveSpeed = player.baseMoveSpeed * 2.0; // Double speed when sprinting with stamina
     } else {
@@ -1894,7 +1896,6 @@
     }
 
     // Update stamina bar - Improved system: Sprint boost instead of movement penalty
-    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround;
     if (isSprinting && !isInHouse) {
       // Sprint mode: High speed but drains stamina quickly
       staminaBar.fill -= staminaBar.drainSpeed * 2.0 * dt; // Double drain rate
