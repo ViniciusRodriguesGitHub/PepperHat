@@ -606,7 +606,6 @@
       }
     }
   };
-  };
 
   // Quest System - Progressive objectives to give purpose to gameplay
   const questSystem = {
