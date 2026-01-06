@@ -549,19 +549,49 @@
           color: '#228B22', // ForestGreen
           layer: 'foreground',
         });
-      } else { // Pole (remaining chance)
-        const poleHeight = 40 + Math.random() * 20; // Smaller poles, random height between 40-60
-        const poleWidth = 10; // Fixed width for poles
-        worldObjects.push({
-          type: 'pole',
-          x: currentX,
-          y: groundY,
-          width: poleWidth,
-          height: poleHeight,
-          color: '#36454F', // Dark Grey color
-          collidable: true, // Add collidable property
-          layer: 'foreground',
-        });
+      } else { // Pole or interactive object (remaining chance)
+        const randObj = Math.random();
+        if (randObj < 0.7) { // 70% chance for regular pole
+          const poleHeight = 40 + Math.random() * 20; // Smaller poles, random height between 40-60
+          const poleWidth = 10; // Fixed width for poles
+          worldObjects.push({
+            type: 'pole',
+            x: currentX,
+            y: groundY,
+            width: poleWidth,
+            height: poleHeight,
+            color: '#36454F', // Dark Grey color
+            collidable: true, // Add collidable property
+            layer: 'foreground',
+          });
+        } else if (randObj < 0.85) { // 15% chance for speed boost platform
+          worldObjects.push({
+            type: 'speed_boost',
+            x: currentX,
+            y: groundY - 20, // Slightly above ground
+            width: 60,
+            height: 20,
+            color: '#FFD700', // Gold color
+            collidable: true,
+            isWalkable: true,
+            walkableSurfaceY: groundY - 20,
+            layer: 'foreground',
+            activated: false,
+          });
+        } else { // 15% chance for breakable crate
+          worldObjects.push({
+            type: 'breakable_crate',
+            x: currentX,
+            y: groundY - 40,
+            width: 30,
+            height: 40,
+            color: '#8B4513', // Brown
+            collidable: true,
+            layer: 'foreground',
+            broken: false,
+            health: 1, // Breaks on one hit/jump
+          });
+        }
       }
       currentX += segmentWidth + Math.random() * 100; // Advance position with some randomness
 
@@ -1445,11 +1475,12 @@
     let moveSpeed = player.baseMoveSpeed; // Initialize with base speed
     const gravity = GRAVITY; // pixels per second squared
 
-    // Adjust move speed based on stamina
-    if (staminaBar.fill < 1.0) {
-      moveSpeed = player.baseMoveSpeed * (STAMINA_LOW_SPEED_FACTOR + STAMINA_LOW_SPEED_FACTOR * staminaBar.fill); // Scales from 50% to 100% of baseMoveSpeed
+    // Sprint boost system - stamina enables sprinting instead of penalizing movement
+    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
+    if (isSprinting) {
+      moveSpeed = player.baseMoveSpeed * 2.0; // Double speed when sprinting with stamina
     } else {
-      moveSpeed = player.baseMoveSpeed; // Use baseMoveSpeed if stamina is full
+      moveSpeed = player.baseMoveSpeed; // Normal speed otherwise
     }
 
     // Apply accelerated jump factor if active
@@ -1704,39 +1735,102 @@
         }
 
         // --- Existing Collision for poles (full AABB collision) ---
-      if (obj.type === 'pole' && obj.collidable) {
-        // Simple AABB collision detection
-        const px1 = player.x;
-        const py1 = player.y;
-        const px2 = player.x + player.width;
-        const py2 = player.y + player.height;
+        if (obj.type === 'pole' && obj.collidable) {
+          // Simple AABB collision detection
+          const px1 = player.x;
+          const py1 = player.y;
+          const px2 = player.x + player.width;
+          const py2 = player.y + player.height;
 
-        const ox1 = obj.x;
-        const oy1 = obj.y - obj.height; // Poles are drawn from top-left, y is base
-        const ox2 = obj.x + obj.width;
-        const oy2 = obj.y;
+          const ox1 = obj.x;
+          const oy1 = obj.y - obj.height; // Poles are drawn from top-left, y is base
+          const ox2 = obj.x + obj.width;
+          const oy2 = obj.y;
 
-        if (px1 < ox2 && px2 > ox1 && py1 < oy2 && py2 > oy1) {
-          // Collision detected with a pole
-          // Determine which side the collision occurred and adjust player position
-          const overlapX = Math.min(px2 - ox1, ox2 - px1);
-          const overlapY = Math.min(py2 - oy1, oy2 - py1);
+          if (px1 < ox2 && px2 > ox1 && py1 < oy2 && py2 > oy1) {
+            // Collision detected with a pole
+            // Determine which side the collision occurred and adjust player position
+            const overlapX = Math.min(px2 - ox1, ox2 - px1);
+            const overlapY = Math.min(py2 - oy1, oy2 - py1);
 
-          if (overlapX < overlapY) { // Horizontal collision is smaller, so resolve horizontally
-            if (player.vx > 0) { // Player moving right
-              player.x -= overlapX;
-            } else if (player.vx < 0) { // Player moving left
-              player.x += overlapX;
-            }
-          } else { // Vertical collision is smaller, so resolve vertically
-            if (player.vy > 0) { // Player falling onto pole
-              player.y -= overlapY;
-              player.vy = 0;
-              player.onGround = true;
-            } else if (player.vy < 0) { // Player jumping into pole from below
-              player.y += overlapY;
-              player.vy = 0;
+            if (overlapX < overlapY) { // Horizontal collision is smaller, so resolve horizontally
+              if (player.vx > 0) { // Player moving right
+                player.x -= overlapX;
+              } else if (player.vx < 0) { // Player moving left
+                player.x += overlapX;
               }
+            } else { // Vertical collision is smaller, so resolve vertically
+              if (player.vy > 0) { // Player falling onto pole
+                player.y -= overlapY;
+                player.vy = 0;
+                player.onGround = true;
+              } else if (player.vy < 0) { // Player jumping into pole from below
+                player.y += overlapY;
+                player.vy = 0;
+                }
+              }
+            }
+          }
+
+        // --- Collision for speed boost platforms ---
+        if (obj.type === 'speed_boost' && !obj.activated) {
+          const px1 = player.x;
+          const py1 = player.y;
+          const px2 = player.x + player.width;
+          const py2 = player.y + player.height;
+
+          const ox1 = obj.x;
+          const oy1 = obj.y - obj.height;
+          const ox2 = obj.x + obj.width;
+          const oy2 = obj.y;
+
+          if (px1 < ox2 && px2 > ox1 && py1 < oy2 && py2 > oy1) {
+            // Player stepped on speed boost - give temporary speed boost
+            obj.activated = true;
+            player.vx *= 1.5; // Boost horizontal velocity
+            obj.color = '#FFA500'; // Change to orange to show activation
+
+            // Reset activation after 2 seconds
+            setTimeout(() => {
+              obj.activated = false;
+              obj.color = '#FFD700'; // Back to gold
+            }, 2000);
+          }
+        }
+
+        // --- Collision for breakable crates ---
+        if (obj.type === 'breakable_crate' && !obj.broken && player.vy > 0) {
+          // Only break when player is falling/jumping down onto the crate
+          const px1 = player.x;
+          const py1 = player.y;
+          const px2 = player.x + player.width;
+          const py2 = player.y + player.height;
+
+          const ox1 = obj.x;
+          const oy1 = obj.y - obj.height;
+          const ox2 = obj.x + obj.width;
+          const oy2 = obj.y;
+
+          if (px1 < ox2 && px2 > ox1 && py1 < oy2 && py2 > oy1) {
+            // Player landed on crate - break it
+            obj.broken = true;
+            obj.collidable = false; // No longer collidable
+
+            // Give player a small bounce
+            player.vy = -200; // Small upward bounce
+
+            // Spawn collectible from broken crate
+            if (Math.random() < 0.3) { // 30% chance
+              const itemType = Math.random() < 0.5 ? 'note' : 'record';
+              worldObjects.push({
+                type: 'collectible',
+                itemType: itemType,
+                x: obj.x + obj.width / 2,
+                y: obj.y - obj.height - 10,
+                size: 24,
+                collected: false,
+                layer: 'foreground',
+              });
             }
           }
         }
@@ -1799,13 +1893,16 @@
       }
     }
 
-    // Update stamina bar
-    if (player.vx !== 0 && !isInHouse) { // Player is moving and not in house
-      staminaBar.fill -= staminaBar.drainSpeed * dt;
-    } else { // Player is idle or in house
+    // Update stamina bar - Improved system: Sprint boost instead of movement penalty
+    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround;
+    if (isSprinting && !isInHouse) {
+      // Sprint mode: High speed but drains stamina quickly
+      staminaBar.fill -= staminaBar.drainSpeed * 2.0 * dt; // Double drain rate
+    } else {
+      // Normal recovery - faster when not moving or crouching
       let recoveryRate = staminaBar.recoverSpeed;
-      if (input.crouch) {
-        recoveryRate *= 2; // Double recovery rate if crouching
+      if (player.vx === 0 || input.crouch) {
+        recoveryRate *= 2.0; // Double recovery when stationary or crouching
       }
       staminaBar.fill += recoveryRate * dt;
     }
@@ -2044,6 +2141,10 @@
           drawFence(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX);
         } else if (obj.type === 'bush') {
           drawBush(obj.x, obj.y, obj.size, obj.color, effectiveScrollX);
+        } else if (obj.type === 'speed_boost') {
+          drawSpeedBoost(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX);
+        } else if (obj.type === 'breakable_crate') {
+          drawBreakableCrate(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX, obj.broken);
         }
       }
 
@@ -2123,7 +2224,7 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(staminaBar.x, staminaBar.y, staminaBar.width, staminaBar.height);
 
-    // Draw animated bar if visible
+    // Draw animated bar (Power Jump indicator)
     // Removed animatedBar.isVisible condition to keep it always visible
     // Draw bar background
     ctx.fillStyle = '#333333'; // Dark grey background
@@ -2137,6 +2238,23 @@
     ctx.strokeStyle = '#FFFFFF'; // White border
     ctx.lineWidth = 2;
     ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
+
+    // Draw "POWER JUMP" text above the bar when available
+    if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
+      ctx.fillStyle = '#FFD700'; // Gold color
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('POWER JUMP READY', animatedBar.x + animatedBar.width / 2, animatedBar.y - 8);
+    }
+
+    // Draw sprint indicator when sprinting
+    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
+    if (isSprinting) {
+      ctx.fillStyle = '#00FF00'; // Green color for sprint indicator
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('SPRINTING!', staminaBar.x + staminaBar.width / 2, staminaBar.y - 8);
+    }
 
     ctx.restore(); // Restore the original canvas state
   }
@@ -2316,5 +2434,52 @@
     ctx.beginPath();
     ctx.arc(drawX, y - size / 2, size / 2, 0, Math.PI * 2); // Simple circle for bush
     ctx.fill();
+  }
+
+  // Function to draw a speed boost platform
+  function drawSpeedBoost(x, y, width, height, color, parallaxScrollX) {
+    const drawX = x - parallaxScrollX;
+    ctx.fillStyle = color;
+    ctx.fillRect(drawX, y - height, width, height);
+
+    // Draw glowing effect when not activated
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.fillRect(drawX, y - height, width, height);
+    ctx.shadowBlur = 0; // Reset shadow
+
+    // Draw arrow indicating speed boost
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(drawX + width * 0.3, y - height * 0.6);
+    ctx.lineTo(drawX + width * 0.7, y - height * 0.6);
+    ctx.lineTo(drawX + width * 0.5, y - height * 0.2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Function to draw a breakable crate
+  function drawBreakableCrate(x, y, width, height, color, parallaxScrollX, broken) {
+    const drawX = x - parallaxScrollX;
+    if (broken) {
+      // Draw broken crate pieces
+      ctx.fillStyle = '#654321'; // Darker brown for broken pieces
+      ctx.fillRect(drawX, y - height + 5, width * 0.4, height * 0.6);
+      ctx.fillRect(drawX + width * 0.6, y - height, width * 0.3, height * 0.4);
+    } else {
+      // Draw intact crate
+      ctx.fillStyle = color;
+      ctx.fillRect(drawX, y - height, width, height);
+
+      // Draw crate details
+      ctx.strokeStyle = '#5A2D0C';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(drawX, y - height, width, height);
+
+      // Draw planks
+      ctx.fillStyle = '#5A2D0C';
+      ctx.fillRect(drawX, y - height / 2 - 2, width, 4); // Horizontal plank
+      ctx.fillRect(drawX + width / 2 - 2, y - height, 4, height); // Vertical plank
+    }
   }
 })();

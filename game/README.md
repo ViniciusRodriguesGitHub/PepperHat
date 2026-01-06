@@ -42,6 +42,7 @@ game/
 - **Teclado:**
   - `A` ou `←` - Mover para esquerda
   - `D` ou `→` - Mover para direita
+  - `D` + `S` (agachado) - Sprint (consome estamina)
   - `W` ou `↑` ou `Espaço` - Pular
   - `S` ou `↓` ou `Ctrl` - Agachar/Interagir
 
@@ -67,7 +68,10 @@ game/
 - **Geração Procedural:** Mundo infinito com objetos gerados dinamicamente
 - **Sistema de Coleta:** Notas musicais e discos de vinil para coletar
 - **Física Realista:** Gravidade, colisões e plataformas
-- **Sistema de Stamina:** Barra de energia que afeta a velocidade
+- **Sistema de Sprint:** Barra de energia que permite velocidade dobrada ao correr agachado
+- **Power Jump:** Pulo com aceleração horizontal quando a barra vermelha está cheia
+- **Plataformas de Speed Boost:** Plataformas douradas que dão impulso extra temporário
+- **Caixas Quebráveis:** Caixas marrons que se quebram ao pular em cima, podendo soltar itens
 - **Casas Interiores:** Explore o interior das casas com mobília gerada
 - **Sistema de Pontuação:** High scores salvos localmente
 - **Responsivo:** Funciona em desktop e mobile
