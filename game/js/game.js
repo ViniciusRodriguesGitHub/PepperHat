@@ -4,8 +4,8 @@
  * The game displays a pixel art city backdrop, a ground plane and a
  * single pepper character that you can move left and right across a
  * scrolling world.  Use the left/right arrow keys on a keyboard, the
- * on‑screen buttons on touch devices or a connected gamepad's D‑pad
- * (left/right) to walk.  Press the space bar, the on‑screen A button
+* on-screen buttons on touch devices or a connected gamepad's D-pad
+* (left/right) to walk.  Press the space bar, the on-screen A button
  * or the primary gamepad button to jump.  The camera follows the
  * player as they traverse a level three screens wide.
  */
@@ -605,7 +605,7 @@
         );
       }
     }
-  };
+  }; // visualEffects object ends here
 
   // Quest System - Progressive objectives to give purpose to gameplay
   const questSystem = {
@@ -1507,7 +1507,7 @@
     ctx.fill();
   }
 
-  // Create on‑screen controls for touch devices.  They are always visible
+  // Create on-screen controls for touch devices.  They are always visible
   // but only change input state when pressed.
   function createTouchControls() {
     // Remove any existing controls to avoid duplicates on reload
@@ -1940,7 +1940,7 @@
     canvas.addEventListener('touchcancel', handleTouchInteraction, false);
   }
 
-  // Poll gamepad state each frame.  Many controllers map the d‑pad
+  // Poll gamepad state each frame.  Many controllers map the d-pad
   // buttons to indices 14 and 15 for left/right and 0 for the main
   // button.  Axis 0 is the left stick horizontal axis.
   function pollGamepad() {
