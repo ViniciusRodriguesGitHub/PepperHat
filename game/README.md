@@ -46,13 +46,16 @@ game/
   - `W` ou `↑` ou `Espaço` - Pular (segure para pulo mais alto)
   - `S` ou `↓` ou `Ctrl` - Agachar/Interagir
 
-### Física Realista
-- **Gravidade:** 980 pixels/s² (mais realista)
-- **Velocidade Terminal:** Limitação máxima de queda
-- **Resistência do Ar:** Atrito no ar durante saltos
-- **Atrito no Chão:** Desaceleração natural no solo
-- **Pulo Variável:** Segure para pular mais alto
-- **Wall Sliding/Jumping:** Escorregue pelas paredes e pule delas
+### Física Newtoniana Realista
+- **Gravidade Acelerada:** 980 pixels/s² com aceleração constante (F = ma)
+- **Movimento Parabólico:** Trajetória realista seguindo leis da física
+- **Conservação de Momentum:** Momento preservado em colisões
+- **Resistência do Ar:** Força de arrasto proporcional à velocidade²
+- **Velocidade Terminal:** Limitação máxima de queda devido à resistência do ar
+- **Atrito no Chão:** Desaceleração exponencial no solo
+- **Pulo Variável:** Segure para altura controlável (recorte de velocidade)
+- **Wall Physics:** Escorregamento e pulo de parede com momentum realista
+- **Colisão Aprimorada:** Detecção precisa sem objetos invisíveis
 
 - **Touch (Mobile):**
   - Botões virtuais na tela
@@ -120,6 +123,23 @@ O jogo agora inclui vários tipos de prédios com funcionalidades únicas:
 - **Ação:** Entre para grande quantidade de itens
 
 **Nota:** O jogador sempre entra em todos os prédios através da porta, sendo posicionado corretamente na entrada interna do prédio.
+
+## 🔧 Correções Técnicas Implementadas
+
+### Problema dos Objetos Invisíveis
+- **Sintoma:** Jogador pisava em objetos sem representação visual
+- **Causa:** Itens dinâmicos criados nas lojas permaneciam após sair
+- **Solução:** Sistema de limpeza automática de itens dinâmicos
+- **Implementação:** Flag `isDynamicItem` para identificação e remoção
+
+### Física Realista
+- **Antes:** Física simplificada com bugs de colisão
+- **Depois:** Sistema newtoniano completo com:
+  - Aceleração gravitacional constante
+  - Movimento parabólico preciso
+  - Conservação de momentum
+  - Resistência do ar realista
+  - Atrito exponencial no chão
 - **Responsivo:** Funciona em desktop e mobile
 
 ## 🛠️ Tecnologias Utilizadas

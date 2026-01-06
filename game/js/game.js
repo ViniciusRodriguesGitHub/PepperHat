@@ -965,6 +965,7 @@
 
   // Game Physics & Player Movement Constants
   const STAMINA_LOW_SPEED_FACTOR = GameConfig.PHYSICS.STAMINA_LOW_SPEED_FACTOR; // Factor when stamina is low
+  const DEBUG_MODE = false; // Set to true to show collision debugging
 
   // Animation Constants
   const ANIMATION_SPEED = GameConfig.ANIMATION.SPEED; // seconds per frame
@@ -2579,6 +2580,7 @@
                     size: 24,
                     collected: false,
                     layer: 'foreground',
+                    isDynamicItem: true, // Mark as dynamic item to be cleaned up
                   });
                 }
                 visualEffects.onItemCollected(obj.x + obj.width/2, obj.y);
@@ -2595,6 +2597,7 @@
                     size: 24,
                     collected: false,
                     layer: 'foreground',
+                    isDynamicItem: true, // Mark as dynamic item to be cleaned up
                   });
                 }
                 visualEffects.onItemCollected(obj.x + obj.width/2, obj.y);
@@ -2645,6 +2648,16 @@
         if (player.x > exitDoorXCenter - exitDoorTolerance &&
             player.x < exitDoorXCenter + exitDoorTolerance) {
           isInHouse = false;
+
+          // Clean up dynamic items created inside buildings
+          worldObjects = worldObjects.filter(obj => {
+            // Remove collectibles that were created inside buildings
+            if (obj.type === 'collectible' && obj.isDynamicItem) {
+              return false;
+            }
+            return true;
+          });
+
           // Reposition player outside the house, in front of the entrance door
           if (lastEntranceDoor) {
             player.x = lastEntranceDoor.x + lastEntranceDoor.doorArea.x_offset + (lastEntranceDoor.doorArea.width / 2) - (player.width / 2);
@@ -2690,116 +2703,216 @@
     // Gravity
     player.vy += gravity * dt; // Apply gravity to player
 
-    // Jump input handling with variable jump height and wall jumping
+    // Advanced jump physics following Newtonian mechanics
     if (input.jump) {
       if (currentGameState === 'gameOver' && input.jump) { // Allow jump to restart game from Game Over screen
         currentGameState = 'menu'; // Change to menu state instead of resetting game directly
         input.jump = false; // Consume the jump input
         return; // Skip remaining update logic for this frame to allow full reset
-      } else if (player.onGround) {
-        // Ground jump with variable height
-        player.vy = JUMP_IMPULSE;
+      } else if (player.onGround && !player.isWallSliding) {
+        // Ground jump - apply impulse (F = ma, impulse changes momentum)
+        const jumpForce = JUMP_IMPULSE;
+        player.vy = -Math.abs(jumpForce); // Negative because Y increases downward
         player.onGround = false;
         player.jumpTimeHeld = 0;
+        player.lastJumpTime = Date.now();
 
         // Check for accelerated jump condition (red animated bar)
         if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
           player.isAcceleratedJump = true;
           player.jumpAccelerationFactor = ACCELERATED_JUMP_FACTOR;
+          player.vy *= player.jumpAccelerationFactor; // Apply acceleration factor
         }
-      } else if (player.canWallJump && !player.onGround) {
-        // Wall jump
-        player.vy = WALL_JUMP_FORCE;
-        player.vx = -player.wallSlideDirection * Math.abs(JUMP_IMPULSE) * 0.7; // Push away from wall
+
+        // Add slight forward momentum conservation
+        if (Math.abs(player.vx) < 50) {
+          player.vx += (input.right ? 1 : input.left ? -1 : 0) * 20;
+        }
+
+      } else if (player.canWallJump && player.isWallSliding) {
+        // Wall jump - physics-based wall jump with momentum
+        const wallJumpVertical = WALL_JUMP_FORCE;
+        const wallJumpHorizontal = Math.abs(JUMP_IMPULSE) * 0.8; // Push away from wall
+
+        player.vy = -Math.abs(wallJumpVertical);
+        player.vx = -player.wallSlideDirection * wallJumpHorizontal; // Away from wall
         player.onGround = false;
         player.canWallJump = false;
+        player.isWallSliding = false;
         player.jumpTimeHeld = 0;
+        player.lastJumpTime = Date.now();
 
-        // Visual effect for wall jump
-        visualEffects.triggerScreenShake(3, 0.15);
-        visualEffects.triggerScreenFlash('#FFFFFF', 0.1, 0.1);
+        // Visual and audio feedback for wall jump
+        visualEffects.triggerScreenShake(4, 0.2);
+        visualEffects.triggerScreenFlash('#87CEEB', 0.15, 0.15);
 
         input.jump = false; // Consume jump input for wall jump
       }
     } else {
-      // Variable jump height - cut velocity if jump button is released early
-      if (!player.onGround && player.jumpTimeHeld > 0 && player.jumpTimeHeld < JUMP_HOLD_TIME) {
-        if (player.vy < JUMP_IMPULSE * 0.6) { // If still going up significantly
-          player.vy *= 0.7; // Reduce upward velocity
+      // Variable jump height - release jump button to cut velocity (more realistic)
+      if (!player.onGround && player.jumpTimeHeld > 0.05 && player.jumpTimeHeld < JUMP_HOLD_TIME) {
+        if (player.vy < 0) { // Only if still going up
+          // Cut jump short for variable height (more control)
+          player.vy *= 0.6; // Reduce upward velocity significantly
+          player.jumpTimeHeld = JUMP_HOLD_TIME; // Prevent further cutting
         }
       }
     }
 
     // Track jump hold time for variable jump height
-    if (input.jump && !player.onGround && player.vy < 0) {
-      player.jumpTimeHeld += dt;
-      if (player.jumpTimeHeld > JUMP_HOLD_TIME) {
-        player.jumpTimeHeld = JUMP_HOLD_TIME; // Cap hold time
+    if (input.jump && !player.onGround && player.vy < 0 && player.lastJumpTime) {
+      const timeSinceJump = (Date.now() - player.lastJumpTime) / 1000;
+      if (timeSinceJump < JUMP_HOLD_TIME) {
+        player.jumpTimeHeld = timeSinceJump;
+        // Allow slight additional force while holding (limited time)
+        if (timeSinceJump < 0.15) {
+          player.vy -= 50 * dt; // Small additional upward force
+        }
       }
     } else if (player.onGround) {
       player.jumpTimeHeld = 0;
+      player.lastJumpTime = null;
     }
 
-    // Apply more realistic physics
-    // Air resistance
+    // Apply realistic physics following Newton's laws
+
+    // 1. Apply gravity (constant acceleration downward) - F = ma, a = F/m = g
     if (!player.onGround) {
-      player.vx *= AIR_RESISTANCE;
-      player.vy *= AIR_RESISTANCE;
+      player.vy += GRAVITY * dt; // Acceleration due to gravity
     }
 
-    // Terminal velocity (maximum falling speed)
+    // 2. Apply air resistance (proportional to velocity squared for realism)
+    const speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+    if (speed > 50) { // Only apply significant air resistance at higher speeds
+      const dragForce = 0.5 * 0.47 * speed * speed * 0.001; // Simplified drag equation
+      const dragX = (player.vx / speed) * dragForce;
+      const dragY = (player.vy / speed) * dragForce;
+      player.vx -= dragX * dt;
+      player.vy -= dragY * dt;
+    }
+
+    // 3. Terminal velocity (maximum falling speed due to air resistance)
     if (player.vy > TERMINAL_VELOCITY) {
       player.vy = TERMINAL_VELOCITY;
     }
 
-    // Wall sliding mechanics
+    // 4. Wall sliding mechanics (physics-based)
     player.isWallSliding = false;
     player.canWallJump = false;
+    let wallCollision = false;
 
-    // Check for wall collision (simplified wall sliding)
+    // Check for wall collision with proper physics
     for (const obj of worldObjects) {
-      if (obj.collidable && obj.x + (obj.width || 0) > player.x - 10 &&
-          obj.x < player.x + player.width + 10 && !obj.isWalkable) {
-        // Player is against a wall
-        if ((player.vx > 0 && player.x + player.width >= obj.x) ||
-            (player.vx < 0 && player.x <= obj.x + (obj.width || 0))) {
-          player.isWallSliding = true;
-          player.wallSlideDirection = player.vx > 0 ? 1 : -1;
-          player.canWallJump = true;
+      if (obj.collidable && !obj.isWalkable &&
+          obj.x + (obj.width || 0) > player.x - 5 &&
+          obj.x < player.x + player.width + 5) {
 
-          // Limit wall slide speed
-          if (player.vy > WALL_SLIDE_SPEED) {
-            player.vy = WALL_SLIDE_SPEED;
+        // Check for wall contact
+        const wallLeft = obj.x;
+        const wallRight = obj.x + (obj.width || 0);
+
+        if ((player.vx > 0 && player.x + player.width >= wallLeft && player.x + player.width <= wallRight) ||
+            (player.vx < 0 && player.x <= wallRight && player.x >= wallLeft)) {
+
+          wallCollision = true;
+          player.isWallSliding = !player.onGround && player.vy >= 0; // Only slide when falling/moving down
+          player.wallSlideDirection = player.vx > 0 ? 1 : -1;
+          player.canWallJump = player.isWallSliding;
+
+          // Wall friction reduces sliding speed
+          if (player.isWallSliding) {
+            player.vy = Math.min(player.vy, WALL_SLIDE_SPEED);
+            // Add slight bounce effect when hitting wall while moving
+            if (Math.abs(player.vx) > 100) {
+              player.vx *= -0.1; // Small bounce back
+            }
           }
           break;
         }
       }
     }
 
-    // Apply vertical velocity
-    player.y += player.vy * dt;
+    // 5. Apply horizontal movement with momentum conservation
+    let newPlayerX = player.x + player.vx * dt;
 
-    // Ground collision with improved physics
-    const groundTolerance = GROUND_TOLERANCE;
-    if (player.y + player.height >= groundY - groundTolerance) {
-      player.y = groundY - player.height; // Snap to ground
-      player.vy = 0;
+    // Prevent moving through walls horizontally
+    for (const obj of worldObjects) {
+      if (obj.collidable && !obj.isWalkable) {
+        const objLeft = obj.x;
+        const objRight = obj.x + (obj.width || 0);
+        const objTop = obj.y - (obj.height || 0);
+        const objBottom = obj.y;
 
-      // Ground friction
-      player.vx *= GROUND_FRICTION;
-
-      // Reset states when landing
-      if (!player.onGround) {
-        player.isAcceleratedJump = false;
-        player.jumpAccelerationFactor = 1.0;
-        player.jumpTimeHeld = 0;
-        player.isWallSliding = false;
-        player.canWallJump = false;
+        // Horizontal collision detection
+        if (player.y < objBottom && player.y + player.height > objTop) {
+          if (player.vx > 0 && player.x + player.width <= objLeft && newPlayerX + player.width > objLeft) {
+            // Colliding with left side of object
+            newPlayerX = objLeft - player.width;
+            player.vx = 0;
+          } else if (player.vx < 0 && player.x >= objRight && newPlayerX < objRight) {
+            // Colliding with right side of object
+            newPlayerX = objRight;
+            player.vx = 0;
+          }
+        }
       }
-      player.onGround = true;
-    } else {
-      player.onGround = false;
     }
+
+    player.x = newPlayerX;
+
+    // 6. Apply vertical movement with proper collision detection
+    let newPlayerY = player.y + player.vy * dt;
+    let landedOnPlatform = false;
+
+    // Check platform collisions first (walkable surfaces)
+    for (const obj of worldObjects) {
+      if (obj.isWalkable && obj.walkableSurfaceY !== undefined) {
+        const platformTop = obj.walkableSurfaceY;
+        const platformBottom = platformTop + 10; // Small thickness
+        const platformLeft = obj.x;
+        const platformRight = obj.x + (obj.width || 0);
+
+        // Only collide if player is falling and within platform bounds
+        if (player.vy >= 0 && // Moving down or stationary
+            player.x + player.width > platformLeft &&
+            player.x < platformRight &&
+            player.y + player.height <= platformTop + 5 && // Player is above platform
+            newPlayerY + player.height >= platformTop) { // Will land on platform
+
+          newPlayerY = platformTop - player.height;
+          player.vy = 0;
+          landedOnPlatform = true;
+          player.onGround = true;
+          break;
+        }
+      }
+    }
+
+    // Ground collision (only if not on a platform)
+    if (!landedOnPlatform) {
+      const groundTolerance = GROUND_TOLERANCE;
+      if (newPlayerY + player.height >= groundY - groundTolerance) {
+        newPlayerY = groundY - player.height;
+        player.vy = 0;
+        player.onGround = true;
+
+        // Ground friction (exponential decay for realistic feel)
+        player.vx *= Math.pow(GROUND_FRICTION, dt * 60); // Frame-rate independent
+
+        // Reset physics states when landing
+        if (!player.onGround) {
+          player.isAcceleratedJump = false;
+          player.jumpAccelerationFactor = 1.0;
+          player.jumpTimeHeld = 0;
+          player.isWallSliding = false;
+          player.canWallJump = false;
+        }
+      } else {
+        player.onGround = false;
+      }
+    }
+
+    player.y = newPlayerY;
 
     // Debugging: Log player.onGround, player.y, and groundY state
     console.log(`Player y: ${player.y.toFixed(2)}, Ground y: ${groundY.toFixed(2)}, On Ground: ${player.onGround}`);
@@ -3316,6 +3429,15 @@
           drawSpeedBoost(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX);
         } else if (obj.type === 'breakable_crate') {
           drawBreakableCrate(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX, obj.broken);
+        }
+
+        // Debug: Highlight walkable surfaces for collision debugging
+        if (obj.isWalkable && DEBUG_MODE) {
+          ctx.save();
+          ctx.strokeStyle = '#FF0000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(obj.x - effectiveScrollX, obj.walkableSurfaceY, obj.width || 20, 2);
+          ctx.restore();
         }
       }
 
