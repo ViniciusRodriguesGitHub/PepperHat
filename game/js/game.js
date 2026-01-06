@@ -144,14 +144,20 @@
       SEGMENT_WIDTH: 200,
     },
 
-    // Physics Constants
+    // Physics Constants - More Realistic
     PHYSICS: {
-      GRAVITY: 1200,
+      GRAVITY: 980, // More realistic gravity (pixels/second²)
+      TERMINAL_VELOCITY: 800, // Maximum falling speed
+      AIR_RESISTANCE: 0.98, // Air friction
+      GROUND_FRICTION: 0.85, // Ground friction
       STAMINA_LOW_SPEED_FACTOR: 0.5,
-      JUMP_IMPULSE: -600,
-      ACCELERATED_JUMP_FACTOR: 1.8,
-      ACCELERATED_JUMP_DECAY_RATE: 0.8,
-      GROUND_TOLERANCE: 1,
+      JUMP_IMPULSE: -550, // Slightly less powerful jump
+      JUMP_HOLD_TIME: 0.25, // How long jump can be held for variable height
+      ACCELERATED_JUMP_FACTOR: 1.6, // Less extreme acceleration
+      ACCELERATED_JUMP_DECAY_RATE: 0.9, // Slower decay
+      GROUND_TOLERANCE: 2, // Slightly more tolerance
+      WALL_JUMP_FORCE: -450, // Wall jump impulse
+      WALL_SLIDE_SPEED: 150, // Maximum wall slide speed
     },
 
     // Animation Constants
@@ -908,6 +914,10 @@
     idleTime: 0, // Time spent idle for potential future mechanics
     isAcceleratedJump: false, // Tracks if player is in an accelerated jump
     jumpAccelerationFactor: 1.0, // Factor to multiply player.vx during accelerated jump
+    jumpTimeHeld: 0, // How long jump button has been held
+    isWallSliding: false, // Wall sliding state
+    wallSlideDirection: 0, // Direction of wall being slid on
+    canWallJump: false, // Whether player can wall jump
     baseMoveSpeed: GameConfig.PLAYER.BASE_MOVE_SPEED, // pixels per second - Moved to player object
   };
 
@@ -940,15 +950,21 @@
   const GENERATION_BUFFER = GameConfig.GENERATION.BUFFER * GAME_WIDTH; // How far past the view range to generate
   let lastGeneratedChunkX = 0; // Tracks the furthest X-coordinate generated
 
-  // Physics Constants
+  // Physics Constants - More Realistic
   const GRAVITY = GameConfig.PHYSICS.GRAVITY; // pixels per second squared
+  const TERMINAL_VELOCITY = GameConfig.PHYSICS.TERMINAL_VELOCITY; // Maximum falling speed
+  const AIR_RESISTANCE = GameConfig.PHYSICS.AIR_RESISTANCE; // Air friction
+  const GROUND_FRICTION = GameConfig.PHYSICS.GROUND_FRICTION; // Ground friction
+  const GROUND_TOLERANCE = GameConfig.PHYSICS.GROUND_TOLERANCE; // Small tolerance for ground detection
+  const JUMP_IMPULSE = GameConfig.PHYSICS.JUMP_IMPULSE; // Player's jump impulse (pixels/second)
+  const JUMP_HOLD_TIME = GameConfig.PHYSICS.JUMP_HOLD_TIME; // How long jump can be held
+  const ACCELERATED_JUMP_FACTOR = GameConfig.PHYSICS.ACCELERATED_JUMP_FACTOR; // Initial acceleration factor for jump
+  const ACCELERATED_JUMP_DECAY_RATE = GameConfig.PHYSICS.ACCELERATED_JUMP_DECAY_RATE; // Rate at which jump acceleration decays
+  const WALL_JUMP_FORCE = GameConfig.PHYSICS.WALL_JUMP_FORCE; // Wall jump impulse
+  const WALL_SLIDE_SPEED = GameConfig.PHYSICS.WALL_SLIDE_SPEED; // Maximum wall slide speed
 
   // Game Physics & Player Movement Constants
   const STAMINA_LOW_SPEED_FACTOR = GameConfig.PHYSICS.STAMINA_LOW_SPEED_FACTOR; // Factor when stamina is low
-  const JUMP_IMPULSE = GameConfig.PHYSICS.JUMP_IMPULSE; // Player's jump impulse (pixels/second)
-  const ACCELERATED_JUMP_FACTOR = GameConfig.PHYSICS.ACCELERATED_JUMP_FACTOR; // Initial acceleration factor for jump
-  const ACCELERATED_JUMP_DECAY_RATE = GameConfig.PHYSICS.ACCELERATED_JUMP_DECAY_RATE; // Rate at which jump acceleration decays
-  const GROUND_TOLERANCE = GameConfig.PHYSICS.GROUND_TOLERANCE; // Small tolerance for ground detection
 
   // Animation Constants
   const ANIMATION_SPEED = GameConfig.ANIMATION.SPEED; // seconds per frame
@@ -2594,10 +2610,16 @@
 
               isInHouse = true;
               questSystem.updateProgress('enter_house');
-              // Reposition player inside the house, in front of the exit door
-              player.x = GAME_WIDTH / 2;
-              // Position player on the house floor (will be set correctly in drawRoom)
-              player.y = GAME_HEIGHT / 2 - player.initialHeight; // Use house floor position
+
+              // Reposition player correctly at the door entrance inside the house
+              const doorX = GAME_WIDTH * 0.5; // Door is always at the center horizontally
+              const doorY = GAME_HEIGHT / 2; // Door is at floor level
+              player.x = doorX - player.width / 2; // Center player on the door
+              player.y = doorY - player.height; // Place player on the floor
+              player.vx = 0; // Stop horizontal movement
+              player.vy = 0; // Stop vertical movement
+              player.onGround = true;
+
               input.crouch = false; // Reset crouch input to prevent immediate re-entry/exit
               return; // Exit update early to prevent further movement/animation issues
             }
@@ -2668,37 +2690,111 @@
     // Gravity
     player.vy += gravity * dt; // Apply gravity to player
 
-    // Jump input handling
+    // Jump input handling with variable jump height and wall jumping
     if (input.jump) {
       if (currentGameState === 'gameOver' && input.jump) { // Allow jump to restart game from Game Over screen
         currentGameState = 'menu'; // Change to menu state instead of resetting game directly
         input.jump = false; // Consume the jump input
         return; // Skip remaining update logic for this frame to allow full reset
       } else if (player.onGround) {
-        player.vy = JUMP_IMPULSE; // jump impulse
+        // Ground jump with variable height
+        player.vy = JUMP_IMPULSE;
         player.onGround = false;
-        // Reset jump flag so holding the button doesn't cause repeated jumps
-        input.jump = false;
+        player.jumpTimeHeld = 0;
 
         // Check for accelerated jump condition (red animated bar)
         if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
           player.isAcceleratedJump = true;
-          player.jumpAccelerationFactor = ACCELERATED_JUMP_FACTOR; // Initial acceleration factor
+          player.jumpAccelerationFactor = ACCELERATED_JUMP_FACTOR;
+        }
+      } else if (player.canWallJump && !player.onGround) {
+        // Wall jump
+        player.vy = WALL_JUMP_FORCE;
+        player.vx = -player.wallSlideDirection * Math.abs(JUMP_IMPULSE) * 0.7; // Push away from wall
+        player.onGround = false;
+        player.canWallJump = false;
+        player.jumpTimeHeld = 0;
+
+        // Visual effect for wall jump
+        visualEffects.triggerScreenShake(3, 0.15);
+        visualEffects.triggerScreenFlash('#FFFFFF', 0.1, 0.1);
+
+        input.jump = false; // Consume jump input for wall jump
+      }
+    } else {
+      // Variable jump height - cut velocity if jump button is released early
+      if (!player.onGround && player.jumpTimeHeld > 0 && player.jumpTimeHeld < JUMP_HOLD_TIME) {
+        if (player.vy < JUMP_IMPULSE * 0.6) { // If still going up significantly
+          player.vy *= 0.7; // Reduce upward velocity
+        }
+      }
+    }
+
+    // Track jump hold time for variable jump height
+    if (input.jump && !player.onGround && player.vy < 0) {
+      player.jumpTimeHeld += dt;
+      if (player.jumpTimeHeld > JUMP_HOLD_TIME) {
+        player.jumpTimeHeld = JUMP_HOLD_TIME; // Cap hold time
+      }
+    } else if (player.onGround) {
+      player.jumpTimeHeld = 0;
+    }
+
+    // Apply more realistic physics
+    // Air resistance
+    if (!player.onGround) {
+      player.vx *= AIR_RESISTANCE;
+      player.vy *= AIR_RESISTANCE;
+    }
+
+    // Terminal velocity (maximum falling speed)
+    if (player.vy > TERMINAL_VELOCITY) {
+      player.vy = TERMINAL_VELOCITY;
+    }
+
+    // Wall sliding mechanics
+    player.isWallSliding = false;
+    player.canWallJump = false;
+
+    // Check for wall collision (simplified wall sliding)
+    for (const obj of worldObjects) {
+      if (obj.collidable && obj.x + (obj.width || 0) > player.x - 10 &&
+          obj.x < player.x + player.width + 10 && !obj.isWalkable) {
+        // Player is against a wall
+        if ((player.vx > 0 && player.x + player.width >= obj.x) ||
+            (player.vx < 0 && player.x <= obj.x + (obj.width || 0))) {
+          player.isWallSliding = true;
+          player.wallSlideDirection = player.vx > 0 ? 1 : -1;
+          player.canWallJump = true;
+
+          // Limit wall slide speed
+          if (player.vy > WALL_SLIDE_SPEED) {
+            player.vy = WALL_SLIDE_SPEED;
+          }
+          break;
         }
       }
     }
 
     // Apply vertical velocity
     player.y += player.vy * dt;
-    // Ground collision
-    const groundTolerance = GROUND_TOLERANCE; // Small tolerance for ground detection
+
+    // Ground collision with improved physics
+    const groundTolerance = GROUND_TOLERANCE;
     if (player.y + player.height >= groundY - groundTolerance) {
       player.y = groundY - player.height; // Snap to ground
       player.vy = 0;
-      // Reset accelerated jump state if landing on ground
-      if (!player.onGround && player.isAcceleratedJump) { // Only reset if just landed and was in accelerated jump
+
+      // Ground friction
+      player.vx *= GROUND_FRICTION;
+
+      // Reset states when landing
+      if (!player.onGround) {
         player.isAcceleratedJump = false;
         player.jumpAccelerationFactor = 1.0;
+        player.jumpTimeHeld = 0;
+        player.isWallSliding = false;
+        player.canWallJump = false;
       }
       player.onGround = true;
     } else {

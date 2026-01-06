@@ -43,8 +43,16 @@ game/
   - `A` ou `←` - Mover para esquerda
   - `D` ou `→` - Mover para direita
   - `D` + `S` (agachado) - Sprint (consome estamina)
-  - `W` ou `↑` ou `Espaço` - Pular
+  - `W` ou `↑` ou `Espaço` - Pular (segure para pulo mais alto)
   - `S` ou `↓` ou `Ctrl` - Agachar/Interagir
+
+### Física Realista
+- **Gravidade:** 980 pixels/s² (mais realista)
+- **Velocidade Terminal:** Limitação máxima de queda
+- **Resistência do Ar:** Atrito no ar durante saltos
+- **Atrito no Chão:** Desaceleração natural no solo
+- **Pulo Variável:** Segure para pular mais alto
+- **Wall Sliding/Jumping:** Escorregue pelas paredes e pule delas
 
 - **Touch (Mobile):**
   - Botões virtuais na tela
@@ -110,6 +118,8 @@ O jogo agora inclui vários tipos de prédios com funcionalidades únicas:
 - **Função:** Gera 8 itens coletáveis extras
 - **Visual:** Prédio verde com sinal de "SUPERMARKET"
 - **Ação:** Entre para grande quantidade de itens
+
+**Nota:** O jogador sempre entra em todos os prédios através da porta, sendo posicionado corretamente na entrada interna do prédio.
 - **Responsivo:** Funciona em desktop e mobile
 
 ## 🛠️ Tecnologias Utilizadas
