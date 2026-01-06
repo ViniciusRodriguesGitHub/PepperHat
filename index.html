@@ -1885,7 +1885,14 @@
               };
           }, []);
           return (
-              <form onSubmit={e => { e.preventDefault(); onSave(formData); }}>
+              <form onSubmit={e => {
+                  e.preventDefault();
+                  if (note.trim()) {
+                      alert('Você tem uma anotação não adicionada. Clique em "Add" para adicionar a anotação antes de salvar.');
+                      return;
+                  }
+                  onSave(formData);
+              }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4" style={{ minWidth: 0 }}>
                       <div className="col-span-1 md:col-span-2" style={{ minWidth: 0 }}>
                           <label className="text-xs font-bold text-gray-500">🪪 NOME</label>
