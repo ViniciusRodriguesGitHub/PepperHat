@@ -229,19 +229,364 @@
     color: GameConfig.STAMINA_BAR.COLOR, // Orange
   };
 
-  // Enemy state
+  // Enemy system - Multiple enemy types with different behaviors
+  const enemies = []; // Array to hold all enemies
+
+  // Enemy types configuration
+  const ENEMY_TYPES = {
+    SLIME: {
+      name: 'slime',
+      width: 32,
+      height: 24,
+      speed: 80,
+      color: '#32CD32', // Lime green
+      eyeColor: '#FF0000', // Red evil eyes
+      behavior: 'patrol', // Moves back and forth
+      jumpHeight: 0, // Can't jump
+      health: 1,
+      patrolDistance: 100,
+      animationSpeed: 0.1
+    },
+    BAT: {
+      name: 'bat',
+      width: 28,
+      height: 20,
+      speed: 120,
+      color: '#8B0000', // Dark red
+      eyeColor: '#FFFF00', // Yellow evil eyes
+      behavior: 'fly', // Flies in patterns
+      jumpHeight: 0, // Can't jump (flies)
+      health: 1,
+      patrolDistance: 150,
+      flyHeight: 60,
+      animationSpeed: 0.15
+    },
+    SPIDER: {
+      name: 'spider',
+      width: 30,
+      height: 18,
+      speed: 100,
+      color: '#000000', // Black
+      eyeColor: '#00FF00', // Green evil eyes
+      behavior: 'web', // Drops down from ceilings
+      jumpHeight: 0,
+      health: 1,
+      dropDistance: 80,
+      animationSpeed: 0.12
+    },
+    GHOST: {
+      name: 'ghost',
+      width: 26,
+      height: 32,
+      speed: 90,
+      color: '#9370DB', // Medium purple
+      eyeColor: '#FF69B4', // Hot pink evil eyes
+      behavior: 'float', // Floats through air
+      jumpHeight: 0,
+      health: 1,
+      floatAmplitude: 20,
+      floatSpeed: 2,
+      animationSpeed: 0.08
+    },
+    SNAKE: {
+      name: 'snake',
+      width: 35,
+      height: 16,
+      speed: 110,
+      color: '#228B22', // Forest green
+      eyeColor: '#FFA500', // Orange evil eyes
+      behavior: 'slither', // Slithers along ground
+      jumpHeight: 0,
+      health: 1,
+      slitherAmplitude: 8,
+      slitherSpeed: 3,
+      animationSpeed: 0.2
+    },
+    WOLF: {
+      name: 'wolf',
+      width: 38,
+      height: 28,
+      speed: 140,
+      color: '#708090', // Slate gray
+      eyeColor: '#FF4500', // Orange red evil eyes
+      behavior: 'chase', // Chases player when close
+      jumpHeight: 50,
+      health: 2, // Takes 2 jumps to defeat
+      chaseDistance: 200,
+      jumpCooldown: 2.0,
+      animationSpeed: 0.14
+    }
+  };
+
+  // Create initial enemy (legacy support)
   const enemy = {
-    x: GAME_WIDTH - GameConfig.ENEMY.INITIAL_X_OFFSET, // Initial position on the right side of the screen
-    y: 0, // Will be set correctly after groundY is calculated
+    x: GAME_WIDTH - GameConfig.ENEMY.INITIAL_X_OFFSET,
+    y: 0,
     width: GameConfig.ENEMY.WIDTH,
     height: GameConfig.ENEMY.HEIGHT,
     vx: 0,
     vy: 0,
-    speed: GameConfig.ENEMY.SPEED, // Slightly slower than player's moveSpeed (200) - Adjusted from 180
+    speed: GameConfig.ENEMY.SPEED,
     onGround: false,
   };
 
   const enemyHitboxOffset = GameConfig.ENEMY.HITBOX_OFFSET; // Offset to reduce the enemy's collision box size
+
+  // Enemy AI system
+  const enemyAI = {
+    updateEnemies: function(dt) {
+      enemies.forEach((enemy, index) => {
+        if (enemy.dead) return;
+
+        // Update enemy based on type
+        switch (enemy.type) {
+          case 'slime':
+            this.updateSlimeAI(enemy, dt);
+            break;
+          case 'bat':
+            this.updateBatAI(enemy, dt);
+            break;
+          case 'spider':
+            this.updateSpiderAI(enemy, dt);
+            break;
+          case 'ghost':
+            this.updateGhostAI(enemy, dt);
+            break;
+          case 'snake':
+            this.updateSnakeAI(enemy, dt);
+            break;
+          case 'wolf':
+            this.updateWolfAI(enemy, dt);
+            break;
+        }
+
+        // Update animation
+        enemy.animationTimer += dt;
+        enemy.animationFrame = Math.floor(enemy.animationTimer / enemy.animationSpeed) % 4;
+
+        // Update position
+        enemy.x += enemy.vx * dt;
+        enemy.y += enemy.vy * dt;
+
+        // Apply gravity to ground-based enemies
+        if (enemy.type !== 'bat' && enemy.type !== 'ghost') {
+          if (enemy.y + enemy.height < groundY) {
+            enemy.vy += GRAVITY * dt;
+          } else {
+            enemy.y = groundY - enemy.height;
+            enemy.vy = 0;
+            enemy.onGround = true;
+          }
+        }
+
+        // Remove enemies that are too far from player
+        if (Math.abs(enemy.x - player.x) > 1000) {
+          enemies.splice(index, 1);
+        }
+      });
+    },
+
+    updateSlimeAI: function(enemy, dt) {
+      // Patrol back and forth
+      if (!enemy.patrolStart) {
+        enemy.patrolStart = enemy.x;
+        enemy.direction = 1;
+      }
+
+      enemy.x += enemy.direction * enemy.speed * dt;
+
+      if (Math.abs(enemy.x - enemy.patrolStart) > enemy.patrolDistance) {
+        enemy.direction *= -1;
+      }
+
+      enemy.vx = enemy.direction * enemy.speed;
+    },
+
+    updateBatAI: function(enemy, dt) {
+      // Fly in sine wave pattern
+      if (!enemy.flyStart) {
+        enemy.flyStart = enemy.x;
+        enemy.flyTime = 0;
+      }
+
+      enemy.flyTime += dt;
+      enemy.x = enemy.flyStart + Math.sin(enemy.flyTime * 2) * enemy.patrolDistance;
+      enemy.y = groundY - enemy.flyHeight + Math.sin(enemy.flyTime * 3) * 20;
+
+      enemy.vx = Math.cos(enemy.flyTime * 2) * enemy.speed;
+      enemy.vy = Math.cos(enemy.flyTime * 3) * 20;
+    },
+
+    updateSpiderAI: function(enemy, dt) {
+      // Drop from ceiling when player is near
+      if (!enemy.dropped && Math.abs(player.x - enemy.x) < 100) {
+        enemy.dropped = true;
+        enemy.vy = 100; // Drop down
+      }
+
+      if (enemy.dropped) {
+        // Move towards player on ground
+        const dir = player.x > enemy.x ? 1 : -1;
+        enemy.vx = dir * enemy.speed * 0.7;
+      }
+    },
+
+    updateGhostAI: function(enemy, dt) {
+      // Float with sine wave movement
+      if (!enemy.floatStart) {
+        enemy.floatStart = enemy.x;
+        enemy.floatTime = 0;
+      }
+
+      enemy.floatTime += dt;
+      enemy.x = enemy.floatStart + Math.sin(enemy.floatTime * enemy.floatSpeed) * 50;
+      enemy.y = groundY - 80 + Math.sin(enemy.floatTime * enemy.floatSpeed * 2) * enemy.floatAmplitude;
+
+      enemy.vx = Math.cos(enemy.floatTime * enemy.floatSpeed) * enemy.speed * 0.5;
+      enemy.vy = Math.cos(enemy.floatTime * enemy.floatSpeed * 2) * enemy.floatAmplitude;
+    },
+
+    updateSnakeAI: function(enemy, dt) {
+      // Slither along ground with wavy motion
+      if (!enemy.slitherStart) {
+        enemy.slitherStart = enemy.x;
+        enemy.slitherTime = 0;
+      }
+
+      enemy.slitherTime += dt;
+      enemy.x += enemy.speed * dt;
+      enemy.y = groundY - enemy.height + Math.sin(enemy.slitherTime * enemy.slitherSpeed) * enemy.slitherAmplitude;
+
+      enemy.vx = enemy.speed;
+      enemy.vy = Math.cos(enemy.slitherTime * enemy.slitherSpeed) * enemy.slitherAmplitude * enemy.slitherSpeed;
+    },
+
+    updateWolfAI: function(enemy, dt) {
+      // Chase player when close, otherwise patrol
+      const distanceToPlayer = Math.abs(player.x - enemy.x);
+
+      if (distanceToPlayer < enemy.chaseDistance && distanceToPlayer > 30) {
+        // Chase player
+        const dir = player.x > enemy.x ? 1 : -1;
+        enemy.vx = dir * enemy.speed * 1.5;
+
+        // Jump occasionally while chasing
+        if (enemy.onGround && enemy.jumpCooldown <= 0 && Math.random() < 0.02) {
+          enemy.vy = -enemy.jumpHeight;
+          enemy.onGround = false;
+          enemy.jumpCooldown = enemy.jumpCooldown;
+        }
+      } else {
+        // Patrol behavior
+        if (!enemy.patrolStart) {
+          enemy.patrolStart = enemy.x;
+          enemy.direction = 1;
+        }
+
+        enemy.x += enemy.direction * enemy.speed * 0.5 * dt;
+
+        if (Math.abs(enemy.x - enemy.patrolStart) > enemy.patrolDistance) {
+          enemy.direction *= -1;
+        }
+
+        enemy.vx = enemy.direction * enemy.speed * 0.5;
+      }
+
+      enemy.jumpCooldown -= dt;
+    },
+
+    createEnemy: function(type, x, y) {
+      const enemyConfig = ENEMY_TYPES[type.toUpperCase()];
+      if (!enemyConfig) return null;
+
+      const newEnemy = {
+        ...enemyConfig,
+        x: x,
+        y: y,
+        vx: 0,
+        vy: 0,
+        onGround: false,
+        animationTimer: 0,
+        animationFrame: 0,
+        dead: false,
+        direction: 1,
+        // Additional properties based on type
+        ...(enemyConfig.behavior === 'patrol' && { patrolStart: x }),
+        ...(enemyConfig.behavior === 'fly' && { flyStart: x, flyTime: 0 }),
+        ...(enemyConfig.behavior === 'web' && { dropped: false }),
+        ...(enemyConfig.behavior === 'float' && { floatStart: x, floatTime: 0 }),
+        ...(enemyConfig.behavior === 'slither' && { slitherStart: x, slitherTime: 0 }),
+        ...(enemyConfig.behavior === 'chase' && { patrolStart: x, jumpCooldown: 0 })
+      };
+
+      enemies.push(newEnemy);
+      return newEnemy;
+    },
+
+    checkPlayerCollision: function() {
+      enemies.forEach((enemy, index) => {
+        if (enemy.dead) return;
+
+        // Check if player jumped on enemy
+        const playerBottom = player.y + player.height;
+        const playerLeft = player.x;
+        const playerRight = player.x + player.width;
+
+        const enemyTop = enemy.y;
+        const enemyBottom = enemy.y + enemy.height;
+        const enemyLeft = enemy.x;
+        const enemyRight = enemy.x + enemy.width;
+
+        // Player jumped on enemy (from above)
+        if (player.vy > 0 && // Player is falling
+            playerBottom >= enemyTop && playerBottom <= enemyBottom + 10 && // Player landed on enemy
+            playerRight > enemyLeft && playerLeft < enemyRight) { // Horizontal overlap
+
+          // Damage enemy
+          enemy.health--;
+          if (enemy.health <= 0) {
+            enemy.dead = true;
+            // Visual effect for enemy defeat
+            visualEffects.onItemCollected(enemy.x + enemy.width/2, enemy.y);
+
+            // Update quest progress
+            questSystem.updateProgress('defeat_enemy');
+            if (enemy.type === 'slime') {
+              questSystem.updateProgress('defeat_slime');
+            } else if (enemy.type === 'wolf') {
+              questSystem.updateProgress('defeat_wolf');
+            }
+
+            // Remove enemy after animation
+            setTimeout(() => {
+              enemies.splice(index, 1);
+            }, 200);
+          } else {
+            // Enemy damaged but not dead - bounce player
+            player.vy = -200;
+          }
+
+          // Player bounce
+          player.vy = -300;
+          player.onGround = false;
+        }
+        // Enemy touched player (damage player)
+        else if (!enemy.dead &&
+                 playerLeft < enemyRight && playerRight > enemyLeft &&
+                 player.y < enemyBottom && playerBottom > enemyTop) {
+
+          // Only damage if not jumping on enemy
+          if (!(player.vy > 0 && playerBottom <= enemyTop + 10)) {
+            // Player takes damage
+            if (difficulty === 'normal') {
+              isGameOver = true;
+              currentGameState = 'gameOver';
+            }
+          }
+        }
+      });
+    }
+  };
 
   let isGameOver = false; // New global variable to track game over state
   let currentGameState = 'menu'; // 'menu', 'playing', 'gameOver'
@@ -712,6 +1057,36 @@
         reward: { type: 'stamina_boost', amount: 0.75 }
       },
       {
+        id: 'enemy_hunter',
+        title: 'Caçador de Inimigos',
+        description: 'Derrote 5 inimigos pulando em cima',
+        type: 'defeat_enemies',
+        target: 5,
+        progress: 0,
+        completed: false,
+        reward: { type: 'stamina_boost', amount: 0.8 }
+      },
+      {
+        id: 'slime_slayer',
+        title: 'Matador de Slimes',
+        description: 'Derrote 3 slimes verdes',
+        type: 'defeat_slimes',
+        target: 3,
+        progress: 0,
+        completed: false,
+        reward: { type: 'speed_boost', amount: 1.15 }
+      },
+      {
+        id: 'wolf_hunter',
+        title: 'Caçador de Lobos',
+        description: 'Derrote um lobo (inimigo forte)',
+        type: 'defeat_wolf',
+        target: 1,
+        progress: 0,
+        completed: false,
+        reward: { type: 'message', text: 'Incrível! Você derrotou um lobo poderoso!' }
+      },
+      {
         id: 'master_explorer',
         title: 'Mestre Explorador',
         description: 'Visite todos os tipos de prédios',
@@ -789,6 +1164,21 @@
               this.visitedBuildings.add('supermarket');
               quest.progress += amount;
             }
+          }
+          break;
+        case 'defeat_enemy':
+          if (quest.type === 'defeat_enemies') {
+            quest.progress += amount;
+          }
+          break;
+        case 'defeat_slime':
+          if (quest.type === 'defeat_slimes' || quest.type === 'defeat_enemies') {
+            quest.progress += amount;
+          }
+          break;
+        case 'defeat_wolf':
+          if (quest.type === 'defeat_wolf' || quest.type === 'defeat_enemies') {
+            quest.progress += amount;
           }
           break;
       }
@@ -1353,6 +1743,13 @@
       }
       currentX += segmentWidth + Math.random() * 100; // Advance position with some randomness
 
+      // Chance to spawn enemies
+      if (Math.random() < 0.15) { // 15% chance to spawn enemy
+        const enemyTypes = Object.keys(ENEMY_TYPES);
+        const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+        enemyAI.createEnemy(randomType, currentX, groundY - 40);
+      }
+
       // Chance to place collectibles (regular and special)
       if (Math.random() < GameConfig.GENERATION.PROB_COLLECTIBLE) {
         let itemType;
@@ -1869,45 +2266,244 @@
 
   // Function to draw the enemy
   function drawEnemy(enemyObj, parallaxScrollX) {
+    if (enemyObj.dead) return; // Don't draw dead enemies
+
     const drawX = enemyObj.x - parallaxScrollX;
     const drawY = enemyObj.y;
     const width = enemyObj.width;
     const height = enemyObj.height;
 
-    // Gradient body
+    // Draw enemy based on type
+    switch (enemyObj.type) {
+      case 'slime':
+        drawSlime(drawX, drawY, width, height, enemyObj);
+        break;
+      case 'bat':
+        drawBat(drawX, drawY, width, height, enemyObj);
+        break;
+      case 'spider':
+        drawSpider(drawX, drawY, width, height, enemyObj);
+        break;
+      case 'ghost':
+        drawGhost(drawX, drawY, width, height, enemyObj);
+        break;
+      case 'snake':
+        drawSnake(drawX, drawY, width, height, enemyObj);
+        break;
+      case 'wolf':
+        drawWolf(drawX, drawY, width, height, enemyObj);
+        break;
+      default:
+        // Fallback to old enemy drawing
+        drawLegacyEnemy(drawX, drawY, width, height, enemyObj);
+    }
+  }
+
+  function drawSlime(drawX, drawY, width, height, enemy) {
+    // Slime body - rounded rectangle
+    ctx.fillStyle = enemy.color;
+    ctx.beginPath();
+    ctx.roundRect(drawX, drawY, width, height, 8);
+    ctx.fill();
+
+    // Slime shine effect
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.3, drawY + height * 0.2, width * 0.2, height * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Evil eyes
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.25, 0.3);
+  }
+
+  function drawBat(drawX, drawY, width, height, enemy) {
+    // Bat wings
+    ctx.fillStyle = enemy.color;
+    ctx.beginPath();
+    ctx.ellipse(drawX, drawY + height * 0.5, width * 0.4, height * 0.6, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(drawX + width, drawY + height * 0.5, width * 0.4, height * 0.6, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bat body
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height * 0.3, width * 0.3, height * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Evil eyes
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.4, 0.25);
+  }
+
+  function drawSpider(drawX, drawY, width, height, enemy) {
+    // Spider body
+    ctx.fillStyle = enemy.color;
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height * 0.4, width * 0.35, height * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Spider abdomen
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height * 0.7, width * 0.25, height * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Spider legs (simplified)
+    ctx.strokeStyle = enemy.color;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const legX = drawX + width * (0.2 + i * 0.15);
+      ctx.beginPath();
+      ctx.moveTo(legX, drawY + height * 0.4);
+      ctx.lineTo(legX - 5, drawY + height * 0.2);
+      ctx.moveTo(legX, drawY + height * 0.4);
+      ctx.lineTo(legX + 5, drawY + height * 0.2);
+      ctx.stroke();
+    }
+
+    // Evil eyes
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.4, 0.35);
+  }
+
+  function drawGhost(drawX, drawY, width, height, enemy) {
+    // Ghost body with wavy bottom
+    ctx.fillStyle = enemy.color;
+    ctx.beginPath();
+    ctx.moveTo(drawX, drawY + height);
+    ctx.lineTo(drawX, drawY);
+    ctx.lineTo(drawX + width, drawY);
+    ctx.lineTo(drawX + width, drawY + height * 0.7);
+
+    // Wavy bottom
+    for (let i = 0; i <= 3; i++) {
+      const waveX = drawX + width * (0.75 - i * 0.25);
+      const waveY = drawY + height * (0.7 + Math.sin(i) * 0.1);
+      ctx.lineTo(waveX, waveY);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Evil eyes
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.3, 0.2);
+  }
+
+  function drawSnake(drawX, drawY, width, height, enemy) {
+    // Snake body segments
+    ctx.fillStyle = enemy.color;
+    for (let i = 0; i < 3; i++) {
+      const segmentX = drawX + i * (width * 0.25);
+      const segmentY = drawY + Math.sin(enemy.slitherTime * 3 + i) * 3;
+      ctx.beginPath();
+      ctx.ellipse(segmentX, segmentY, width * 0.15, height * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Snake head
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.6, drawY, width * 0.2, height * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snake tongue
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(drawX + width * 0.8, drawY);
+    ctx.lineTo(drawX + width * 0.9, drawY - 5);
+    ctx.moveTo(drawX + width * 0.8, drawY);
+    ctx.lineTo(drawX + width * 0.9, drawY + 5);
+    ctx.stroke();
+
+    // Evil eyes
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.65, 0.1);
+  }
+
+  function drawWolf(drawX, drawY, width, height, enemy) {
+    // Wolf body
+    ctx.fillStyle = enemy.color;
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height * 0.5, width * 0.4, height * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Wolf head
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.8, drawY + height * 0.2, width * 0.25, height * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Wolf ears
+    ctx.beginPath();
+    ctx.moveTo(drawX + width * 0.75, drawY + height * 0.05);
+    ctx.lineTo(drawX + width * 0.7, drawY - height * 0.05);
+    ctx.lineTo(drawX + width * 0.8, drawY - height * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(drawX + width * 0.85, drawY + height * 0.05);
+    ctx.lineTo(drawX + width * 0.9, drawY - height * 0.05);
+    ctx.lineTo(drawX + width * 0.95, drawY - height * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // Wolf tail
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.15, drawY + height * 0.3, width * 0.1, height * 0.2, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Evil eyes with glow
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.75, 0.15, true);
+  }
+
+  function drawLegacyEnemy(drawX, drawY, width, height, enemy) {
+    // Fallback for old enemy type
     const gradient = ctx.createLinearGradient(drawX, drawY, drawX + width, drawY + height);
-    gradient.addColorStop(0, '#4B0082'); // Dark Violet
-    gradient.addColorStop(1, '#800080'); // Purple
+    gradient.addColorStop(0, '#4B0082');
+    gradient.addColorStop(1, '#800080');
     ctx.fillStyle = gradient;
     ctx.fillRect(drawX, drawY, width, height);
+    drawEvilEyes(drawX, drawY, width, height, '#FF0000', 0.25, 0.3);
+  }
 
-    // Eyes (simple circles)
-    ctx.fillStyle = '#FFFFFF'; // White eyes
-    const eyeRadius = width / 8;
-    const eyeOffsetY = height / 4;
-    const eyeOffsetX = width / 4;
+  function drawEvilEyes(drawX, drawY, width, height, eyeColor, eyeX, eyeY, glow = false) {
+    const eyeRadius = width / 10;
+    const eyeOffsetX = width * eyeX;
+    const eyeOffsetY = height * eyeY;
 
-    // Left eye
+    // Left eye white
+    ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
     ctx.arc(drawX + eyeOffsetX, drawY + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Right eye
+    // Right eye white
     ctx.beginPath();
     ctx.arc(drawX + width - eyeOffsetX, drawY + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Pupils (small black circles)
-    ctx.fillStyle = '#000000'; // Black pupils
-    const pupilRadius = eyeRadius / 2;
-    // Left pupil (center based on eye position)
+    // Evil pupils
+    ctx.fillStyle = eyeColor;
+    const pupilRadius = eyeRadius * 0.7;
+
+    // Left pupil
     ctx.beginPath();
     ctx.arc(drawX + eyeOffsetX, drawY + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
     ctx.fill();
+
     // Right pupil
     ctx.beginPath();
     ctx.arc(drawX + width - eyeOffsetX, drawY + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
     ctx.fill();
+
+    // Glow effect for special enemies
+    if (glow) {
+      ctx.shadowColor = eyeColor;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(drawX + eyeOffsetX, drawY + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(drawX + width - eyeOffsetX, drawY + eyeOffsetY, pupilRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
   }
 
   // Create on-screen controls for touch devices.  They are always visible
@@ -2427,6 +3023,9 @@
     // Update visual effects system
     visualEffects.update(dt);
 
+    // Update enemy AI system
+    enemyAI.updateEnemies(dt);
+
     // Calculate sprinting state once for the entire update
     const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
 
@@ -2860,7 +3459,10 @@
 
     player.x = newPlayerX;
 
-    // 6. Apply vertical movement with proper collision detection
+    // 6. Check enemy collisions
+    enemyAI.checkPlayerCollision();
+
+    // 7. Apply vertical movement with proper collision detection
     let newPlayerY = player.y + player.vy * dt;
     let landedOnPlatform = false;
 
@@ -3441,8 +4043,10 @@
         }
       }
 
-      // Draw the enemy (only when outside the house)
-      drawEnemy(enemy, scrollX);
+      // Draw all enemies (only when outside the house)
+      enemies.forEach(enemy => {
+        drawEnemy(enemy, scrollX);
+      });
 
       // Draw collectibles that have not yet been collected from worldObjects
       for (const obj of worldObjects) {

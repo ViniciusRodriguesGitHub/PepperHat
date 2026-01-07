@@ -67,6 +67,12 @@ game/
 - 💎 **Cristal de Energia** - Raro (estamina completa)
 - ⚡ **Boost de Velocidade** - Raro (+30% velocidade por 8s)
 - 🎁 **Caixa Misteriosa** - Ultra raro (efeito aleatório)
+
+### Sistema de Combate
+- **Como Derrotar Inimigos:** Pule em cima deles para esmagá-los
+- **Dano Variável:** Alguns inimigos resistem mais (ex: Lobo = 2 pulos)
+- **Efeitos Visuais:** Explosão de partículas na derrota
+- **Sistema de Saúde:** Inimigos têm pontos de vida diferentes
   - Toque na metade esquerda da tela para agachar
   - Toque na metade direita da tela para pular
 
@@ -123,6 +129,46 @@ O jogo agora inclui vários tipos de prédios com funcionalidades únicas:
 - **Ação:** Entre para grande quantidade de itens
 
 **Nota:** O jogador sempre entra em todos os prédios através da porta, sendo posicionado corretamente na entrada interna do prédio.
+
+## 👹 Inimigos e Criaturas
+
+O jogo conta com 6 tipos diferentes de inimigos, cada um com comportamento único, cores distintas e olhos malvados:
+
+### 🟢 Slime (Verde Lima)
+- **Comportamento:** Anda de um lado para o outro em patrulha
+- **Olhos:** Vermelhos malvados
+- **Saúde:** 1 (morre com 1 pulo)
+- **Dificuldade:** Baixa
+
+### 🔴 Bat (Vermelho Escuro)
+- **Comportamento:** Voa em padrões senoidais pelo céu
+- **Olhos:** Amarelos malvados
+- **Saúde:** 1 (morre com 1 pulo)
+- **Dificuldade:** Baixa
+
+### ⚫ Spider (Preto)
+- **Comportamento:** Fica pendurada no teto e cai quando o jogador se aproxima
+- **Olhos:** Verdes malvados
+- **Saúde:** 1 (morre com 1 pulo)
+- **Dificuldade:** Média
+
+### 🟣 Ghost (Roxo Médio)
+- **Comportamento:** Flutua suavemente com movimento senoidal
+- **Olhos:** Rosa choque malvados
+- **Saúde:** 1 (morre com 1 pulo)
+- **Dificuldade:** Média
+
+### 🟢 Snake (Verde Floresta)
+- **Comportamento:** Rasteja ondulando pelo chão
+- **Olhos:** Laranja malvados
+- **Saúde:** 1 (morre com 1 pulo)
+- **Dificuldade:** Média
+
+### 🔘 Wolf (Cinza Ardósia)
+- **Comportamento:** Persegue o jogador quando próximo, pode pular
+- **Olhos:** Laranja avermelhado malvados
+- **Saúde:** 2 (precisa de 2 pulos para morrer)
+- **Dificuldade:** Alta - **Inimigo Forte!**
 
 ## 🔧 Correções Técnicas Implementadas
 
@@ -186,9 +232,12 @@ Cada missão concluída oferece recompensas como bônus de estamina, velocidade 
 5. **Curandeiro** - Visite um hospital (+100% estamina)
 6. **Demônio da Velocidade** - Visite um bombeiro (+30% velocidade)
 7. **Comprador** - Visite uma loja (+75% estamina)
-8. **Sobrevivente** - Alcance 2000 metros de distância
-9. **Colecionador** - Colete 20 itens no total (+100% estamina)
-10. **Mestre Explorador** - Visite todos os tipos de prédios (🏆 CONQUISTA FINAL!)
+8. **Caçador de Inimigos** - Derrote 5 inimigos (+80% estamina)
+9. **Matador de Slimes** - Derrote 3 slimes verdes (+15% velocidade)
+10. **Caçador de Lobos** - Derrote 1 lobo (inimigo forte!)
+11. **Sobrevivente** - Alcance 2000 metros de distância
+12. **Colecionador** - Colete 20 itens no total (+100% estamina)
+13. **Mestre Explorador** - Visite todos os tipos de prédios (🏆 CONQUISTA FINAL!)
 
 ## 🎯 Dificuldade Adaptativa
 
