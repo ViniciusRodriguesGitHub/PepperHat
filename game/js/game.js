@@ -1365,6 +1365,8 @@
   let groundY = 0;
   let lastTime = 0;
   let scrollX = 0;
+  let maxPlayerX = 0; // Tracks the maximum x-coordinate reached by player
+  let playerDistanceWalked = 0; // Distance walked in game units
 
   // Procedural generation parameters
   const VIEW_RANGE = GameConfig.GENERATION.VIEW_RANGE * GAME_WIDTH; // How far ahead/behind the player to generate/keep objects
@@ -4413,4 +4415,4 @@
       ctx.fillRect(drawX + width / 2 - 2, y - height, 4, height); // Vertical plank
     }
   }
-})();
+})(); // Cache refresh fix - 2025.01.06 Build 1330
