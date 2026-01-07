@@ -178,15 +178,15 @@ O jogo conta com 6 tipos diferentes de inimigos, cada um com comportamento únic
 - **Solução:** Sistema de limpeza automática de itens dinâmicos
 - **Implementação:** Flag `isDynamicItem` para identificação e remoção
 
-### Física Realista
-- **Antes:** Física simplificada com bugs de colisão
-- **Depois:** Sistema newtoniano completo com:
-  - Aceleração gravitacional constante
-  - Movimento parabólico preciso
-  - Conservação de momentum
-  - Resistência do ar realista
-  - Atrito exponencial no chão
-- **Responsivo:** Funciona em desktop e mobile
+### Física Realista (Otimizada)
+- **Gravidade:** 920 pixels/s² (equilibrada para jogabilidade)
+- **Velocidade Terminal:** 700 pixels/s (controle aprimorado)
+- **Resistência do Ar:** Sistema simplificado para resposta suave
+- **Atrito no Chão:** 80% de atrito para controle preciso
+- **Pulo Variável:** Segure por até 0.22s para altura máxima
+- **Wall Mechanics:** Sliding controlado com wall jumping preciso
+- **Momentum:** Conservação realista de movimento
+- **Colisão:** Sistema preciso sem objetos invisíveis
 
 ## 🛠️ Tecnologias Utilizadas
 

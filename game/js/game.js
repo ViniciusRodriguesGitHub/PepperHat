@@ -125,11 +125,11 @@
     GENERATION: {
       VIEW_RANGE: 1.5, // Multiplied by GAME_WIDTH
       BUFFER: 0.5, // Multiplied by GAME_WIDTH
-      PROB_HOUSE: 0.25,        // Reduced to make room for new buildings
-      PROB_HOSPITAL: 0.08,     // New: Hospital buildings
-      PROB_FIRE_STATION: 0.06, // New: Fire station buildings
-      PROB_STORE: 0.08,        // New: General stores
-      PROB_SUPERMARKET: 0.05,  // New: Supermarkets
+      PROB_HOUSE: 0.28,        // Slightly increased for more houses
+      PROB_HOSPITAL: 0.06,     // Balanced hospital frequency
+      PROB_FIRE_STATION: 0.05, // Balanced fire station frequency
+      PROB_STORE: 0.06,        // Balanced store frequency
+      PROB_SUPERMARKET: 0.04,  // Lower supermarket frequency (rarer)
       PROB_TREE: 0.25,         // Reduced slightly
       PROB_STREETLIGHT: 0.08,  // Reduced slightly
       PROB_FENCE: 0.08,        // Reduced slightly
@@ -146,18 +146,18 @@
 
     // Physics Constants - More Realistic
     PHYSICS: {
-      GRAVITY: 980, // More realistic gravity (pixels/second²)
-      TERMINAL_VELOCITY: 800, // Maximum falling speed
-      AIR_RESISTANCE: 0.98, // Air friction
-      GROUND_FRICTION: 0.85, // Ground friction
+      GRAVITY: 920, // Slightly less gravity for better control
+      TERMINAL_VELOCITY: 700, // Reduced terminal velocity for better gameplay
+      AIR_RESISTANCE: 0.985, // Slightly less air resistance for smoother movement
+      GROUND_FRICTION: 0.8, // More ground friction for better control
       STAMINA_LOW_SPEED_FACTOR: 0.5,
-      JUMP_IMPULSE: -550, // Slightly less powerful jump
-      JUMP_HOLD_TIME: 0.25, // How long jump can be held for variable height
-      ACCELERATED_JUMP_FACTOR: 1.6, // Less extreme acceleration
-      ACCELERATED_JUMP_DECAY_RATE: 0.9, // Slower decay
-      GROUND_TOLERANCE: 2, // Slightly more tolerance
-      WALL_JUMP_FORCE: -450, // Wall jump impulse
-      WALL_SLIDE_SPEED: 150, // Maximum wall slide speed
+      JUMP_IMPULSE: -520, // Balanced jump height for better control
+      JUMP_HOLD_TIME: 0.22, // Slightly shorter hold time for precision
+      ACCELERATED_JUMP_FACTOR: 1.5, // More reasonable acceleration boost
+      ACCELERATED_JUMP_DECAY_RATE: 0.92, // Balanced decay rate
+      GROUND_TOLERANCE: 3, // More tolerance for landing on platforms
+      WALL_JUMP_FORCE: -420, // Slightly weaker wall jump for balance
+      WALL_SLIDE_SPEED: 130, // Slower wall slide for better control
     },
 
     // Animation Constants
@@ -238,83 +238,83 @@
       name: 'slime',
       width: 32,
       height: 24,
-      speed: 80,
+      speed: 70, // Slightly slower for beginners
       color: '#32CD32', // Lime green
       eyeColor: '#FF0000', // Red evil eyes
       behavior: 'patrol', // Moves back and forth
       jumpHeight: 0, // Can't jump
       health: 1,
-      patrolDistance: 100,
-      animationSpeed: 0.1
+      patrolDistance: 120, // Slightly longer patrol
+      animationSpeed: 0.12
     },
     BAT: {
       name: 'bat',
       width: 28,
       height: 20,
-      speed: 120,
+      speed: 100, // Slightly slower
       color: '#8B0000', // Dark red
       eyeColor: '#FFFF00', // Yellow evil eyes
       behavior: 'fly', // Flies in patterns
       jumpHeight: 0, // Can't jump (flies)
       health: 1,
-      patrolDistance: 150,
-      flyHeight: 60,
-      animationSpeed: 0.15
+      patrolDistance: 180, // Longer flight path
+      flyHeight: 70, // Higher flight
+      animationSpeed: 0.16
     },
     SPIDER: {
       name: 'spider',
       width: 30,
       height: 18,
-      speed: 100,
+      speed: 85, // Balanced speed
       color: '#000000', // Black
       eyeColor: '#00FF00', // Green evil eyes
       behavior: 'web', // Drops down from ceilings
       jumpHeight: 0,
       health: 1,
-      dropDistance: 80,
-      animationSpeed: 0.12
+      dropDistance: 90, // Drops from higher
+      animationSpeed: 0.14
     },
     GHOST: {
       name: 'ghost',
       width: 26,
       height: 32,
-      speed: 90,
+      speed: 75, // Slower floating
       color: '#9370DB', // Medium purple
       eyeColor: '#FF69B4', // Hot pink evil eyes
       behavior: 'float', // Floats through air
       jumpHeight: 0,
       health: 1,
-      floatAmplitude: 20,
-      floatSpeed: 2,
-      animationSpeed: 0.08
+      floatAmplitude: 25, // More pronounced floating
+      floatSpeed: 1.8, // Slightly slower float cycle
+      animationSpeed: 0.1
     },
     SNAKE: {
       name: 'snake',
       width: 35,
       height: 16,
-      speed: 110,
+      speed: 95, // Balanced ground speed
       color: '#228B22', // Forest green
       eyeColor: '#FFA500', // Orange evil eyes
       behavior: 'slither', // Slithers along ground
       jumpHeight: 0,
       health: 1,
-      slitherAmplitude: 8,
-      slitherSpeed: 3,
-      animationSpeed: 0.2
+      slitherAmplitude: 10, // More pronounced slithering
+      slitherSpeed: 2.8, // Slightly slower slither cycle
+      animationSpeed: 0.18
     },
     WOLF: {
       name: 'wolf',
       width: 38,
       height: 28,
-      speed: 140,
+      speed: 120, // Balanced chase speed
       color: '#708090', // Slate gray
       eyeColor: '#FF4500', // Orange red evil eyes
       behavior: 'chase', // Chases player when close
-      jumpHeight: 50,
+      jumpHeight: 45, // Reasonable jump for wolf
       health: 2, // Takes 2 jumps to defeat
-      chaseDistance: 200,
-      jumpCooldown: 2.0,
-      animationSpeed: 0.14
+      chaseDistance: 180, // Balanced detection range
+      jumpCooldown: 2.2, // Slightly longer cooldown
+      animationSpeed: 0.16
     }
   };
 
@@ -612,6 +612,8 @@
       questsCompleted: 0,
       sprintUsage: 0
     },
+    lastDescription: '',
+    descriptionTimer: 0,
     difficultyModifiers: {
       enemySpeed: 1.0,
       objectFrequency: 1.0,
@@ -671,42 +673,46 @@
 
     adjustDifficulty: function() {
       const skill = this.performanceMetrics.skillRating;
+      const distance = playerDistanceWalked / 10; // Convert to meters
 
-      // Adjust enemy speed based on player skill
+      // Adjust enemy speed based on player skill and distance
       if (skill < 0.3) {
-        // Beginner: slower enemies
-        this.difficultyModifiers.enemySpeed = 0.7;
+        this.difficultyModifiers.enemySpeed = Math.min(0.8, 0.6 + skill * 0.67); // 0.6 to 0.8
       } else if (skill < 0.6) {
-        // Intermediate: normal speed
-        this.difficultyModifiers.enemySpeed = 1.0;
+        this.difficultyModifiers.enemySpeed = 0.9 + (skill - 0.3) * 0.33; // 0.9 to 1.0
       } else {
-        // Advanced: faster enemies
-        this.difficultyModifiers.enemySpeed = 1.3;
+        this.difficultyModifiers.enemySpeed = 1.0 + (skill - 0.6) * 0.5; // 1.0 to 1.2
       }
 
-      // Adjust object frequency
+      // Distance-based difficulty scaling (every 500m increases difficulty)
+      const distanceScaling = Math.min(0.3, Math.floor(distance / 500) * 0.05);
+      this.difficultyModifiers.enemySpeed += distanceScaling;
+
+      // Adjust object frequency with more nuanced scaling
       if (skill < 0.4) {
-        // More collectibles for beginners
-        this.difficultyModifiers.objectFrequency = 1.5;
+        this.difficultyModifiers.objectFrequency = 1.3 - skill * 0.25; // 1.3 to 1.05
       } else if (skill < 0.7) {
-        // Normal frequency
-        this.difficultyModifiers.objectFrequency = 1.0;
+        this.difficultyModifiers.objectFrequency = 1.0 + (0.7 - skill) * 0.14; // 1.0 to 0.9
       } else {
-        // Fewer collectibles, more challenges
-        this.difficultyModifiers.objectFrequency = 0.7;
+        this.difficultyModifiers.objectFrequency = 0.85 + (skill - 0.7) * 0.3; // 0.85 to 1.0
       }
 
-      // Adjust stamina drain
+      // Adjust stamina drain with progressive scaling
       if (skill < 0.5) {
-        // Easier stamina management for beginners
-        this.difficultyModifiers.staminaDrain = 0.8;
+        this.difficultyModifiers.staminaDrain = 0.75 + skill * 0.4; // 0.75 to 0.95
       } else {
-        // Normal stamina drain
-        this.difficultyModifiers.staminaDrain = 1.0;
+        this.difficultyModifiers.staminaDrain = 0.95 + (skill - 0.5) * 0.2; // 0.95 to 1.1
       }
 
-      // Apply difficulty modifiers
-      enemy.speed = GameConfig.ENEMY.SPEED * this.difficultyModifiers.enemySpeed;
+      // Apply difficulty modifiers to enemies
+      enemies.forEach(enemy => {
+        if (enemy.type && ENEMY_TYPES[enemy.type.toUpperCase()]) {
+          const baseSpeed = ENEMY_TYPES[enemy.type.toUpperCase()].speed;
+          enemy.speed = baseSpeed * this.difficultyModifiers.enemySpeed;
+        }
+      });
+
+      // Update stamina drain
       staminaBar.drainSpeed = GameConfig.STAMINA_BAR.DRAIN_SPEED * this.difficultyModifiers.staminaDrain;
     },
 
@@ -718,17 +724,26 @@
     },
 
     render: function(ctx) {
-      // Show current difficulty level
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '10px Arial';
-      ctx.textAlign = 'left';
-      const desc = this.getDifficultyDescription();
-      ctx.fillText(desc, 10, GAME_HEIGHT - 20);
+      // Show current difficulty level (only when it changes)
+      if (this.lastDescription !== this.getDifficultyDescription()) {
+        this.lastDescription = this.getDifficultyDescription();
+        this.descriptionTimer = 180; // Show for 3 seconds
+      }
 
-      // Show skill rating for debugging (can be removed in production)
-      ctx.fillStyle = '#FFFF00';
-      ctx.font = '10px Arial';
-      ctx.fillText(`Habilidade: ${(this.performanceMetrics.skillRating * 100).toFixed(0)}%`, 10, GAME_HEIGHT - 5);
+      if (this.descriptionTimer > 0) {
+        this.descriptionTimer--;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(this.lastDescription, 10, GAME_HEIGHT - 20);
+      }
+
+      // Optional: Show skill rating in debug mode only
+      if (DEBUG_MODE) {
+        ctx.fillStyle = '#FFFF00';
+        ctx.font = '10px Arial';
+        ctx.fillText(`Skill: ${(this.performanceMetrics.skillRating * 100).toFixed(0)}%`, 10, GAME_HEIGHT - 5);
+      }
     }
   };
 
@@ -899,17 +914,20 @@
 
     // Effect triggers for different events
     onItemCollected: function(x, y) {
-      // Create sparkle particles
-      for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const speed = 50 + Math.random() * 50;
+      // Create subtle sparkle particles
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const speed = 40 + Math.random() * 30;
         this.createParticle(
           x, y,
           Math.cos(angle) * speed, Math.sin(angle) * speed,
-          '#FFD700', 3, 0.5
+          '#FFD700', 2.5, 0.4
         );
       }
-      this.triggerScreenFlash('#FFFFFF', 0.2, 0.1);
+      // Subtle flash for special items only
+      if (Math.random() < 0.3) {
+        this.triggerScreenFlash('#FFFFFF', 0.1, 0.08);
+      }
     },
 
     onQuestCompleted: function() {
@@ -989,12 +1007,12 @@
       {
         id: 'sprinter',
         title: 'Corredor Veloz',
-        description: 'Use o sprint 10 vezes',
+        description: 'Use o sprint 8 vezes',
         type: 'use_sprint',
-        target: 10,
+        target: 8,
         progress: 0,
         completed: false,
-        reward: { type: 'speed_boost', amount: 1.2 }
+        reward: { type: 'speed_boost', amount: 1.15 }
       },
       {
         id: 'survivor',
@@ -1059,12 +1077,12 @@
       {
         id: 'enemy_hunter',
         title: 'Caçador de Inimigos',
-        description: 'Derrote 5 inimigos pulando em cima',
+        description: 'Derrote 3 inimigos pulando em cima',
         type: 'defeat_enemies',
-        target: 5,
+        target: 3,
         progress: 0,
         completed: false,
-        reward: { type: 'stamina_boost', amount: 0.8 }
+        reward: { type: 'stamina_boost', amount: 0.6 }
       },
       {
         id: 'slime_slayer',
@@ -1244,34 +1262,47 @@
         ctx.globalAlpha = alpha;
 
         // Background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(GAME_WIDTH / 2 - 200, GAME_HEIGHT / 2 - 50, 400, 100);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.fillRect(GAME_WIDTH / 2 - 180, GAME_HEIGHT / 2 - 40, 360, 80);
 
         // Border
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 2;
-        ctx.strokeRect(GAME_WIDTH / 2 - 200, GAME_HEIGHT / 2 - 50, 400, 100);
+        ctx.strokeRect(GAME_WIDTH / 2 - 180, GAME_HEIGHT / 2 - 40, 360, 80);
 
         // Text
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '16px Arial';
+        ctx.font = '14px Arial';
         ctx.textAlign = 'center';
         const lines = this.activeNotification.split('\n');
         lines.forEach((line, index) => {
-          ctx.fillText(line, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20 + index * 20);
+          ctx.fillText(line, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 15 + index * 18);
         });
 
         ctx.restore();
       }
 
-      // Show current quest progress
+      // Show current quest progress (compact)
       if (this.currentQuest < this.quests.length) {
         const quest = this.quests[this.currentQuest];
+        const progressPercent = Math.min(quest.progress / quest.target, 1.0);
+
+        // Progress bar background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(10, GAME_HEIGHT - 35, 200, 6);
+
+        // Progress bar fill
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(10, GAME_HEIGHT - 35, 200 * progressPercent, 6);
+
+        // Quest text (compact)
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '12px Arial';
+        ctx.font = '11px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText(`Missão: ${quest.description}`, 10, GAME_HEIGHT - 60);
-        ctx.fillText(`Progresso: ${Math.min(quest.progress, quest.target)}/${quest.target}`, 10, GAME_HEIGHT - 40);
+        const shortDesc = quest.description.length > 25 ?
+          quest.description.substring(0, 22) + '...' : quest.description;
+        ctx.fillText(`${quest.title}: ${shortDesc}`, 10, GAME_HEIGHT - 45);
+        ctx.fillText(`${Math.min(quest.progress, quest.target)}/${quest.target}`, 220, GAME_HEIGHT - 25);
       }
     }
   };
@@ -1743,8 +1774,9 @@
       }
       currentX += segmentWidth + Math.random() * 100; // Advance position with some randomness
 
-      // Chance to spawn enemies
-      if (Math.random() < 0.15) { // 15% chance to spawn enemy
+      // Chance to spawn enemies (progressively harder)
+      const enemySpawnChance = Math.min(0.25, 0.08 + (playerDistanceWalked / 10000) * 0.1); // 8%-25% based on distance
+      if (Math.random() < enemySpawnChance) {
         const enemyTypes = Object.keys(ENEMY_TYPES);
         const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
         enemyAI.createEnemy(randomType, currentX, groundY - 40);
@@ -1755,16 +1787,16 @@
         let itemType;
         const rand = Math.random();
 
-        // 80% regular items, 20% special items
-        if (rand < 0.8) {
+        // 85% regular items, 15% special items
+        if (rand < 0.85) {
           itemType = Math.random() < GameConfig.GENERATION.PROB_NOTE_COLLECTIBLE ? 'note' : 'record';
         } else {
-          // Special rare items
-          const specialRand = Math.random();
-          if (specialRand < 0.4) itemType = 'golden_note';      // Rare: Double points + speed boost
-          else if (specialRand < 0.7) itemType = 'energy_crystal'; // Rare: Full stamina restore
-          else if (specialRand < 0.9) itemType = 'speed_boost';    // Rare: Temporary speed
-          else itemType = 'mystery_box';                         // Ultra rare: Random effect
+        // Special rare items (balanced probabilities)
+        const specialRand = Math.random();
+        if (specialRand < 0.35) itemType = 'golden_note';      // 35%: Double points + speed boost
+        else if (specialRand < 0.65) itemType = 'energy_crystal'; // 30%: Full stamina restore
+        else if (specialRand < 0.85) itemType = 'speed_boost';    // 20%: Temporary speed
+        else itemType = 'mystery_box';                         // 15%: Random effect
         }
 
         const itemSize = itemType.includes('crystal') || itemType.includes('box') ? 28 : 24;
@@ -3341,9 +3373,9 @@
         player.jumpTimeHeld = 0;
         player.lastJumpTime = Date.now();
 
-        // Visual and audio feedback for wall jump
-        visualEffects.triggerScreenShake(4, 0.2);
-        visualEffects.triggerScreenFlash('#87CEEB', 0.15, 0.15);
+        // Visual feedback for wall jump (subtle)
+        visualEffects.triggerScreenShake(2, 0.15);
+        visualEffects.triggerScreenFlash('#87CEEB', 0.1, 0.1);
 
         input.jump = false; // Consume jump input for wall jump
       }
@@ -3380,14 +3412,12 @@
       player.vy += GRAVITY * dt; // Acceleration due to gravity
     }
 
-    // 2. Apply air resistance (proportional to velocity squared for realism)
+    // 2. Apply air resistance (simplified for gameplay)
     const speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
-    if (speed > 50) { // Only apply significant air resistance at higher speeds
-      const dragForce = 0.5 * 0.47 * speed * speed * 0.001; // Simplified drag equation
-      const dragX = (player.vx / speed) * dragForce;
-      const dragY = (player.vy / speed) * dragForce;
-      player.vx -= dragX * dt;
-      player.vy -= dragY * dt;
+    if (speed > 40) { // Apply air resistance at moderate speeds
+      const dragFactor = 0.02; // Simplified drag coefficient
+      player.vx *= (1 - dragFactor);
+      player.vy *= (1 - dragFactor);
     }
 
     // 3. Terminal velocity (maximum falling speed due to air resistance)
@@ -3421,9 +3451,11 @@
           // Wall friction reduces sliding speed
           if (player.isWallSliding) {
             player.vy = Math.min(player.vy, WALL_SLIDE_SPEED);
-            // Add slight bounce effect when hitting wall while moving
-            if (Math.abs(player.vx) > 100) {
-              player.vx *= -0.1; // Small bounce back
+            // Gradual slowdown when sliding
+            player.vy *= 0.95;
+            // Reduce horizontal momentum when hitting wall
+            if (Math.abs(player.vx) > 80) {
+              player.vx *= 0.85; // Gradual slowdown instead of bounce
             }
           }
           break;
@@ -4031,15 +4063,6 @@
           drawSpeedBoost(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX);
         } else if (obj.type === 'breakable_crate') {
           drawBreakableCrate(obj.x, obj.y, obj.width, obj.height, obj.color, effectiveScrollX, obj.broken);
-        }
-
-        // Debug: Highlight walkable surfaces for collision debugging
-        if (obj.isWalkable && DEBUG_MODE) {
-          ctx.save();
-          ctx.strokeStyle = '#FF0000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(obj.x - effectiveScrollX, obj.walkableSurfaceY, obj.width || 20, 2);
-          ctx.restore();
         }
       }
 
