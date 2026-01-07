@@ -2042,13 +2042,50 @@
     }
   }
 
+  // Color utility functions for visual enhancement
+  function lightenColor(color, amount) {
+    if (color.startsWith('#')) {
+      const num = parseInt(color.replace('#', ''), 16);
+      const r = Math.min(255, ((num >> 16) & 0xFF) + (255 * amount));
+      const g = Math.min(255, ((num >> 8) & 0xFF) + (255 * amount));
+      const b = Math.min(255, (num & 0xFF) + (255 * amount));
+      return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+    }
+    return color;
+  }
+
+  function darkenColor(color, amount) {
+    if (color.startsWith('#')) {
+      const num = parseInt(color.replace('#', ''), 16);
+      const r = Math.max(0, ((num >> 16) & 0xFF) * (1 - amount));
+      const g = Math.max(0, ((num >> 8) & 0xFF) * (1 - amount));
+      const b = Math.max(0, (num & 0xFF) * (1 - amount));
+      return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+    }
+    return color;
+  }
+
   // Function to draw a generic structure (house, building, dog house)
   function drawStructure(x, y, width, height, bodyColor, windowColor, doorColor, hasRoof, parallaxScrollX, buildingType) {
     const drawX = x - parallaxScrollX;
 
-    // Main body
-    ctx.fillStyle = bodyColor;
+    // RADICAL VISUAL: Add shadow for depth
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(drawX + 3, y + height + 2, width, 4);
+
+    // Main body with gradient for depth
+    const bodyGradient = ctx.createLinearGradient(drawX, y, drawX + width, y);
+    const baseColor = bodyColor;
+    bodyGradient.addColorStop(0, baseColor);
+    bodyGradient.addColorStop(0.5, lightenColor(baseColor, 0.1));
+    bodyGradient.addColorStop(1, darkenColor(baseColor, 0.1));
+    ctx.fillStyle = bodyGradient;
     ctx.fillRect(drawX, y, width, height);
+
+    // Add subtle border for definition
+    ctx.strokeStyle = darkenColor(baseColor, 0.2);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(drawX, y, width, height);
 
     // Special building features based on type
     if (buildingType === 'hospital') {
@@ -2116,7 +2153,7 @@
       ctx.fillText('🛒', drawX + width * 0.85, y + height * 0.35);
     }
 
-    // Window (if applicable)
+    // Window (if applicable) - Enhanced with glow effect
     if (windowColor) {
       const windowSize = width / 4; // Proportionate window size
       let windowX;
@@ -2126,7 +2163,17 @@
         windowX = drawX + (width / 2) - (windowSize / 2); // Center window if no door
       }
       const windowY = y + (height / 4);
-      ctx.fillStyle = windowColor;
+      
+      // Window glow effect
+      ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
+      ctx.fillRect(windowX - 2, windowY - 2, windowSize + 4, windowSize + 4);
+      
+      // Window glass with gradient
+      const windowGradient = ctx.createLinearGradient(windowX, windowY, windowX + windowSize, windowY + windowSize);
+      windowGradient.addColorStop(0, lightenColor(windowColor, 0.2));
+      windowGradient.addColorStop(0.5, windowColor);
+      windowGradient.addColorStop(1, darkenColor(windowColor, 0.1));
+      ctx.fillStyle = windowGradient;
       ctx.fillRect(windowX, windowY, windowSize, windowSize);
 
       // Window frames for special buildings
@@ -2144,7 +2191,7 @@
       }
     }
 
-    // Door (if applicable)
+    // Door (if applicable) - Enhanced with depth
     if (doorColor) {
       const doorWidth = width / 4;
       const doorHeight = height / 2;
@@ -2155,23 +2202,64 @@
         doorX = drawX + (width / 2) - (doorWidth / 2); // Center door if no window
       }
       const doorY = y + height - doorHeight;
-      ctx.fillStyle = doorColor;
+      
+      // Door shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.fillRect(doorX + 2, doorY + 2, doorWidth, doorHeight);
+      
+      // Door with gradient
+      const doorGradient = ctx.createLinearGradient(doorX, doorY, doorX + doorWidth, doorY);
+      doorGradient.addColorStop(0, lightenColor(doorColor, 0.1));
+      doorGradient.addColorStop(1, darkenColor(doorColor, 0.1));
+      ctx.fillStyle = doorGradient;
       ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+      
+      // Door frame
+      ctx.strokeStyle = darkenColor(doorColor, 0.3);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(doorX, doorY, doorWidth, doorHeight);
 
-      // Door handle
-      ctx.fillStyle = '#FFFF00';
+      // Door handle with shine
+      ctx.fillStyle = '#FFD700';
       ctx.fillRect(doorX + doorWidth - 5, doorY + doorHeight/2 - 2, 3, 4);
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillRect(doorX + doorWidth - 4, doorY + doorHeight/2 - 1, 1, 2);
     }
 
-    // Roof (if applicable)
+    // Roof (if applicable) - Enhanced with gradient and tiles
     if (hasRoof) {
-      ctx.fillStyle = '#8B4513'; // SaddleBrown color for roof
+      // Roof shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.beginPath();
+      ctx.moveTo(drawX - 8, y + 2);
+      ctx.lineTo(drawX + width + 8, y + 2);
+      ctx.lineTo(drawX + (width / 2), y - (height / 3) + 2);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Roof with gradient
+      const roofGradient = ctx.createLinearGradient(drawX, y - height/3, drawX + width, y);
+      roofGradient.addColorStop(0, '#654321');
+      roofGradient.addColorStop(0.5, '#8B4513');
+      roofGradient.addColorStop(1, '#A0522D');
+      ctx.fillStyle = roofGradient;
       ctx.beginPath();
       ctx.moveTo(drawX - 10, y);
       ctx.lineTo(drawX + width + 10, y);
       ctx.lineTo(drawX + (width / 2), y - (height / 3));
       ctx.closePath();
       ctx.fill();
+      
+      // Roof tiles pattern
+      ctx.strokeStyle = darkenColor('#8B4513', 0.2);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const tileX = drawX + (width / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(tileX, y);
+        ctx.lineTo(drawX + (width / 2), y - (height / 3));
+        ctx.stroke();
+      }
 
       // Chimney for special buildings
       if (buildingType === 'fire_station') {
@@ -2181,88 +2269,190 @@
     }
   }
 
-  // Function to draw a pole
+  // Function to draw a pole - Enhanced with shadow and gradient
   function drawPole(x, y, height, color, parallaxScrollX) {
     const drawX = x - parallaxScrollX;
-    ctx.fillStyle = color;
-    ctx.fillRect(drawX, y - height, 10, height); // Pole body
+    
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(drawX + 2, y + 2, 10, height);
+    
+    // Pole with gradient
+    const poleGradient = ctx.createLinearGradient(drawX, y - height, drawX, y);
+    poleGradient.addColorStop(0, lightenColor(color, 0.1));
+    poleGradient.addColorStop(1, darkenColor(color, 0.1));
+    ctx.fillStyle = poleGradient;
+    ctx.fillRect(drawX, y - height, 10, height);
+    
+    // Highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(drawX, y - height, 2, height);
   }
 
-  // Function to draw a tree
+  // Function to draw a tree - Enhanced with depth and texture
   function drawTree(x, y, trunkHeight, canopyRadius, trunkColor, canopyColor, parallaxScrollX) {
     const drawX = x - parallaxScrollX;
 
-    // Trunk
-    ctx.fillStyle = trunkColor;
-    ctx.fillRect(drawX - 10, y - trunkHeight, 20, trunkHeight);
-
-    // Canopy (a simple circle for now)
-    ctx.fillStyle = canopyColor;
+    // Tree shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
-    ctx.arc(drawX, y - trunkHeight - (canopyRadius / 2), canopyRadius, 0, Math.PI * 2);
+    ctx.ellipse(drawX, y + 5, canopyRadius * 0.8, canopyRadius * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Trunk with gradient and texture
+    const trunkGradient = ctx.createLinearGradient(drawX - 10, y - trunkHeight, drawX + 10, y);
+    trunkGradient.addColorStop(0, darkenColor(trunkColor, 0.2));
+    trunkGradient.addColorStop(0.5, trunkColor);
+    trunkGradient.addColorStop(1, lightenColor(trunkColor, 0.1));
+    ctx.fillStyle = trunkGradient;
+    ctx.fillRect(drawX - 10, y - trunkHeight, 20, trunkHeight);
+    
+    // Trunk highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(drawX - 8, y - trunkHeight, 4, trunkHeight);
+
+    // Canopy with multiple layers for depth
+    const canopyCenterY = y - trunkHeight - (canopyRadius / 2);
+    
+    // Outer canopy (darker, larger)
+    ctx.fillStyle = darkenColor(canopyColor, 0.2);
+    ctx.beginPath();
+    ctx.arc(drawX, canopyCenterY, canopyRadius * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Main canopy with gradient
+    const canopyGradient = ctx.createRadialGradient(drawX, canopyCenterY, 0, drawX, canopyCenterY, canopyRadius);
+    canopyGradient.addColorStop(0, lightenColor(canopyColor, 0.2));
+    canopyGradient.addColorStop(0.7, canopyColor);
+    canopyGradient.addColorStop(1, darkenColor(canopyColor, 0.1));
+    ctx.fillStyle = canopyGradient;
+    ctx.beginPath();
+    ctx.arc(drawX, canopyCenterY, canopyRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Canopy highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.arc(drawX - canopyRadius * 0.3, canopyCenterY - canopyRadius * 0.3, canopyRadius * 0.4, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Function to draw a collectible item
+  // Function to draw a collectible item - Enhanced with pulsing animation
   function drawCollectible(x, y, size, itemType, parallaxScrollX) {
     const drawX = x - parallaxScrollX;
+    
+    // Pulsing animation for all collectibles
+    const pulseTime = Date.now() / 500; // Slower pulse
+    const pulseScale = 1 + Math.sin(pulseTime) * 0.1; // 10% size variation
+    const pulseAlpha = 0.7 + Math.sin(pulseTime) * 0.3; // Alpha variation
+    const adjustedSize = size * pulseScale;
+    const offsetX = (size - adjustedSize) / 2;
+    const offsetY = (size - adjustedSize) / 2;
 
     if (itemType === 'note') {
       const img = images.note;
       if (img) {
-        ctx.drawImage(img, drawX, y, size, size);
+        ctx.save();
+        ctx.globalAlpha = pulseAlpha;
+        ctx.drawImage(img, drawX + offsetX, y + offsetY, adjustedSize, adjustedSize);
+        ctx.restore();
       }
     } else if (itemType === 'record') {
       const img = images.record;
       if (img) {
-        ctx.drawImage(img, drawX, y, size, size);
+        ctx.save();
+        ctx.globalAlpha = pulseAlpha;
+        ctx.drawImage(img, drawX + offsetX, y + offsetY, adjustedSize, adjustedSize);
+        ctx.restore();
       }
     } else if (itemType === 'golden_note') {
-      // Golden musical note with glow effect
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(drawX + 2, y + 2, size - 4, size - 4);
-      ctx.fillStyle = '#FFA500';
-      ctx.fillRect(drawX + 4, y + 4, size - 8, size - 8);
+      // Enhanced golden musical note with pulsing glow
+      const glowIntensity = 10 + Math.sin(pulseTime * 2) * 5;
+      
+      // Outer glow
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = glowIntensity;
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+      ctx.beginPath();
+      ctx.arc(drawX + size/2, y + size/2, adjustedSize/2 + 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Golden note with gradient
+      const goldenGradient = ctx.createRadialGradient(drawX + size/2, y + size/2, 0, drawX + size/2, y + size/2, adjustedSize/2);
+      goldenGradient.addColorStop(0, '#FFFF00');
+      goldenGradient.addColorStop(0.5, '#FFD700');
+      goldenGradient.addColorStop(1, '#FFA500');
+      ctx.fillStyle = goldenGradient;
+      ctx.beginPath();
+      ctx.arc(drawX + size/2, y + size/2, adjustedSize/2 - 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
 
       // Musical note symbol
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = `${size * 0.6}px Arial`;
+      ctx.font = `${adjustedSize * 0.6}px Arial`;
       ctx.textAlign = 'center';
       ctx.fillText('♪', drawX + size/2, y + size * 0.7);
 
-      // Glow effect
-      ctx.shadowColor = '#FFD700';
-      ctx.shadowBlur = 10;
-      ctx.fillRect(drawX, y, size, size);
-      ctx.shadowBlur = 0;
-
     } else if (itemType === 'energy_crystal') {
-      // Glowing crystal
-      ctx.fillStyle = '#00FFFF';
-      ctx.fillRect(drawX + 2, y + 2, size - 4, size - 4);
-
-      // Crystal facets
-      ctx.fillStyle = '#FFFFFF';
+      // Enhanced glowing crystal with pulsing effect
+      const crystalGlow = 15 + Math.sin(pulseTime * 2) * 8;
+      
+      // Outer glow
+      ctx.shadowColor = '#00FFFF';
+      ctx.shadowBlur = crystalGlow;
+      ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
       ctx.beginPath();
-      ctx.moveTo(drawX + size/2, y);
-      ctx.lineTo(drawX + size, y + size/2);
-      ctx.lineTo(drawX + size/2, y + size);
-      ctx.lineTo(drawX, y + size/2);
+      ctx.arc(drawX + size/2, y + size/2, adjustedSize/2 + 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Crystal with gradient
+      const crystalGradient = ctx.createRadialGradient(drawX + size/2, y + size/2, 0, drawX + size/2, y + size/2, adjustedSize/2);
+      crystalGradient.addColorStop(0, '#FFFFFF');
+      crystalGradient.addColorStop(0.3, '#00FFFF');
+      crystalGradient.addColorStop(1, '#0080FF');
+      ctx.fillStyle = crystalGradient;
+      ctx.beginPath();
+      ctx.moveTo(drawX + size/2, y + offsetY);
+      ctx.lineTo(drawX + size - offsetX, y + size/2);
+      ctx.lineTo(drawX + size/2, y + size - offsetY);
+      ctx.lineTo(drawX + offsetX, y + size/2);
       ctx.closePath();
       ctx.fill();
 
-      // Glow effect
-      ctx.shadowColor = '#00FFFF';
-      ctx.shadowBlur = 15;
-      ctx.fillRect(drawX, y, size, size);
+      // Crystal facets highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(drawX + size/2, y + offsetY);
+      ctx.lineTo(drawX + size * 0.7, y + size * 0.3);
+      ctx.lineTo(drawX + size/2, y + size/2);
+      ctx.closePath();
+      ctx.fill();
+      
       ctx.shadowBlur = 0;
 
     } else if (itemType === 'speed_boost') {
-      // Speed lightning bolt
-      ctx.fillStyle = '#FFFF00';
-      ctx.fillRect(drawX + 2, y + 2, size - 4, size - 4);
+      // Enhanced speed lightning bolt with pulsing
+      const lightningGlow = 8 + Math.sin(pulseTime * 3) * 4;
+      
+      // Background glow
+      ctx.shadowColor = '#FFFF00';
+      ctx.shadowBlur = lightningGlow;
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+      ctx.beginPath();
+      ctx.arc(drawX + size/2, y + size/2, adjustedSize/2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Lightning bolt background
+      const lightningGradient = ctx.createLinearGradient(drawX + offsetX, y + offsetY, drawX + size - offsetX, y + size - offsetY);
+      lightningGradient.addColorStop(0, '#FFFF00');
+      lightningGradient.addColorStop(0.5, '#FFA500');
+      lightningGradient.addColorStop(1, '#FF4500');
+      ctx.fillStyle = lightningGradient;
+      ctx.fillRect(drawX + offsetX + 2, y + offsetY + 2, adjustedSize - 4, adjustedSize - 4);
 
-      // Lightning symbol
+      // Lightning symbol (enhanced)
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
       ctx.moveTo(drawX + size * 0.3, y + size * 0.2);
@@ -2273,27 +2463,45 @@
       ctx.lineTo(drawX + size * 0.2, y + size * 0.8);
       ctx.closePath();
       ctx.fill();
+      
+      ctx.shadowBlur = 0;
 
     } else if (itemType === 'mystery_box') {
-      // Mystery box with question mark
-      ctx.fillStyle = '#8B4513'; // Brown box
-      ctx.fillRect(drawX, y, size, size);
+      // Enhanced mystery box with pulsing glow
+      const mysteryGlow = 8 + Math.sin(pulseTime * 2) * 5;
+      
+      // Outer glow
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = mysteryGlow;
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+      ctx.fillRect(drawX - 2, y - 2, size + 4, size + 4);
+      
+      // Mystery box with gradient
+      const boxGradient = ctx.createLinearGradient(drawX + offsetX, y + offsetY, drawX + size - offsetX, y + size - offsetY);
+      boxGradient.addColorStop(0, '#A0522D');
+      boxGradient.addColorStop(0.5, '#8B4513');
+      boxGradient.addColorStop(1, '#654321');
+      ctx.fillStyle = boxGradient;
+      ctx.fillRect(drawX + offsetX, y + offsetY, adjustedSize, adjustedSize);
 
-      // Box border
-      ctx.strokeStyle = '#654321';
+      // Box border with highlight
+      ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 2;
-      ctx.strokeRect(drawX, y, size, size);
+      ctx.strokeRect(drawX + offsetX, y + offsetY, adjustedSize, adjustedSize);
+      
+      // Inner highlight
+      ctx.strokeStyle = '#FFA500';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(drawX + offsetX + 2, y + offsetY + 2, adjustedSize - 4, adjustedSize - 4);
 
-      // Question mark
+      // Question mark with glow
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 5;
       ctx.fillStyle = '#FFD700';
-      ctx.font = `${size * 0.8}px Arial`;
+      ctx.font = `${adjustedSize * 0.8}px Arial`;
       ctx.textAlign = 'center';
       ctx.fillText('?', drawX + size/2, y + size * 0.75);
-
-      // Mystery glow
-      ctx.shadowColor = '#FFD700';
-      ctx.shadowBlur = 8;
-      ctx.fillRect(drawX, y, size, size);
+      
       ctx.shadowBlur = 0;
     }
   }
@@ -2334,58 +2542,108 @@
   }
 
   function drawSlime(drawX, drawY, width, height, enemy) {
-    // Slime body - rounded rectangle
-    ctx.fillStyle = enemy.color;
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height + 3, width * 0.6, height * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Slime body - rounded rectangle with gradient
+    const slimeGradient = ctx.createRadialGradient(drawX + width * 0.3, drawY + height * 0.2, 0, drawX + width * 0.5, drawY + height * 0.5, width * 0.6);
+    slimeGradient.addColorStop(0, lightenColor(enemy.color, 0.3));
+    slimeGradient.addColorStop(0.5, enemy.color);
+    slimeGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = slimeGradient;
     ctx.beginPath();
     ctx.roundRect(drawX, drawY, width, height, 8);
     ctx.fill();
 
-    // Slime shine effect
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    // Slime shine effect (enhanced)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.3, drawY + height * 0.2, width * 0.2, height * 0.15, 0, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Additional highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.25, drawY + height * 0.15, width * 0.1, height * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Evil eyes
-    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.25, 0.3);
+    // Evil eyes with glow
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.25, 0.3, true);
   }
 
   function drawBat(drawX, drawY, width, height, enemy) {
-    // Bat wings
-    ctx.fillStyle = enemy.color;
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height + 2, width * 0.5, height * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Bat wings with gradient
+    const wingGradient = ctx.createRadialGradient(drawX + width * 0.2, drawY + height * 0.5, 0, drawX, drawY + height * 0.5, width * 0.4);
+    wingGradient.addColorStop(0, lightenColor(enemy.color, 0.1));
+    wingGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = wingGradient;
     ctx.beginPath();
     ctx.ellipse(drawX, drawY + height * 0.5, width * 0.4, height * 0.6, -0.3, 0, Math.PI * 2);
     ctx.fill();
+    
+    const wingGradient2 = ctx.createRadialGradient(drawX + width * 0.8, drawY + height * 0.5, 0, drawX + width, drawY + height * 0.5, width * 0.4);
+    wingGradient2.addColorStop(0, lightenColor(enemy.color, 0.1));
+    wingGradient2.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = wingGradient2;
     ctx.beginPath();
     ctx.ellipse(drawX + width, drawY + height * 0.5, width * 0.4, height * 0.6, 0.3, 0, Math.PI * 2);
     ctx.fill();
 
-    // Bat body
+    // Bat body with gradient
+    const bodyGradient = ctx.createRadialGradient(drawX + width * 0.5, drawY + height * 0.3, 0, drawX + width * 0.5, drawY + height * 0.3, width * 0.3);
+    bodyGradient.addColorStop(0, lightenColor(enemy.color, 0.2));
+    bodyGradient.addColorStop(1, darkenColor(enemy.color, 0.3));
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.5, drawY + height * 0.3, width * 0.3, height * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Evil eyes
-    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.4, 0.25);
+    // Evil eyes with glow
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.4, 0.25, true);
   }
 
   function drawSpider(drawX, drawY, width, height, enemy) {
-    // Spider body
-    ctx.fillStyle = enemy.color;
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height + 2, width * 0.4, height * 0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Spider body with gradient
+    const bodyGradient = ctx.createRadialGradient(drawX + width * 0.5, drawY + height * 0.4, 0, drawX + width * 0.5, drawY + height * 0.4, width * 0.35);
+    bodyGradient.addColorStop(0, lightenColor(enemy.color, 0.1));
+    bodyGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.5, drawY + height * 0.4, width * 0.35, height * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Spider abdomen
+    // Spider abdomen with gradient
+    const abdomenGradient = ctx.createRadialGradient(drawX + width * 0.5, drawY + height * 0.7, 0, drawX + width * 0.5, drawY + height * 0.7, width * 0.25);
+    abdomenGradient.addColorStop(0, lightenColor(enemy.color, 0.05));
+    abdomenGradient.addColorStop(1, darkenColor(enemy.color, 0.3));
+    ctx.fillStyle = abdomenGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.5, drawY + height * 0.7, width * 0.25, height * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Spider legs (simplified)
-    ctx.strokeStyle = enemy.color;
-    ctx.lineWidth = 2;
+    // Spider legs (enhanced with gradient)
     for (let i = 0; i < 4; i++) {
       const legX = drawX + width * (0.2 + i * 0.15);
+      const legGradient = ctx.createLinearGradient(legX, drawY + height * 0.4, legX - 5, drawY + height * 0.2);
+      legGradient.addColorStop(0, enemy.color);
+      legGradient.addColorStop(1, darkenColor(enemy.color, 0.3));
+      ctx.strokeStyle = legGradient;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(legX, drawY + height * 0.4);
       ctx.lineTo(legX - 5, drawY + height * 0.2);
@@ -2394,13 +2652,21 @@
       ctx.stroke();
     }
 
-    // Evil eyes
-    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.4, 0.35);
+    // Evil eyes with glow
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.4, 0.35, true);
   }
 
   function drawGhost(drawX, drawY, width, height, enemy) {
-    // Ghost body with wavy bottom
-    ctx.fillStyle = enemy.color;
+    // Ghost glow effect
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = enemy.color;
+    
+    // Ghost body with wavy bottom and gradient
+    const ghostGradient = ctx.createLinearGradient(drawX, drawY, drawX + width, drawY + height);
+    ghostGradient.addColorStop(0, lightenColor(enemy.color, 0.3));
+    ghostGradient.addColorStop(0.5, enemy.color);
+    ghostGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = ghostGradient;
     ctx.beginPath();
     ctx.moveTo(drawX, drawY + height);
     ctx.lineTo(drawX, drawY);
@@ -2415,54 +2681,98 @@
     }
     ctx.closePath();
     ctx.fill();
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
-    // Evil eyes
-    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.3, 0.2);
+    // Evil eyes with glow
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.3, 0.2, true);
   }
 
   function drawSnake(drawX, drawY, width, height, enemy) {
-    // Snake body segments
-    ctx.fillStyle = enemy.color;
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height + 2, width * 0.5, height * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Snake body segments with gradient
     for (let i = 0; i < 3; i++) {
       const segmentX = drawX + i * (width * 0.25);
       const segmentY = drawY + Math.sin(enemy.slitherTime * 3 + i) * 3;
+      const segmentGradient = ctx.createRadialGradient(segmentX, segmentY, 0, segmentX, segmentY, width * 0.15);
+      segmentGradient.addColorStop(0, lightenColor(enemy.color, 0.2));
+      segmentGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+      ctx.fillStyle = segmentGradient;
       ctx.beginPath();
       ctx.ellipse(segmentX, segmentY, width * 0.15, height * 0.4, 0, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Segment highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.beginPath();
+      ctx.ellipse(segmentX - width * 0.05, segmentY - height * 0.1, width * 0.05, height * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // Snake head
+    // Snake head with gradient
+    const headGradient = ctx.createRadialGradient(drawX + width * 0.6, drawY, 0, drawX + width * 0.6, drawY, width * 0.2);
+    headGradient.addColorStop(0, lightenColor(enemy.color, 0.3));
+    headGradient.addColorStop(1, darkenColor(enemy.color, 0.1));
+    ctx.fillStyle = headGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.6, drawY, width * 0.2, height * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Snake tongue
+    // Snake tongue (enhanced)
     ctx.strokeStyle = '#FF0000';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#FF0000';
     ctx.beginPath();
     ctx.moveTo(drawX + width * 0.8, drawY);
     ctx.lineTo(drawX + width * 0.9, drawY - 5);
     ctx.moveTo(drawX + width * 0.8, drawY);
     ctx.lineTo(drawX + width * 0.9, drawY + 5);
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
-    // Evil eyes
-    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.65, 0.1);
+    // Evil eyes with glow
+    drawEvilEyes(drawX, drawY, width, height, enemy.eyeColor, 0.65, 0.1, true);
   }
 
   function drawWolf(drawX, drawY, width, height, enemy) {
-    // Wolf body
-    ctx.fillStyle = enemy.color;
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(drawX + width * 0.5, drawY + height + 3, width * 0.5, height * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Wolf body with gradient
+    const bodyGradient = ctx.createRadialGradient(drawX + width * 0.5, drawY + height * 0.5, 0, drawX + width * 0.5, drawY + height * 0.5, width * 0.4);
+    bodyGradient.addColorStop(0, lightenColor(enemy.color, 0.2));
+    bodyGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.5, drawY + height * 0.5, width * 0.4, height * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Wolf head
+    // Wolf head with gradient
+    const headGradient = ctx.createRadialGradient(drawX + width * 0.8, drawY + height * 0.2, 0, drawX + width * 0.8, drawY + height * 0.2, width * 0.25);
+    headGradient.addColorStop(0, lightenColor(enemy.color, 0.15));
+    headGradient.addColorStop(1, darkenColor(enemy.color, 0.15));
+    ctx.fillStyle = headGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.8, drawY + height * 0.2, width * 0.25, height * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Wolf ears
+    // Wolf ears with gradient
+    const earGradient = ctx.createLinearGradient(drawX + width * 0.7, drawY - height * 0.05, drawX + width * 0.8, drawY + height * 0.05);
+    earGradient.addColorStop(0, darkenColor(enemy.color, 0.3));
+    earGradient.addColorStop(1, enemy.color);
+    ctx.fillStyle = earGradient;
     ctx.beginPath();
     ctx.moveTo(drawX + width * 0.75, drawY + height * 0.05);
     ctx.lineTo(drawX + width * 0.7, drawY - height * 0.05);
@@ -2477,7 +2787,11 @@
     ctx.closePath();
     ctx.fill();
 
-    // Wolf tail
+    // Wolf tail with gradient
+    const tailGradient = ctx.createRadialGradient(drawX + width * 0.15, drawY + height * 0.3, 0, drawX + width * 0.15, drawY + height * 0.3, width * 0.1);
+    tailGradient.addColorStop(0, lightenColor(enemy.color, 0.1));
+    tailGradient.addColorStop(1, darkenColor(enemy.color, 0.2));
+    ctx.fillStyle = tailGradient;
     ctx.beginPath();
     ctx.ellipse(drawX + width * 0.15, drawY + height * 0.3, width * 0.1, height * 0.2, -0.5, 0, Math.PI * 2);
     ctx.fill();
@@ -4030,14 +4344,58 @@
       ctx.restore();
 
     } else { // Not in house, draw exterior world
-      ctx.fillStyle = '#87CEEB'; // Set background color to light blue
+      // RADICAL VISUAL OVERHAUL: Dynamic sky gradient with time-of-day effect
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+      const timeOfDay = (Date.now() / 1000) % 60; // Cycle every 60 seconds
+      let skyTop, skyMid, skyBottom;
+      
+      if (timeOfDay < 20) {
+        // Morning: Orange to yellow
+        skyTop = '#FF6B35';
+        skyMid = '#F7931E';
+        skyBottom = '#FFD23F';
+      } else if (timeOfDay < 40) {
+        // Day: Blue gradient
+        skyTop = '#4A90E2';
+        skyMid = '#87CEEB';
+        skyBottom = '#B0E0E6';
+      } else {
+        // Evening: Purple to orange
+        skyTop = '#6B46C1';
+        skyMid = '#9333EA';
+        skyBottom = '#F97316';
+      }
+      
+      skyGradient.addColorStop(0, skyTop);
+      skyGradient.addColorStop(0.5, skyMid);
+      skyGradient.addColorStop(1, skyBottom);
+      ctx.fillStyle = skyGradient;
       ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-      // Draw the ground as a repeating tile across the world
+
+      // Add clouds for depth
+      drawClouds(scrollX);
+
+      // Enhanced ground with shadow and depth
       const groundImg = images.ground;
-      const numGroundTiles = Math.ceil(GAME_WIDTH / groundImg.width) + 1; // Changed WORLD_WIDTH to GAME_WIDTH
+      const numGroundTiles = Math.ceil(GAME_WIDTH / groundImg.width) + 2;
+      
+      // Ground shadow for depth
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.fillRect(0, groundY - 2, GAME_WIDTH, 4);
+      
       for (let i = 0; i < numGroundTiles; i++) {
-        const gx = i * groundImg.width - (scrollX % groundImg.width); // Added modulo for infinite ground
+        const gx = i * groundImg.width - (scrollX % groundImg.width);
+        
+        // Add subtle shadow under ground tiles
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(gx, groundY + groundImg.height, groundImg.width, 3);
+        
+        // Draw ground tile with slight tint variation
+        ctx.save();
+        const tint = 0.95 + (Math.sin(gx * 0.01) * 0.05);
+        ctx.globalAlpha = tint;
         ctx.drawImage(groundImg, gx, groundY, groundImg.width, groundImg.height);
+        ctx.restore();
       }
 
       // Draw all procedurally generated world objects
@@ -4114,59 +4472,134 @@
       return; // Stop further rendering of game elements
     }
 
-    // Draw counters for collected items in the upper left corner.
-    // We draw the icon at a small size followed by the count text.
+    // ENHANCED UI: Draw counters for collected items with background panels
     const iconSize = 24;
     var uiOffsetY = 10;
+    
+    // Background panel for counters
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(5, 5, 120, 60);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(5, 5, 120, 60);
+    
     ctx.fillStyle = '#ffffff';
-    ctx.font = '18px Arial';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
 
-    // Draw note count
+    // Draw note count with glow
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 3;
     ctx.drawImage(images.note, 10, uiOffsetY, iconSize, iconSize);
+    ctx.shadowBlur = 0;
     ctx.fillText('x ' + noteCount, 10 + iconSize + 4, uiOffsetY + iconSize - 6);
     uiOffsetY += iconSize + 5;
 
-    // Draw record count
+    // Draw record count with glow
+    ctx.shadowColor = '#FF6B6B';
+    ctx.shadowBlur = 3;
     ctx.drawImage(images.record, 10, uiOffsetY, iconSize, iconSize);
+    ctx.shadowBlur = 0;
     ctx.fillText('x ' + recordCount, 10 + iconSize + 4, uiOffsetY + iconSize - 6);
     uiOffsetY += iconSize + 5;
 
-    // Draw distance walked counter
-    ctx.textAlign = 'center'; // Center the text horizontally
-    ctx.fillText(`Distance: ${Math.floor(playerDistanceWalked / 10)}m`, GAME_WIDTH / 2, animatedBar.y + animatedBar.height + 20); // Position below animatedBar with padding
+    // Draw distance walked counter with enhanced styling
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(GAME_WIDTH / 2 - 100, animatedBar.y + animatedBar.height + 5, 200, 25);
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText(`Distance: ${Math.floor(playerDistanceWalked / 10)}m`, GAME_WIDTH / 2, animatedBar.y + animatedBar.height + 22);
 
-    // Draw stamina bar
-    ctx.fillStyle = '#333333'; // Dark grey background
+    // ENHANCED stamina bar with gradient and glow
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(staminaBar.x + 2, staminaBar.y + 2, staminaBar.width, staminaBar.height);
+    
+    // Background
+    ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(staminaBar.x, staminaBar.y, staminaBar.width, staminaBar.height);
 
-    ctx.fillStyle = staminaBar.color;
-    ctx.fillRect(staminaBar.x, staminaBar.y, staminaBar.width * staminaBar.fill, staminaBar.height);
+    // Stamina fill with gradient
+    if (staminaBar.fill > 0) {
+      const staminaGradient = ctx.createLinearGradient(staminaBar.x, staminaBar.y, staminaBar.x + staminaBar.width * staminaBar.fill, staminaBar.y);
+      const staminaColor = staminaBar.fill > 0.5 ? '#00FF00' : staminaBar.fill > 0.25 ? '#FFFF00' : '#FF0000';
+      staminaGradient.addColorStop(0, lightenColor(staminaColor, 0.2));
+      staminaGradient.addColorStop(1, staminaColor);
+      ctx.fillStyle = staminaGradient;
+      ctx.fillRect(staminaBar.x, staminaBar.y, staminaBar.width * staminaBar.fill, staminaBar.height);
+      
+      // Glow effect when stamina is high
+      if (staminaBar.fill > 0.7) {
+        ctx.shadowColor = staminaColor;
+        ctx.shadowBlur = 5;
+        ctx.fillRect(staminaBar.x, staminaBar.y, staminaBar.width * staminaBar.fill, staminaBar.height);
+        ctx.shadowBlur = 0;
+      }
+    }
 
-    ctx.strokeStyle = '#FFFFFF'; // White border
+    // Border with highlight
+    ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 2;
     ctx.strokeRect(staminaBar.x, staminaBar.y, staminaBar.width, staminaBar.height);
+    
+    // Label
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('STAMINA', staminaBar.x, staminaBar.y - 5);
 
-    // Draw animated bar (Power Jump indicator)
-    // Removed animatedBar.isVisible condition to keep it always visible
+    // ENHANCED animated bar (Power Jump indicator) with gradient and glow
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(animatedBar.x + 2, animatedBar.y + 2, animatedBar.width, animatedBar.height);
+    
     // Draw bar background
-    ctx.fillStyle = '#333333'; // Dark grey background
+    ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
 
-    // Draw bar fill
-    ctx.fillStyle = animatedBar.color;
-    ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width * animatedBar.fill, animatedBar.height);
+    // Draw bar fill with gradient
+    if (animatedBar.fill > 0) {
+      const powerGradient = ctx.createLinearGradient(animatedBar.x, animatedBar.y, animatedBar.x + animatedBar.width * animatedBar.fill, animatedBar.y);
+      powerGradient.addColorStop(0, '#FFD700');
+      powerGradient.addColorStop(0.5, '#FFA500');
+      powerGradient.addColorStop(1, '#FF4500');
+      ctx.fillStyle = powerGradient;
+      ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width * animatedBar.fill, animatedBar.height);
+      
+      // Pulsing glow when ready
+      if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
+        const glowIntensity = 8 + Math.sin(Date.now() / 200) * 3;
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = glowIntensity;
+        ctx.fillRect(animatedBar.x, animatedBar.y, animatedBar.width * animatedBar.fill, animatedBar.height);
+        ctx.shadowBlur = 0;
+      }
+    }
 
-    // Draw border for the bar
-    ctx.strokeStyle = '#FFFFFF'; // White border
+    // Draw border with highlight
+    ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 2;
     ctx.strokeRect(animatedBar.x, animatedBar.y, animatedBar.width, animatedBar.height);
+    
+    // Label
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('POWER JUMP', animatedBar.x, animatedBar.y - 5);
 
-    // Draw "POWER JUMP" text above the bar when available
+    // Draw "POWER JUMP READY" text above the bar when available with pulsing effect
     if (animatedBar.fill > GameConfig.ANIMATED_BAR.RED_THRESHOLD) {
-      ctx.fillStyle = '#FFD700'; // Gold color
-      ctx.font = '12px Arial';
+      const pulseAlpha = 0.7 + Math.sin(Date.now() / 200) * 0.3;
+      ctx.globalAlpha = pulseAlpha;
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('POWER JUMP READY', animatedBar.x + animatedBar.width / 2, animatedBar.y - 8);
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 5;
+      ctx.fillText('READY!', animatedBar.x + animatedBar.width / 2, animatedBar.y - 8);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1.0;
     }
 
     // Draw sprint indicator when sprinting
@@ -4349,6 +4782,34 @@
   }
 
   // Function to draw a fence
+  // Draw dynamic clouds for atmospheric depth
+  function drawClouds(scrollX) {
+    const cloudPositions = [
+      { x: scrollX * 0.1, y: 50, size: 80, opacity: 0.3 },
+      { x: scrollX * 0.15 + 200, y: 80, size: 100, opacity: 0.25 },
+      { x: scrollX * 0.12 + 400, y: 40, size: 70, opacity: 0.35 },
+      { x: scrollX * 0.18 + 600, y: 70, size: 90, opacity: 0.28 },
+      { x: scrollX * 0.14 + 800, y: 60, size: 85, opacity: 0.32 }
+    ];
+
+    cloudPositions.forEach(cloud => {
+      ctx.save();
+      ctx.globalAlpha = cloud.opacity;
+      ctx.fillStyle = '#FFFFFF';
+      
+      // Draw fluffy cloud with multiple circles
+      for (let i = 0; i < 3; i++) {
+        const offsetX = (i - 1) * cloud.size * 0.3;
+        const offsetY = Math.sin(i) * cloud.size * 0.1;
+        ctx.beginPath();
+        ctx.arc(cloud.x + offsetX, cloud.y + offsetY, cloud.size * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    });
+  }
+
   function drawFence(x, y, width, height, color, parallaxScrollX) {
     const drawX = x - parallaxScrollX;
     ctx.fillStyle = color;
