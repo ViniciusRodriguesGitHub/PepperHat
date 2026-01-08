@@ -4963,12 +4963,28 @@
     // Generate world objects procedurally AFTER resize
     generateWorldObjects(0, GAME_WIDTH);
     window.addEventListener('resize', resize);
-    // Set up input handlers
-    setupKeyboard();
-    createTouchControls();
-    setupMenuInput(); // Call the new function to set up menu input
-    setupAccelerometerControls(); // Setup accelerometer controls
-    setupGameTouchControls(); // Setup game touch controls for jump/crouch
+    // Set up input handlers - Functions are defined above, should be available
+    try {
+      setupKeyboard();
+      createTouchControls();
+      setupMenuInput(); // Call the new function to set up menu input
+      setupAccelerometerControls(); // Setup accelerometer controls
+      setupGameTouchControls(); // Setup game touch controls for jump/crouch
+    } catch (error) {
+      console.error('Error setting up input handlers:', error);
+      // Retry after a short delay if functions aren't available yet
+      setTimeout(() => {
+        try {
+          setupKeyboard();
+          createTouchControls();
+          setupMenuInput();
+          setupAccelerometerControls();
+          setupGameTouchControls();
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }, 100);
+    }
 
     updateBarPositions(); // Initialize bar positions
 
