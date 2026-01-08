@@ -4876,21 +4876,6 @@
     ctx.fillText('Restart', restartButtonX + restartButtonWidth / 2, restartButtonY + restartButtonHeight / 2 + 5);
   }
 
-  // Main game loop using requestAnimationFrame
-  function gameLoop(timestamp) {
-    const dt = (timestamp - lastTime) / 1000 || 0;
-    lastTime = timestamp;
-    // Log key values for debugging mobile landscape issue
-    console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
-    // Reset one‑frame inputs
-    // We do not reset left/right here because they can remain pressed
-    if (typeof pollGamepad === 'function') {
-      pollGamepad();
-    }
-    update(dt);
-    render();
-    requestAnimationFrame(gameLoop);
-  }
 
   // Initialize the game once assets have loaded
   loadImages().then(() => {
@@ -4965,36 +4950,34 @@
     // Generate world objects procedurally AFTER resize
     generateWorldObjects(0, GAME_WIDTH);
     window.addEventListener('resize', resize);
-    // Set up input handlers - Use setTimeout to ensure all functions are defined
-    setTimeout(() => {
-      if (typeof setupKeyboard === 'function') {
-        setupKeyboard();
-      } else {
-        console.error('setupKeyboard is not defined');
-      }
-      if (typeof createTouchControls === 'function') {
-        createTouchControls();
-      } else {
-        console.error('createTouchControls is not defined');
-      }
-      if (typeof setupMenuInput === 'function') {
-        setupMenuInput();
-      } else {
-        console.error('setupMenuInput is not defined');
-      }
-      if (typeof setupAccelerometerControls === 'function') {
-        setupAccelerometerControls();
-      } else {
-        console.error('setupAccelerometerControls is not defined');
-      }
-      if (typeof setupGameTouchControls === 'function') {
-        setupGameTouchControls();
-      } else {
-        console.error('setupGameTouchControls is not defined');
-      }
-    }, 0);
+    // Set up input handlers - All functions should be defined now
+    setupKeyboard();
+    createTouchControls();
+    setupMenuInput();
+    setupAccelerometerControls();
+    setupGameTouchControls();
 
     updateBarPositions(); // Initialize bar positions
+
+    // Main game loop using requestAnimationFrame - Defined inside then() block
+    function gameLoop(timestamp) {
+      const dt = (timestamp - lastTime) / 1000 || 0;
+      lastTime = timestamp;
+      // Log key values for debugging mobile landscape issue
+      console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
+      // Reset one‑frame inputs
+      // We do not reset left/right here because they can remain pressed
+      if (typeof pollGamepad === 'function') {
+        pollGamepad();
+      }
+      if (typeof update === 'function') {
+        update(dt);
+      }
+      if (typeof render === 'function') {
+        render();
+      }
+      requestAnimationFrame(gameLoop);
+    }
 
     // Start the loop
     requestAnimationFrame(gameLoop);
