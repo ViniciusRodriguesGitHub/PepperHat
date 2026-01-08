@@ -4884,7 +4884,9 @@
     console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
     // Reset one‑frame inputs
     // We do not reset left/right here because they can remain pressed
-    pollGamepad();
+    if (typeof pollGamepad === 'function') {
+      pollGamepad();
+    }
     update(dt);
     render();
     requestAnimationFrame(gameLoop);
@@ -4963,28 +4965,34 @@
     // Generate world objects procedurally AFTER resize
     generateWorldObjects(0, GAME_WIDTH);
     window.addEventListener('resize', resize);
-    // Set up input handlers - Functions are defined above, should be available
-    try {
-      setupKeyboard();
-      createTouchControls();
-      setupMenuInput(); // Call the new function to set up menu input
-      setupAccelerometerControls(); // Setup accelerometer controls
-      setupGameTouchControls(); // Setup game touch controls for jump/crouch
-    } catch (error) {
-      console.error('Error setting up input handlers:', error);
-      // Retry after a short delay if functions aren't available yet
-      setTimeout(() => {
-        try {
-          setupKeyboard();
-          createTouchControls();
-          setupMenuInput();
-          setupAccelerometerControls();
-          setupGameTouchControls();
-        } catch (retryError) {
-          console.error('Retry failed:', retryError);
-        }
-      }, 100);
-    }
+    // Set up input handlers - Use setTimeout to ensure all functions are defined
+    setTimeout(() => {
+      if (typeof setupKeyboard === 'function') {
+        setupKeyboard();
+      } else {
+        console.error('setupKeyboard is not defined');
+      }
+      if (typeof createTouchControls === 'function') {
+        createTouchControls();
+      } else {
+        console.error('createTouchControls is not defined');
+      }
+      if (typeof setupMenuInput === 'function') {
+        setupMenuInput();
+      } else {
+        console.error('setupMenuInput is not defined');
+      }
+      if (typeof setupAccelerometerControls === 'function') {
+        setupAccelerometerControls();
+      } else {
+        console.error('setupAccelerometerControls is not defined');
+      }
+      if (typeof setupGameTouchControls === 'function') {
+        setupGameTouchControls();
+      } else {
+        console.error('setupGameTouchControls is not defined');
+      }
+    }, 0);
 
     updateBarPositions(); // Initialize bar positions
 
