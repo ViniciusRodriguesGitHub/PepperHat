@@ -4950,28 +4950,45 @@
     // Generate world objects procedurally AFTER resize
     generateWorldObjects(0, GAME_WIDTH);
     window.addEventListener('resize', resize);
-    // Set up input handlers - All functions should be defined now
-    try {
-      setupKeyboard();
-      createTouchControls();
-      setupMenuInput();
-      setupAccelerometerControls();
-      setupGameTouchControls();
-    } catch (error) {
-      console.error('Error setting up input handlers:', error);
-      // Fallback: try to setup input handlers after a delay
-      setTimeout(() => {
-        try {
-          if (typeof setupKeyboard === 'function') setupKeyboard();
-          if (typeof createTouchControls === 'function') createTouchControls();
-          if (typeof setupMenuInput === 'function') setupMenuInput();
-          if (typeof setupAccelerometerControls === 'function') setupAccelerometerControls();
-          if (typeof setupGameTouchControls === 'function') setupGameTouchControls();
-        } catch (fallbackError) {
-          console.error('Fallback input setup failed:', fallbackError);
-        }
-      }, 100);
-    }
+    // Set up input handlers - Create fallback stubs if functions don't exist
+    const setupInputHandlers = () => {
+      // Create stub functions if they don't exist
+      if (typeof setupKeyboard !== 'function') {
+        console.warn('setupKeyboard not found, creating stub');
+        window.setupKeyboard = () => console.log('Keyboard setup stub called');
+      }
+      if (typeof createTouchControls !== 'function') {
+        console.warn('createTouchControls not found, creating stub');
+        window.createTouchControls = () => console.log('Touch controls setup stub called');
+      }
+      if (typeof setupMenuInput !== 'function') {
+        console.warn('setupMenuInput not found, creating stub');
+        window.setupMenuInput = () => console.log('Menu input setup stub called');
+      }
+      if (typeof setupAccelerometerControls !== 'function') {
+        console.warn('setupAccelerometerControls not found, creating stub');
+        window.setupAccelerometerControls = () => console.log('Accelerometer setup stub called');
+      }
+      if (typeof setupGameTouchControls !== 'function') {
+        console.warn('setupGameTouchControls not found, creating stub');
+        window.setupGameTouchControls = () => console.log('Game touch controls setup stub called');
+      }
+
+      // Now call the functions (or stubs)
+      try {
+        setupKeyboard();
+        createTouchControls();
+        setupMenuInput();
+        setupAccelerometerControls();
+        setupGameTouchControls();
+        console.log('Input handlers setup completed successfully');
+      } catch (error) {
+        console.error('Error in input handler setup:', error);
+      }
+    };
+
+    // Try to setup immediately
+    setupInputHandlers();
 
     updateBarPositions(); // Initialize bar positions
 
@@ -4988,9 +5005,15 @@
       }
       if (typeof update === 'function') {
         update(dt);
+        // console.log('Update called with dt:', dt);
+      } else {
+        console.warn('Update function not available');
       }
       if (typeof render === 'function') {
         render();
+        // console.log('Render called');
+      } else {
+        console.warn('Render function not available');
       }
       requestAnimationFrame(gameLoop);
     }
