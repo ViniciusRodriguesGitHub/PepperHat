@@ -4876,7 +4876,6 @@
     ctx.fillText('Restart', restartButtonX + restartButtonWidth / 2, restartButtonY + restartButtonHeight / 2 + 5);
   }
 
-
   // Main game loop using requestAnimationFrame
   function gameLoop(timestamp) {
     const dt = (timestamp - lastTime) / 1000 || 0;
@@ -4907,6 +4906,8 @@
     lastTime = 0;
     requestAnimationFrame(gameLoop);
   }
+
+
 
   // Initialize the game once assets have loaded
   loadImages().then(() => {
