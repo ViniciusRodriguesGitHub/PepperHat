@@ -5109,6 +5109,7 @@
     }
   }
 
+
   // Main game loop using requestAnimationFrame
   function gameLoop(timestamp) {
     const dt = (timestamp - lastTime) / 1000 || 0;
