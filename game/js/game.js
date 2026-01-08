@@ -4951,11 +4951,27 @@
     generateWorldObjects(0, GAME_WIDTH);
     window.addEventListener('resize', resize);
     // Set up input handlers - All functions should be defined now
-    setupKeyboard();
-    createTouchControls();
-    setupMenuInput();
-    setupAccelerometerControls();
-    setupGameTouchControls();
+    try {
+      setupKeyboard();
+      createTouchControls();
+      setupMenuInput();
+      setupAccelerometerControls();
+      setupGameTouchControls();
+    } catch (error) {
+      console.error('Error setting up input handlers:', error);
+      // Fallback: try to setup input handlers after a delay
+      setTimeout(() => {
+        try {
+          if (typeof setupKeyboard === 'function') setupKeyboard();
+          if (typeof createTouchControls === 'function') createTouchControls();
+          if (typeof setupMenuInput === 'function') setupMenuInput();
+          if (typeof setupAccelerometerControls === 'function') setupAccelerometerControls();
+          if (typeof setupGameTouchControls === 'function') setupGameTouchControls();
+        } catch (fallbackError) {
+          console.error('Fallback input setup failed:', fallbackError);
+        }
+      }, 100);
+    }
 
     updateBarPositions(); // Initialize bar positions
 
