@@ -4876,36 +4876,6 @@
     ctx.fillText('Restart', restartButtonX + restartButtonWidth / 2, restartButtonY + restartButtonHeight / 2 + 5);
   }
 
-  // Main game loop using requestAnimationFrame
-  function gameLoop(timestamp) {
-    const dt = (timestamp - lastTime) / 1000 || 0;
-    lastTime = timestamp;
-    // Debug logging (remove in production)
-    // console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
-    // Reset one‑frame inputs
-    // We do not reset left/right here because they can remain pressed
-    if (typeof pollGamepad === 'function') {
-      pollGamepad();
-    }
-    try {
-      update(dt);
-    } catch (error) {
-      console.error('Error calling update:', error);
-    }
-    try {
-      render();
-    } catch (error) {
-      console.error('Error calling render:', error);
-    }
-    requestAnimationFrame(gameLoop);
-  }
-
-  // Function to start the game loop
-  function startGameLoop() {
-    console.log('Starting game loop...');
-    lastTime = 0;
-    requestAnimationFrame(gameLoop);
-  }
 
 
 
@@ -5138,4 +5108,36 @@
       ctx.fillRect(drawX + width / 2 - 2, y - height, 4, height); // Vertical plank
     }
   }
+
+  // Main game loop using requestAnimationFrame
+  function gameLoop(timestamp) {
+    const dt = (timestamp - lastTime) / 1000 || 0;
+    lastTime = timestamp;
+    // Debug logging (remove in production)
+    // console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
+    // Reset one‑frame inputs
+    // We do not reset left/right here because they can remain pressed
+    if (typeof pollGamepad === 'function') {
+      pollGamepad();
+    }
+    try {
+      update(dt);
+    } catch (error) {
+      console.error('Error calling update:', error);
+    }
+    try {
+      render();
+    } catch (error) {
+      console.error('Error calling render:', error);
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Function to start the game loop
+  function startGameLoop() {
+    console.log('Starting game loop...');
+    lastTime = 0;
+    requestAnimationFrame(gameLoop);
+  }
+
 })(); // Cache refresh fix - 2025.01.06 Build 1330
