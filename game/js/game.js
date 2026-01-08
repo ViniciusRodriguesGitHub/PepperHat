@@ -130,6 +130,7 @@
       PROB_FIRE_STATION: 0.05, // Balanced fire station frequency
       PROB_STORE: 0.06,        // Balanced store frequency
       PROB_SUPERMARKET: 0.04,  // Lower supermarket frequency (rarer)
+      PROB_BUILDING: 0.12,     // Apartment buildings/skyscrapers
       PROB_TREE: 0.25,         // Reduced slightly
       PROB_STREETLIGHT: 0.08,  // Reduced slightly
       PROB_FENCE: 0.08,        // Reduced slightly
@@ -497,10 +498,14 @@
 
     createEnemy: function(type, x, y) {
       const enemyConfig = ENEMY_TYPES[type.toUpperCase()];
-      if (!enemyConfig) return null;
+      if (!enemyConfig) {
+        console.warn(`Enemy type ${type} not found in ENEMY_TYPES`);
+        return null;
+      }
 
       const newEnemy = {
         ...enemyConfig,
+        type: enemyConfig.name, // CRITICAL: Set type property for drawing
         x: x,
         y: y,
         vx: 0,
@@ -510,6 +515,7 @@
         animationFrame: 0,
         dead: false,
         direction: 1,
+        health: enemyConfig.health || 1, // Ensure health is set
         // Additional properties based on type
         ...(enemyConfig.behavior === 'patrol' && { patrolStart: x }),
         ...(enemyConfig.behavior === 'fly' && { flyStart: x, flyTime: 0 }),
@@ -1340,6 +1346,9 @@
     wallSlideDirection: 0, // Direction of wall being slid on
     canWallJump: false, // Whether player can wall jump
     baseMoveSpeed: GameConfig.PLAYER.BASE_MOVE_SPEED, // pixels per second - Moved to player object
+    speedMultipliers: [], // Array to track active speed multipliers {multiplier: number, timeout: number}
+    score: 0, // Player score from collecting items
+    coins: 0, // Coins collected
   };
 
   // Input state
@@ -1358,6 +1367,30 @@
 
   // New: Stores the last device orientation event for calibration
   let lastDeviceOrientationEvent = null;
+
+  // Speed multiplier management system
+  function addSpeedMultiplier(multiplier, duration) {
+    const timeoutId = setTimeout(() => {
+      // Remove this multiplier from the array
+      const index = player.speedMultipliers.findIndex(m => m.id === timeoutId);
+      if (index !== -1) {
+        player.speedMultipliers.splice(index, 1);
+      }
+    }, duration);
+    
+    player.speedMultipliers.push({
+      multiplier: multiplier,
+      id: timeoutId
+    });
+  }
+
+  function getTotalSpeedMultiplier() {
+    if (player.speedMultipliers.length === 0) return 1.0;
+    // Multiply all active multipliers together, but cap at reasonable maximum
+    let total = player.speedMultipliers.reduce((acc, m) => acc * m.multiplier, 1.0);
+    // Cap maximum speed at 3x base speed to prevent game breaking
+    return Math.min(total, 3.0);
+  }
 
   // World objects for procedural generation
   let worldObjects = [];
@@ -1543,12 +1576,8 @@
 
         const doorWidth = houseWidth / 4;
         const doorHeight = houseHeight / 2;
-        let doorXOffset;
-        if (hasWindow) {
-          doorXOffset = houseWidth - doorWidth - (houseWidth / 8);
-        } else {
-          doorXOffset = (houseWidth / 2) - (doorWidth / 2);
-        }
+        // ALWAYS center the door
+        const doorXOffset = (houseWidth / 2) - (doorWidth / 2);
         const doorYOffset = houseHeight - doorHeight;
 
         worldObjects.push({
@@ -1592,7 +1621,7 @@
           isWalkable: true,
           walkableSurfaceY: groundY - buildingHeight,
           doorArea: {
-            x_offset: buildingWidth / 2 - 20,
+            x_offset: (buildingWidth / 2) - 20, // Centered door
             y_offset: buildingHeight - 60,
             width: 40,
             height: 60,
@@ -1619,7 +1648,7 @@
           isWalkable: true,
           walkableSurfaceY: groundY - buildingHeight,
           doorArea: {
-            x_offset: buildingWidth / 2 - 15,
+            x_offset: (buildingWidth / 2) - 15, // Centered door
             y_offset: buildingHeight - 50,
             width: 30,
             height: 50,
@@ -1646,7 +1675,7 @@
           isWalkable: true,
           walkableSurfaceY: groundY - buildingHeight,
           doorArea: {
-            x_offset: buildingWidth / 2 - 12,
+            x_offset: (buildingWidth / 2) - 12, // Centered door
             y_offset: buildingHeight - 45,
             width: 24,
             height: 45,
@@ -1673,7 +1702,7 @@
           isWalkable: true,
           walkableSurfaceY: groundY - buildingHeight,
           doorArea: {
-            x_offset: buildingWidth / 2 - 25,
+            x_offset: (buildingWidth / 2) - 25, // Centered door
             y_offset: buildingHeight - 55,
             width: 50,
             height: 55,
@@ -1681,7 +1710,39 @@
           houseInterior: null,
           specialFunction: 'bulk_shopping', // Many collectibles
         });
-      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION + GameConfig.GENERATION.PROB_STORE + GameConfig.GENERATION.PROB_SUPERMARKET + GameConfig.GENERATION.PROB_TREE)) { // Tree
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION + GameConfig.GENERATION.PROB_STORE + GameConfig.GENERATION.PROB_SUPERMARKET + GameConfig.GENERATION.PROB_BUILDING)) { // Apartment Building
+        const buildingWidth = 140 + Math.random() * 60; // Wide buildings
+        const buildingHeight = 180 + Math.random() * 80; // Tall buildings (skyscrapers)
+        const numFloors = 3 + Math.floor(Math.random() * 5); // 3-7 floors
+        const floorHeight = buildingHeight / numFloors;
+        
+        // Random building color (grey/beige tones)
+        const buildingColors = ['#C0C0C0', '#D3D3D3', '#DCDCDC', '#F5F5DC', '#F0E68C'];
+        const selectedBodyColor = buildingColors[Math.floor(Math.random() * buildingColors.length)];
+
+        worldObjects.push({
+          type: 'structure',
+          buildingType: 'apartment',
+          x: currentX,
+          y: groundY - buildingHeight,
+          width: buildingWidth,
+          height: buildingHeight,
+          bodyColor: selectedBodyColor,
+          windowColor: '#FFFFFF',
+          doorColor: '#654321',
+          hasRoof: true,
+          numFloors: numFloors,
+          floorHeight: floorHeight,
+          layer: 'foreground',
+          isWalkable: false, // Too tall to walk on
+          doorArea: {
+            x_offset: (buildingWidth / 2) - 20, // Centered door
+            y_offset: buildingHeight - 50,
+            width: 40,
+            height: 50,
+          },
+        });
+      } else if (rand < (GameConfig.GENERATION.PROB_HOUSE + GameConfig.GENERATION.PROB_HOSPITAL + GameConfig.GENERATION.PROB_FIRE_STATION + GameConfig.GENERATION.PROB_STORE + GameConfig.GENERATION.PROB_SUPERMARKET + GameConfig.GENERATION.PROB_BUILDING + GameConfig.GENERATION.PROB_TREE)) { // Tree
         const trunkHeight = 80 + Math.random() * 70; // Random height between 80-150
         const canopyRadius = 50 + Math.random() * 50; // Random radius between 50-100
         worldObjects.push({
@@ -2151,56 +2212,170 @@
       ctx.fillStyle = '#C0C0C0';
       ctx.font = '10px Arial';
       ctx.fillText('🛒', drawX + width * 0.85, y + height * 0.35);
+    } else if (buildingType === 'apartment') {
+      // Draw multiple floors with windows - will be drawn after main body
+      // This is just a placeholder, actual drawing happens in window section
     }
 
-    // Window (if applicable) - Enhanced with glow effect
-    if (windowColor) {
-      const windowSize = width / 4; // Proportionate window size
-      let windowX;
-      if (doorColor) {
-        windowX = drawX + (width / 8); // Place window to the left if there's also a door
-      } else {
-        windowX = drawX + (width / 2) - (windowSize / 2); // Center window if no door
-      }
-      const windowY = y + (height / 4);
+    // Window (if applicable) - REALISTIC WINDOWS with night lighting (includes apartment windows)
+    // Note: For apartment buildings, numFloors and floorHeight are stored in the structure object
+    // We need to access them from the calling context, so we'll calculate based on height for now
+    if (buildingType === 'apartment') {
+      // Special window rendering for apartment buildings
+      const numFloors = Math.max(3, Math.floor(height / 40)); // Approximate floors based on height
+      const floorHeight = height / numFloors;
+      const windowSize = width / 7;
+      const windowSpacing = width / 4;
       
-      // Window glow effect
-      ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
-      ctx.fillRect(windowX - 2, windowY - 2, windowSize + 4, windowSize + 4);
+      // Time check for night lighting
+      const timeOfDay = (Date.now() / 1000) % 60;
+      const isNight = timeOfDay > 40;
       
-      // Window glass with gradient
-      const windowGradient = ctx.createLinearGradient(windowX, windowY, windowX + windowSize, windowY + windowSize);
-      windowGradient.addColorStop(0, lightenColor(windowColor, 0.2));
-      windowGradient.addColorStop(0.5, windowColor);
-      windowGradient.addColorStop(1, darkenColor(windowColor, 0.1));
-      ctx.fillStyle = windowGradient;
-      ctx.fillRect(windowX, windowY, windowSize, windowSize);
-
-      // Window frames for special buildings
-      if (buildingType && ['hospital', 'fire_station'].includes(buildingType)) {
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(windowX, windowY, windowSize, windowSize);
-        // Cross pattern for windows
+      // Draw floor separators
+      for (let floor = 1; floor < numFloors; floor++) {
+        const floorY = y + (floor * floorHeight);
+        ctx.strokeStyle = darkenColor(bodyColor, 0.3);
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(windowX + windowSize/2, windowY);
-        ctx.lineTo(windowX + windowSize/2, windowY + windowSize);
-        ctx.moveTo(windowX, windowY + windowSize/2);
-        ctx.lineTo(windowX + windowSize, windowY + windowSize/2);
+        ctx.moveTo(drawX, floorY);
+        ctx.lineTo(drawX + width, floorY);
         ctx.stroke();
       }
+      
+      // Draw windows for each floor
+      for (let floor = 0; floor < numFloors; floor++) {
+        const floorY = y + (floor * floorHeight) + floorHeight * 0.2;
+        const windowsPerFloor = 2 + Math.floor(Math.random() * 2);
+        const totalWindowWidth = (windowsPerFloor - 1) * windowSpacing;
+        const startX = drawX + (width - totalWindowWidth) / 2;
+        
+        for (let w = 0; w < windowsPerFloor; w++) {
+          const windowX = startX + w * windowSpacing;
+          const isLit = Math.random() > 0.4 && isNight;
+          
+          // Window frame
+          ctx.fillStyle = '#654321';
+          ctx.fillRect(windowX - 2, floorY, windowSize + 4, floorHeight * 0.5);
+          
+          if (isLit) {
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#FFE4B5';
+            ctx.fillRect(windowX, floorY + 2, windowSize, floorHeight * 0.5 - 4);
+            ctx.shadowBlur = 0;
+          } else {
+            ctx.fillStyle = 'rgba(70, 130, 180, 0.3)';
+            ctx.fillRect(windowX, floorY + 2, windowSize, floorHeight * 0.5 - 4);
+          }
+          
+          // Window divider
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(windowX + windowSize/2, floorY + 2);
+          ctx.lineTo(windowX + windowSize/2, floorY + floorHeight * 0.5 - 2);
+          ctx.moveTo(windowX, floorY + floorHeight * 0.25);
+          ctx.lineTo(windowX + windowSize, floorY + floorHeight * 0.25);
+          ctx.stroke();
+        }
+      }
+    } else if (windowColor) {
+    if (windowColor) {
+      const windowSize = width / 5; // Slightly smaller for realism
+      // Place windows on both sides of door (if door exists) or centered
+      const windows = [];
+      if (doorColor) {
+        // Two windows, one on each side of the centered door
+        windows.push({
+          x: drawX + (width / 2) - windowSize * 1.5, // Left window
+          y: y + (height / 4),
+          lit: Math.random() > 0.5 // Random lighting
+        });
+        windows.push({
+          x: drawX + (width / 2) + windowSize * 0.5, // Right window
+          y: y + (height / 4),
+          lit: Math.random() > 0.5
+        });
+      } else {
+        // Single centered window
+        windows.push({
+          x: drawX + (width / 2) - (windowSize / 2),
+          y: y + (height / 4),
+          lit: Math.random() > 0.5
+        });
+      }
+
+      // Check if it's night time (using time-of-day from sky rendering)
+      const timeOfDay = (Date.now() / 1000) % 60;
+      const isNight = timeOfDay > 40; // Evening/Night time
+
+      windows.forEach((win, index) => {
+        const windowX = win.x;
+        const windowY = win.y;
+        const isLit = win.lit && isNight;
+        
+        // Window frame (outer)
+        ctx.fillStyle = '#654321'; // Brown frame
+        ctx.fillRect(windowX - 3, windowY - 3, windowSize + 6, windowSize + 6);
+        
+        // Window frame (inner)
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(windowX - 2, windowY - 2, windowSize + 4, windowSize + 4);
+        
+        // Window glass - realistic with reflection
+        if (isLit) {
+          // Lit window - warm glow
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = '#FFE4B5'; // Warm light color
+          ctx.fillRect(windowX, windowY, windowSize, windowSize);
+          ctx.shadowBlur = 0;
+          
+          // Window pane divider
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(windowX + windowSize/2, windowY);
+          ctx.lineTo(windowX + windowSize/2, windowY + windowSize);
+          ctx.moveTo(windowX, windowY + windowSize/2);
+          ctx.lineTo(windowX + windowSize, windowY + windowSize/2);
+          ctx.stroke();
+        } else {
+          // Dark window - realistic glass with reflection
+          const windowGradient = ctx.createLinearGradient(windowX, windowY, windowX + windowSize, windowY + windowSize);
+          windowGradient.addColorStop(0, 'rgba(173, 216, 230, 0.6)'); // Light blue (sky reflection)
+          windowGradient.addColorStop(0.3, 'rgba(70, 130, 180, 0.4)');
+          windowGradient.addColorStop(0.7, 'rgba(25, 25, 112, 0.5)'); // Dark blue
+          windowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)'); // Dark
+          ctx.fillStyle = windowGradient;
+          ctx.fillRect(windowX, windowY, windowSize, windowSize);
+          
+          // Window pane divider
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(windowX + windowSize/2, windowY);
+          ctx.lineTo(windowX + windowSize/2, windowY + windowSize);
+          ctx.moveTo(windowX, windowY + windowSize/2);
+          ctx.lineTo(windowX + windowSize, windowY + windowSize/2);
+          ctx.stroke();
+        }
+
+        // Window frames for special buildings
+        if (buildingType && ['hospital', 'fire_station'].includes(buildingType)) {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(windowX, windowY, windowSize, windowSize);
+        }
+      });
     }
 
-    // Door (if applicable) - Enhanced with depth
+    // Door (if applicable) - ALWAYS CENTERED - Enhanced with depth
     if (doorColor) {
       const doorWidth = width / 4;
       const doorHeight = height / 2;
-      let doorX;
-      if (windowColor) {
-        doorX = drawX + width - doorWidth - (width / 8); // Place door to the right if there's also a window
-      } else {
-        doorX = drawX + (width / 2) - (doorWidth / 2); // Center door if no window
-      }
+      // ALWAYS center the door regardless of windows
+      const doorX = drawX + (width / 2) - (doorWidth / 2);
       const doorY = y + height - doorHeight;
       
       // Door shadow
@@ -3328,6 +3503,13 @@
     maxPlayerX = 0; // Reset maxPlayerX
     noteCount = 0; // Reset note count
     recordCount = 0; // Reset record count
+    player.score = 0; // Reset score
+    player.coins = 0; // Reset coins
+    player.speedMultipliers = []; // Clear all speed multipliers
+    player.baseMoveSpeed = GameConfig.PLAYER.BASE_MOVE_SPEED; // Reset base speed
+    
+    // Clear all enemies
+    enemies.length = 0;
 
     enemy.x = -enemy.width; // Start enemy off-screen to the left
     enemy.y = groundY - enemy.height;
@@ -3379,15 +3561,14 @@
 
     // dt is delta time in seconds
     // Horizontal movement
-    // const baseMoveSpeed = GameConfig.PLAYER.BASE_MOVE_SPEED; // pixels per second - Redundant, now using player.baseMoveSpeed directly
-    let moveSpeed = player.baseMoveSpeed; // Initialize with base speed
+    // Calculate total speed with multipliers (capped to prevent excessive speed)
+    const totalSpeedMultiplier = getTotalSpeedMultiplier();
+    let moveSpeed = player.baseMoveSpeed * totalSpeedMultiplier; // Apply all active speed multipliers
     const gravity = GRAVITY; // pixels per second squared
 
     // Sprint boost system - stamina enables sprinting instead of penalizing movement
     if (isSprinting) {
-      moveSpeed = player.baseMoveSpeed * 2.0; // Double speed when sprinting with stamina
-    } else {
-      moveSpeed = player.baseMoveSpeed; // Normal speed otherwise
+      moveSpeed = player.baseMoveSpeed * totalSpeedMultiplier * 2.0; // Sprint multiplies base + multipliers
     }
 
     // Apply accelerated jump factor if active
@@ -4152,37 +4333,49 @@
         const iy2 = item.y + item.size;
         if (px1 < ix2 && px2 > ix1 && py1 < iy2 && py2 > iy1) {
           item.collected = true;
-          if (difficulty !== 'easy') { // Only count scores if not in easy mode
-            if (item.itemType === 'note') {
-              noteCount++;
-              questSystem.updateProgress('collect_note');
-              adaptiveDifficulty.recordEvent('item_collected');
-              visualEffects.onItemCollected(item.x, item.y);
-            } else if (item.itemType === 'record') {
-              recordCount++;
-              questSystem.updateProgress('collect_record');
-              adaptiveDifficulty.recordEvent('item_collected');
-              visualEffects.onItemCollected(item.x, item.y);
-            } else if (item.itemType === 'golden_note') {
-              noteCount += 2; // Double points
-              player.baseMoveSpeed *= 1.1; // Small speed boost
-              setTimeout(() => { player.baseMoveSpeed /= 1.1; }, 5000); // 5 seconds
-              visualEffects.onQuestCompleted(); // Celebration effect
-              questSystem.showNotification('🎵 Nota Dourada! +2 pontos + velocidade temporária!');
-            } else if (item.itemType === 'energy_crystal') {
-              staminaBar.fill = 1.0; // Full stamina restore
-              visualEffects.onQuestCompleted();
-              questSystem.showNotification('💎 Cristal de Energia! Estamina totalmente restaurada!');
-            } else if (item.itemType === 'speed_boost') {
-              player.baseMoveSpeed *= 1.3; // Significant speed boost
-              setTimeout(() => { player.baseMoveSpeed /= 1.3; }, 8000); // 8 seconds
-              visualEffects.onSpeedBoostActivated(item.x, item.y);
-              questSystem.showNotification('⚡ Boost de Velocidade! +30% velocidade por 8 segundos!');
-            } else if (item.itemType === 'mystery_box') {
+          // ALWAYS count items, regardless of difficulty
+          if (item.itemType === 'note') {
+            noteCount++;
+            player.score += 10; // Each note worth 10 points
+            player.coins += 1; // Each note worth 1 coin
+            questSystem.updateProgress('collect_note');
+            adaptiveDifficulty.recordEvent('item_collected');
+            visualEffects.onItemCollected(item.x, item.y);
+          } else if (item.itemType === 'record') {
+            recordCount++;
+            player.score += 20; // Each record worth 20 points
+            player.coins += 2; // Each record worth 2 coins
+            questSystem.updateProgress('collect_record');
+            adaptiveDifficulty.recordEvent('item_collected');
+            visualEffects.onItemCollected(item.x, item.y);
+          } else if (item.itemType === 'golden_note') {
+            noteCount += 2; // Double points
+            player.score += 50; // Golden note worth 50 points
+            player.coins += 5; // Golden note worth 5 coins
+            // Use speed multiplier system instead of direct multiplication
+            addSpeedMultiplier(1.1, 5000); // 10% boost for 5 seconds
+            visualEffects.onQuestCompleted(); // Celebration effect
+            questSystem.showNotification('🎵 Nota Dourada! +50 pontos + velocidade temporária!');
+          } else if (item.itemType === 'energy_crystal') {
+            player.score += 30;
+            player.coins += 3;
+            staminaBar.fill = 1.0; // Full stamina restore
+            visualEffects.onQuestCompleted();
+            questSystem.showNotification('💎 Cristal de Energia! Estamina totalmente restaurada!');
+          } else if (item.itemType === 'speed_boost') {
+            player.score += 25;
+            player.coins += 2;
+            // Use speed multiplier system instead of direct multiplication
+            addSpeedMultiplier(1.3, 8000); // 30% boost for 8 seconds
+            visualEffects.onSpeedBoostActivated(item.x, item.y);
+            questSystem.showNotification('⚡ Boost de Velocidade! +30% velocidade por 8 segundos!');
+          } else if (item.itemType === 'mystery_box') {
+            player.score += 100; // Mystery box worth 100 points
+            player.coins += 10;
               // Random effect
               const effects = [
                 () => { staminaBar.fill = 1.0; questSystem.showNotification('🎁 Mistério: Estamina cheia!'); },
-                () => { player.baseMoveSpeed *= 1.5; setTimeout(() => player.baseMoveSpeed /= 1.5, 10000); questSystem.showNotification('🎁 Mistério: Velocidade aumentada!'); },
+                () => { addSpeedMultiplier(1.5, 10000); questSystem.showNotification('🎁 Mistério: Velocidade aumentada!'); },
                 () => { player.vy = -800; questSystem.showNotification('🎁 Mistério: Super pulo!'); }, // Super jump
                 () => { visualEffects.triggerScreenShake(10, 0.5); questSystem.showNotification('🎁 Mistério: Terremoto!'); },
                 () => {
@@ -4428,6 +4621,10 @@
 
       // Draw all enemies (only when outside the house)
       enemies.forEach(enemy => {
+        // Only draw enemies within view range
+        if (enemy.x + (enemy.width || 30) < scrollX - VIEW_RANGE || enemy.x > scrollX + GAME_WIDTH + VIEW_RANGE) {
+          return; // Skip enemies outside view
+        }
         drawEnemy(enemy, scrollX);
       });
 
@@ -4502,6 +4699,19 @@
     ctx.shadowBlur = 0;
     ctx.fillText('x ' + recordCount, 10 + iconSize + 4, uiOffsetY + iconSize - 6);
     uiOffsetY += iconSize + 5;
+
+    // Draw score and coins with enhanced styling
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(5, GAME_HEIGHT - 60, 150, 55);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(5, GAME_HEIGHT - 60, 150, 55);
+    
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${player.score}`, 10, GAME_HEIGHT - 40);
+    ctx.fillText(`Coins: ${player.coins}`, 10, GAME_HEIGHT - 20);
 
     // Draw distance walked counter with enhanced styling
     ctx.textAlign = 'center';
