@@ -4887,15 +4887,15 @@
     if (typeof pollGamepad === 'function') {
       pollGamepad();
     }
-    if (typeof update === 'function') {
+    try {
       update(dt);
-    } else {
-      console.warn('Update function not available');
+    } catch (error) {
+      console.error('Error calling update:', error);
     }
-    if (typeof render === 'function') {
+    try {
       render();
-    } else {
-      console.warn('Render function not available');
+    } catch (error) {
+      console.error('Error calling render:', error);
     }
     requestAnimationFrame(gameLoop);
   }
