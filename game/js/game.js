@@ -4877,6 +4877,37 @@
   }
 
 
+  // Main game loop using requestAnimationFrame
+  function gameLoop(timestamp) {
+    const dt = (timestamp - lastTime) / 1000 || 0;
+    lastTime = timestamp;
+    // Debug logging (remove in production)
+    // console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
+    // Reset one‑frame inputs
+    // We do not reset left/right here because they can remain pressed
+    if (typeof pollGamepad === 'function') {
+      pollGamepad();
+    }
+    if (typeof update === 'function') {
+      update(dt);
+    } else {
+      console.warn('Update function not available');
+    }
+    if (typeof render === 'function') {
+      render();
+    } else {
+      console.warn('Render function not available');
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Function to start the game loop
+  function startGameLoop() {
+    console.log('Starting game loop...');
+    lastTime = 0;
+    requestAnimationFrame(gameLoop);
+  }
+
   // Initialize the game once assets have loaded
   loadImages().then(() => {
     // Initialize systems
@@ -4992,34 +5023,8 @@
 
     updateBarPositions(); // Initialize bar positions
 
-    // Main game loop using requestAnimationFrame - Defined inside then() block
-    function gameLoop(timestamp) {
-      const dt = (timestamp - lastTime) / 1000 || 0;
-      lastTime = timestamp;
-      // Log key values for debugging mobile landscape issue
-      console.log(`GameLoop: GAME_HEIGHT=${GAME_HEIGHT}, groundY=${groundY}, player.y=${player.y}`);
-      // Reset one‑frame inputs
-      // We do not reset left/right here because they can remain pressed
-      if (typeof pollGamepad === 'function') {
-        pollGamepad();
-      }
-      if (typeof update === 'function') {
-        update(dt);
-        // console.log('Update called with dt:', dt);
-      } else {
-        console.warn('Update function not available');
-      }
-      if (typeof render === 'function') {
-        render();
-        // console.log('Render called');
-      } else {
-        console.warn('Render function not available');
-      }
-      requestAnimationFrame(gameLoop);
-    }
-
-    // Start the loop
-    requestAnimationFrame(gameLoop);
+    // Start the game loop after everything is set up
+    startGameLoop();
   }).catch((err) => {
     console.error('Error loading images', err);
   });
