@@ -506,15 +506,8 @@
         const gamepadState = {
             prevButtons: [],     // guarda estados anteriores p/ edge-trigger
             axisDeadzone: 0.25,  // ajuste se necessário
-
-            // Direções (mantidas separadas do teclado; setadas POR FRAME)
-            keys: { left: false, right: false, up: false, down: false },
-
-            // Estados anteriores p/ edge-trigger
-            prevUp: false,
-            prevDown: false,
-            prevLeft: false,
-            prevRight: false,
+            prevUp: false,       // estado anterior de UP para edge-trigger
+            prevDown: false,     // estado anterior de DOWN para edge-trigger
         };
 
         // tenta achar um gamepad válido
@@ -586,12 +579,6 @@
         }
 
         function pollGamepad() {
-            // Sempre limpar estado do gamepad por frame (evita “andar eterno”)
-            gamepadState.keys.left = false;
-            gamepadState.keys.right = false;
-            gamepadState.keys.up = false;
-            gamepadState.keys.down = false;
-
             if (gamepadIndex === null) {
                 gamepadIndex = findGamepad();
                 if (gamepadIndex === null) return;
@@ -609,55 +596,27 @@
                 console.log("Gamepad mapping:", pad.mapping, "axes:", pad.axes?.length || 0);
             }
 
-            const now = Date.now();
-
-            // Direções: dpad (botões + axes[6]/axes[7]) + analógico esquerdo
+            // Movement horizontal: só aplicar se houver input do gamepad
             const axX = pad.axes?.[0] ?? 0;
-            const axY = pad.axes?.[1] ?? 0;
             const dpad = readDpad(pad);
-
             const leftAnalog = axX < -gamepadState.axisDeadzone;
             const rightAnalog = axX > gamepadState.axisDeadzone;
+            const gamepadLeft = dpad.left || leftAnalog;
+            const gamepadRight = dpad.right || rightAnalog;
 
-            const leftNow = dpad.left || leftAnalog;
-            const rightNow = dpad.right || rightAnalog;
+            // Só modificar se houver input do gamepad (combinar com teclado)
+            if (gamepadLeft || gamepadRight) {
+                keys.left = keys.left || gamepadLeft;
+                keys.right = keys.right || gamepadRight;
+            }
+
+            // Detectar UP/DOWN do D-pad ou analógico
+            const axY = pad.axes?.[1] ?? 0;
             const upNow = dpad.up || (axY < -gamepadState.axisDeadzone);
             const downNow = dpad.down || (axY > gamepadState.axisDeadzone);
 
-            // IMPORTANTÍSSIMO:
-            // NUNCA “OR” com keys.* (teclado). Se você faz keys.left = keys.left || gamepadLeft,
-            // o valor pode ficar preso em true. O gamepad tem que setar estado POR FRAME.
-            gamepadState.keys.left = leftNow;
-            gamepadState.keys.right = rightNow;
-            gamepadState.keys.up = upNow;
-            gamepadState.keys.down = downNow;
-
-            // Double-tap para correr via gamepad (edge: solto -> pressionado)
-            if (leftNow && !gamepadState.prevLeft) {
-                detectDoubleClick('left', now);
-                // Primeiro movimento lateral - iniciar invencibilidade
-                if (!hasMadeFirstMove && gameMode === 'game') {
-                    hasMadeFirstMove = true;
-                    playerInvincible = true;
-                    playerInvincibilityStart = now;
-                    updateProtectionIndicator();
-                    console.log('Invencibilidade inicial ativada! Você tem 1 segundo de proteção.');
-                }
-            }
-            if (rightNow && !gamepadState.prevRight) {
-                detectDoubleClick('right', now);
-                // Primeiro movimento lateral - iniciar invencibilidade
-                if (!hasMadeFirstMove && gameMode === 'game') {
-                    hasMadeFirstMove = true;
-                    playerInvincible = true;
-                    playerInvincibilityStart = now;
-                    updateProtectionIndicator();
-                    console.log('Invencibilidade inicial ativada! Você tem 1 segundo de proteção.');
-                }
-            }
-
-            gamepadState.prevLeft = leftNow;
-            gamepadState.prevRight = rightNow;
+            keys.up = upNow;
+            keys.down = downNow;
 
             // Edge-trigger para subir/descer (sem spam)
             if (upNow && !gamepadState.prevUp) {
@@ -666,6 +625,7 @@
             if (downNow && !gamepadState.prevDown) {
                 attemptVerticalMove(-1);
             }
+
             gamepadState.prevUp = upNow;
             gamepadState.prevDown = downNow;
 
@@ -2650,7 +2610,6 @@
 
             // Poll do gamepad (a cada frame)
             pollGamepad();
-            const input = resolveInput();
 
             // Sistema de aceleração e corrida
             let targetSpeed = 0;
@@ -2673,9 +2632,9 @@
 
             // Só permitir controle de direção quando no chão
             if (player.isOnGround) {
-                if (input.left) {
+                if (keys.left) {
                     targetSpeed = -maxSpeed;
-                } else if (input.right) {
+                } else if (keys.right) {
                     targetSpeed = maxSpeed;
                 }
             }

@@ -25,6 +25,323 @@
   let currentZoomLevel = 1.0; // New global variable for zoom level
   let isRightLocked = false; // New global variable for locking right movement
 
+  // Define setupInputHandlers globally to avoid scope issues
+  let setupInputHandlers = function() {
+    console.log('setupInputHandlers function called');
+    try {
+      // Call input setup functions directly
+      if (typeof setupKeyboard === 'function') setupKeyboard();
+      if (typeof createTouchControls === 'function') createTouchControls();
+      if (typeof setupMenuInput === 'function') setupMenuInput();
+      if (typeof setupAccelerometerControls === 'function') setupAccelerometerControls();
+      if (typeof setupGameTouchControls === 'function') setupGameTouchControls();
+      console.log('Input handlers setup completed successfully');
+    } catch (error) {
+      console.error('Error in input handler setup:', error);
+    }
+  };
+
+  // Define update function globally to avoid scope issues
+  let update = function(dt) {
+    if (currentGameState === 'menu' || currentGameState === 'gameOver') {
+      return; // Stop all game updates if in menu or game over state
+    }
+
+    // Update quest system
+    questSystem.update(dt);
+
+    // Update adaptive difficulty system
+    adaptiveDifficulty.updateStats(dt);
+
+    // Update visual effects system
+    visualEffects.update(dt);
+
+    // Update enemy AI system
+    enemyAI.updateEnemies(dt);
+
+    // Calculate sprinting state once for the entire update
+    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
+
+    // dt is delta time in seconds
+    // Horizontal movement
+    // Calculate total speed with multipliers (capped to prevent excessive speed)
+    const totalSpeedMultiplier = getTotalSpeedMultiplier();
+    let moveSpeed = player.baseMoveSpeed * totalSpeedMultiplier; // Apply all active speed multipliers
+    const gravity = GRAVITY; // pixels per second squared
+
+    // Sprint boost system - stamina enables sprinting instead of penalizing movement
+    if (isSprinting) {
+      moveSpeed = player.baseMoveSpeed * totalSpeedMultiplier * 2.0; // Sprint multiplies base + multipliers
+    }
+
+    // Apply accelerated jump factor if active
+    if (player.isAcceleratedJump) {
+      moveSpeed *= player.jumpAccelerationFactor;
+      // Gradually decay the acceleration factor
+      player.jumpAccelerationFactor = Math.max(1.0, player.jumpAccelerationFactor - (ACCELERATED_JUMP_DECAY_RATE * dt)); // Decay from 1.8 to 1.0 over time
+    }
+
+    // Process input
+    if (input.left && !isRightLocked) {
+      player.vx = -moveSpeed;
+    } else if (input.right) {
+      player.vx = moveSpeed;
+    } else {
+      player.vx = 0;
+    }
+
+    // Jump input
+    if (input.jump && player.onGround) {
+      player.vy = -JUMP_VELOCITY;
+      player.onGround = false;
+      player.isAcceleratedJump = false;
+      player.jumpAccelerationFactor = 1.0;
+      visualEffects.triggerJumpParticles();
+      // Check for accelerated jump (jump while moving right)
+      if (player.vx > 0) {
+        player.isAcceleratedJump = true;
+        player.jumpAccelerationFactor = ACCELERATED_JUMP_FACTOR;
+      }
+    }
+
+    // Crouch input - New crouch mechanics
+    if (input.crouch) {
+      // If crouching while running right and on ground, trigger sprint if stamina available
+      if (input.right && player.onGround && player.vx > 0 && staminaBar.fill > 0.1) {
+        // Sprinting - already handled above in moveSpeed calculation
+      } else {
+        // Regular crouching - reduce player height temporarily
+        player.height = player.originalHeight * 0.7; // Crouch to 70% of original height
+        player.y = groundY - player.height; // Adjust y position to stay on ground
+      }
+    } else {
+      // Reset to normal height when not crouching
+      player.height = player.originalHeight;
+      player.y = groundY - player.height;
+    }
+
+    // Apply gravity
+    if (!player.onGround) {
+      player.vy += gravity * dt;
+    }
+
+    // Apply horizontal friction/damping when not actively moving
+    if (!input.left && !input.right) {
+      player.vx *= (1 - FRICTION * dt);
+      // Stop completely if velocity is very small
+      if (Math.abs(player.vx) < 0.1) {
+        player.vx = 0;
+      }
+    }
+
+    // Update player position
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+
+    // Prevent player from going behind the camera
+    if (player.x < scrollX) {
+      player.x = scrollX;
+      player.vx = 0;
+    }
+
+    // Prevent player from going too high (ceiling collision)
+    if (player.y < 0) {
+      player.y = 0;
+      player.vy = 0;
+    }
+
+    // Ground collision detection
+    if (player.y >= groundY - player.height) {
+      player.y = groundY - player.height;
+      player.vy = 0;
+      player.onGround = true;
+      player.isAcceleratedJump = false;
+      player.jumpAccelerationFactor = 1.0;
+      // Reset idle timer when landing
+      player.idleTime = 0;
+    } else {
+      player.onGround = false;
+    }
+
+    // Update player distance walked
+    if (player.vx !== 0) {
+      playerDistanceWalked += Math.abs(player.vx * dt);
+      maxPlayerX = Math.max(maxPlayerX, player.x);
+    }
+
+    // Update stamina bar based on sprinting
+    if (isSprinting) {
+      staminaBar.fill = Math.max(0, staminaBar.fill - STAMINA_DRAIN_RATE * dt);
+      // Trigger low stamina effect when stamina gets low
+      if (staminaBar.fill < 0.3 && !visualEffects.lowStaminaActive) {
+        visualEffects.triggerLowStaminaEffect();
+      }
+    } else {
+      // Regenerate stamina when not sprinting
+      staminaBar.fill = Math.min(1.0, staminaBar.fill + STAMINA_REGEN_RATE * dt);
+      // Stop low stamina effect when stamina recovers
+      if (staminaBar.fill > 0.5 && visualEffects.lowStaminaActive) {
+        visualEffects.stopLowStaminaEffect();
+      }
+    }
+
+    // Update animated bar (used for quests or special effects)
+    if (animatedBar.isVisible) {
+      animatedBar.fill += animatedBar.fillDirection * ANIMATED_BAR_SPEED * dt;
+      if (animatedBar.fill >= 1.0) {
+        animatedBar.fill = 1.0;
+        animatedBar.fillDirection = -1;
+      } else if (animatedBar.fill <= 0.0) {
+        animatedBar.fill = 0.0;
+        animatedBar.fillDirection = 1;
+      }
+    }
+
+    // Enemy AI updates
+    enemyAI.update(dt);
+
+    // Animation system
+    // Determine current animation based on player state
+    let newAnim = 'idle';
+
+    if (!player.onGround) {
+      // Jumping animation based on vertical velocity
+      if (player.vy < -50) {
+        newAnim = 'jump'; // Ascending
+        player.animIndex = 0; // subindo.png
+      } else if (player.vy > 50) {
+        newAnim = 'jump'; // Descending
+        player.animIndex = 2; // caindo.png
+      } else {
+        newAnim = 'jump'; // Peak of jump
+        player.animIndex = 1; // desacelerando.png
+      }
+    } else if (player.vx !== 0) {
+      newAnim = 'walk';
+    } else if (input.crouch) {
+      newAnim = 'crouch';
+    }
+
+    // Change animation if different from current
+    if (newAnim !== player.currentAnim) {
+      player.lastAnim = player.currentAnim;
+      player.currentAnim = newAnim;
+      player.animIndex = 0;
+      player.animTimer = 0;
+    }
+
+    // Update idle time for special idle animations (future feature)
+    if (player.currentAnim === 'idle') {
+      player.idleTime += dt;
+    } else {
+      player.idleTime = 0;
+    }
+
+    // Advance animation frame
+    // We use the animation array for the current state, or
+    // fallback to using the idle animation.
+    const frames = player.animations[player.currentAnim] && player.animations[player.currentAnim].length
+      ? player.animations[player.currentAnim]
+      : player.animations.idle;
+    const animSpeed = ANIMATION_SPEED; // Doubled animation speed (reduced from 0.3 to 0.15 seconds per frame)
+
+    player.animTimer += dt;
+    if (player.animTimer >= animSpeed) {
+      player.animTimer = 0;
+      if (player.currentAnim === 'idle') {
+        player.animIndex = 0; // Always use the single idle frame (parado.png)
+      } else if (player.currentAnim === 'jump') {
+        // For jump animation, animIndex is set based on vy, so no need to advance here
+      } else if (player.currentAnim === 'crouch') { // Crouch animation should pause on the last frame
+        if (player.animIndex < frames.length - 1) {
+          player.animIndex = (player.animIndex + 1) % frames.length;
+        }
+      } else { // This block handles 'walk' and other non-idle/non-jump/non-crouch animations
+        console.log(`WALK ANIM: Before update - currentAnim: ${player.currentAnim}, animIndex: ${player.animIndex}, frames.length: ${frames.length}`);
+        player.animIndex = (player.animIndex + 1) % frames.length;
+        console.log(`WALK ANIM: After update - animIndex: ${player.animIndex}`);
+      }
+    }
+
+    // Camera follows player
+    const halfScreen = GAME_WIDTH / 2;
+    scrollX = player.x + player.width / 2 - halfScreen;
+    if (scrollX < 0) scrollX = 0;
+    // Removed maxScroll clamping, world is infinite to the right
+
+    // Procedural generation and clean up
+    // Generate new objects when approaching the end of the generated world
+    if (scrollX + GAME_WIDTH + GENERATION_BUFFER > lastGeneratedChunkX) {
+      generateWorldObjects(lastGeneratedChunkX, scrollX + GAME_WIDTH + GENERATION_BUFFER + GAME_WIDTH);
+      lastGeneratedChunkX = scrollX + GAME_WIDTH + GENERATION_BUFFER + GAME_WIDTH;
+    }
+
+    // Remove objects that are far behind the player or have been collected
+    worldObjects = worldObjects.filter(obj => (obj.x + (obj.width || 0) > scrollX - VIEW_RANGE) && !obj.collected);
+
+    // Check for collisions with collectibles.  When the player's
+    // bounding box overlaps a collectible, mark it collected and
+    // increment the appropriate counter.  We use simple AABB
+    // collision detection.
+    for (const item of worldObjects) {
+      if (item.type === 'collectible' && !item.collected) {
+        const px1 = player.x;
+        const py1 = player.y;
+        const px2 = player.x + player.width;
+        const py2 = player.y + player.height;
+
+        const ix1 = item.x;
+        const iy1 = item.y;
+        const ix2 = item.x + item.size;
+        const iy2 = item.y + item.size;
+
+        if (px1 < ix2 && px2 > ix1 && py1 < iy2 && py2 > iy1) {
+          item.collected = true;
+          if (item.itemType === 'note') {
+            noteCount++;
+            player.score += SCORE_PER_NOTE;
+            visualEffects.triggerCollectParticles(item.x + item.size / 2, item.y + item.size / 2, 'note');
+          } else if (item.itemType === 'record') {
+            recordCount++;
+            player.score += SCORE_PER_RECORD;
+            visualEffects.triggerCollectParticles(item.x + item.size / 2, item.y + item.size / 2, 'record');
+          }
+
+          // Play collection sound (placeholder)
+          // playSound('collect');
+
+          // Special mystery effects for records
+          if (item.itemType === 'record') {
+            const effects = [
+              () => { visualEffects.triggerScreenShake(10, 0.5); questSystem.showNotification('🎁 Mistério: Terremoto!'); },
+              () => {
+                // Spawn extra items
+                for (let i = 0; i < 5; i++) {
+                  worldObjects.push({
+                    type: 'collectible',
+                    itemType: Math.random() < 0.5 ? 'note' : 'record',
+                    x: item.x + (Math.random() - 0.5) * 100,
+                    y: item.y + Math.random() * 50,
+                    size: 24,
+                    collected: false,
+                    layer: 'foreground',
+                  });
+                }
+                questSystem.showNotification('🎁 Mistério: Itens extras gerados!');
+              }
+            ];
+            const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+            randomEffect();
+            visualEffects.onQuestCompleted();
+          }
+
+          // Count all collected items for quests
+          questSystem.updateProgress('collect_total');
+        }
+      }
+    }
+  };
+
   // Define all game constants within a single configuration object for better organization
   const GameConfig = {
     // Assets
@@ -3480,6 +3797,7 @@
     }
   }
 
+
   // Reset game state to initial values
   function resetGame() {
     isGameOver = false;
@@ -3538,47 +3856,6 @@
     }
   }
 
-  // Game update loop
-  function update(dt) {
-    if (currentGameState === 'menu' || currentGameState === 'gameOver') {
-      return; // Stop all game updates if in menu or game over state
-    }
-
-    // Update quest system
-    questSystem.update(dt);
-
-    // Update adaptive difficulty system
-    adaptiveDifficulty.updateStats(dt);
-
-    // Update visual effects system
-    visualEffects.update(dt);
-
-    // Update enemy AI system
-    enemyAI.updateEnemies(dt);
-
-    // Calculate sprinting state once for the entire update
-    const isSprinting = input.right && input.crouch && player.vx > 0 && player.onGround && staminaBar.fill > 0.1;
-
-    // dt is delta time in seconds
-    // Horizontal movement
-    // Calculate total speed with multipliers (capped to prevent excessive speed)
-    const totalSpeedMultiplier = getTotalSpeedMultiplier();
-    let moveSpeed = player.baseMoveSpeed * totalSpeedMultiplier; // Apply all active speed multipliers
-    const gravity = GRAVITY; // pixels per second squared
-
-    // Sprint boost system - stamina enables sprinting instead of penalizing movement
-    if (isSprinting) {
-      moveSpeed = player.baseMoveSpeed * totalSpeedMultiplier * 2.0; // Sprint multiplies base + multipliers
-    }
-
-    // Apply accelerated jump factor if active
-    if (player.isAcceleratedJump) {
-      moveSpeed *= player.jumpAccelerationFactor;
-      // Gradually decay the acceleration factor
-      player.jumpAccelerationFactor = Math.max(1.0, player.jumpAccelerationFactor - (ACCELERATED_JUMP_DECAY_RATE * dt)); // Decay from 1.8 to 1.0 over time
-    }
-
-    player.vx = 0;
     if (!input.crouch) { // Only allow horizontal movement if not crouching
       if (isRightLocked) {
         player.vx = moveSpeed; // Force movement right if locked
@@ -4394,18 +4671,6 @@
                   questSystem.showNotification('🎁 Mistério: Itens extras gerados!');
                 }
               ];
-              const randomEffect = effects[Math.floor(Math.random() * effects.length)];
-              randomEffect();
-              visualEffects.onQuestCompleted();
-            }
-
-            // Count all collected items for quests
-            questSystem.updateProgress('collect_total');
-          }
-        }
-      }
-    }
-  }
 
   // Function to draw the main menu
   function drawMenu() {
@@ -4952,50 +5217,60 @@
     // Generate world objects procedurally AFTER resize
     generateWorldObjects(0, GAME_WIDTH);
     window.addEventListener('resize', resize);
-    // Set up input handlers - Create fallback stubs if functions don't exist
-    const setupInputHandlers = () => {
-      // Create stub functions if they don't exist
-      if (typeof setupKeyboard !== 'function') {
-        console.warn('setupKeyboard not found, creating stub');
-        window.setupKeyboard = () => console.log('Keyboard setup stub called');
-      }
-      if (typeof createTouchControls !== 'function') {
-        console.warn('createTouchControls not found, creating stub');
-        window.createTouchControls = () => console.log('Touch controls setup stub called');
-      }
-      if (typeof setupMenuInput !== 'function') {
-        console.warn('setupMenuInput not found, creating stub');
-        window.setupMenuInput = () => console.log('Menu input setup stub called');
-      }
-      if (typeof setupAccelerometerControls !== 'function') {
-        console.warn('setupAccelerometerControls not found, creating stub');
-        window.setupAccelerometerControls = () => console.log('Accelerometer setup stub called');
-      }
-      if (typeof setupGameTouchControls !== 'function') {
-        console.warn('setupGameTouchControls not found, creating stub');
-        window.setupGameTouchControls = () => console.log('Game touch controls setup stub called');
-      }
-
-      // Now call the functions (or stubs)
-      try {
-        setupKeyboard();
-        createTouchControls();
-        setupMenuInput();
-        setupAccelerometerControls();
-        setupGameTouchControls();
-        console.log('Input handlers setup completed successfully');
-      } catch (error) {
-        console.error('Error in input handler setup:', error);
-      }
-    };
-
-    // Try to setup immediately
-    setupInputHandlers();
 
     updateBarPositions(); // Initialize bar positions
 
-    // Start the game loop after everything is set up
+    // Initialize the game with proper sprites and mechanics
+    console.log('Game assets loaded successfully!');
+
+    // Calculate ground Y coordinate from the ground image height
+    if (images.ground) {
+      groundY = GAME_HEIGHT - images.ground.height;
+    } else {
+      console.error('Ground image not loaded! Using fallback groundY');
+      groundY = GAME_HEIGHT - 50; // Fallback height
+    }
+
+    // Set initial player and enemy Y positions now that groundY is known
+    player.y = groundY - player.height; // Use player.height
+    player.x = GAME_WIDTH / 2 - player.width / 2; // Center player horizontally
+    enemy.y = groundY - enemy.height; // Set enemy on the ground
+    enemy.x = GAME_WIDTH + 100; // Start enemy off-screen to the left
+
+    // Build idle animation frames from the loaded images
+    player.animations.idle = [
+      images.parado // Only parado.png for idle
+    ];
+
+    // Assemble walking animation frames
+    player.animations.walk = [
+      images.wk1,
+      images.wk2,
+      images.wk3,
+      images.wk4
+    ];
+
+    // Define jump animation frames
+    player.animations.jump = [
+      images.subindo,
+      images.desacelerando,
+      images.caindo
+    ];
+
+    // Define crouch animation frames
+    player.animations.crouch = [
+      images.abaixar1,
+      images.abaixar2,
+      images.abaixar3
+    ];
+
+    // Set up input handlers
+    setupInputHandlers();
+
+    // Start the game loop
     startGameLoop();
+
+    console.log('Game initialized with sprites and mechanics!');
   }).catch((err) => {
     console.error('Error loading images', err);
   });
@@ -5140,5 +5415,6 @@
     lastTime = 0;
     requestAnimationFrame(gameLoop);
   }
+
 
 })(); // Cache refresh fix - 2025.01.06 Build 1330

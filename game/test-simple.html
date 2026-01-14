@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Simples</title>
+</head>
+<body>
+  <div id="gameContainer" style="width: 800px; height: 600px; border: 1px solid black;"></div>
+
+  <script>
+    // Teste simples do canvas
+    (function() {
+      console.log('Test script starting...');
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      document.getElementById('gameContainer').appendChild(canvas);
+
+      canvas.width = 800;
+      canvas.height = 600;
+
+      // Draw something simple
+      ctx.fillStyle = 'lightblue';
+      ctx.fillRect(0, 0, 800, 600);
+
+      ctx.fillStyle = 'red';
+      ctx.fillRect(100, 100, 200, 200);
+
+      ctx.fillStyle = 'white';
+      ctx.font = '24px Arial';
+      ctx.fillText('Canvas Test - Working!', 120, 160);
+
+      console.log('Test completed successfully!');
+    })();
+  </script>
+</body>
+</html>
