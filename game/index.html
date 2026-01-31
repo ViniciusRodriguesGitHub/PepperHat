@@ -83,7 +83,7 @@
     <div class="hud" style="display: none;">
         <h2>SkyTower Ultimate</h2>
         <p>Andar Atual: <span id="floorDisplay" style="color: var(--accent-color); font-size: 1.2rem;">0</span></p>
-        <p>Setores: <span id="roomDisplay">...</span></p>
+        <p>Setores: <span id="roomDisplay" style="font-size: 1.2rem; font-weight: bold;">...</span></p>
         <p>Objetos: <span id="objCount">0</span> | Pontuação: <span id="scoreDisplay" style="color: #ffd700; font-weight: bold;">0</span></p>
         <div class="controls-hint">
             ⬅️ ➡️ Andar<br>
@@ -232,7 +232,7 @@
             bathroom:  { color: '#e1f5fe', label: 'BANHEIRO', wall: '#b3e5fc', signColor: '#00bcd4' },
             playground: { color: '#fff9c4', label: 'PARQUINHO', wall: '#ffeb3b', signColor: '#ff5722' },
             music_room:{ color: '#fce4ec', label: 'SALA MÚSICA', wall: '#f8bbd9', signColor: '#e91e63' },
-            bar:       { color: '#1a1a1a', label: 'BAR', wall: '#424242', signColor: '#ff5722' },
+            bar:       { color: '#2d1b3d', label: 'BAR', wall: '#4a2c5a', signColor: '#ff5722' },
             clothing_store: { color: '#f5f5f5', label: 'LOJA ROUPAS', wall: '#e0e0e0', signColor: '#9c27b0' },
             museum:    { color: '#ffffff', label: 'MUSEU', wall: '#25f5f5', signColor: '#607d8b' },
             storage:   { color: '#3e2723', label: 'DEPÓSITO', wall: '#795548', signColor: '#a1887f' }
@@ -256,9 +256,9 @@
             garden: ['plant', 'garden_bench', 'fountain', 'bush', 'statue', 'street_lamp'],
             bathroom: ['toilet', 'sink', 'shower', 'bathtub', 'medicine_cabinet', 'laundry_basket', 'towel_rack'],
             playground: ['swing', 'slide', 'seesaw', 'dollhouse', 'sandbox', 'jungle_gym', 'spring_rider', 'ball_pit', 'teddy_bear', 'tire_swing'],
-            music_room: ['piano', 'violin', 'guitar', 'drum_set', 'saxophone', 'trumpet', 'acoustic_guitar', 'keyboard'],
-            bar: ['bar_counter', 'bar_stools', 'beer_taps', 'bottles_rack', 'jukebox', 'pool_table', 'dart_board', 'neon_signs'],
-            clothing_store: ['clothing_rack', 'cash_register', 'mannequins', 'fitting_rooms', 'shoe_rack', 'mirror_wall', 'display_window', 'hangers_rack'],
+            music_room: ['piano', 'violin', 'guitar', 'drum_set', 'saxophone', 'trumpet', 'acoustic_guitar', 'keyboard', 'desk', 'meeting_table'],
+            bar: ['bar_counter', 'stool', 'beer_taps', 'bottles_rack', 'jukebox', 'pool_table', 'dart_board', 'neon_signs'],
+            clothing_store: ['desk', 'clothing_rack', 'cash_register', 'mannequins', 'fitting_rooms', 'shoe_rack', 'mirror_wall', 'display_window', 'hangers_rack'],
             museum: ['classical_statue', 'ancient_painting', 'artifact_display', 'marble_bust', 'abstract_sculpture', 'art_installation', 'decorative_pedestal', 'exhibit_light'],
             storage: ['box_pile', 'barrel', 'crate', 'pallet_jack', 'tool_cabinet', 'bookshelf']
         };
@@ -279,6 +279,7 @@
             kitchen: ['microwave', 'coffee_machine'],
             lab: ['microscope', 'computer'],
             office: ['computer', 'printer', 'desk_lamp'],
+            music_room: ['keyboard', 'desk_lamp'],
             storage: ['box_pile'],
             gym: ['water_cooler']
         };
@@ -422,13 +423,12 @@
             acoustic_guitar: { w: 12, h: 22, col: '#8d6e63' },
             keyboard: { w: 24, h: 12, col: '#212121' },
             bar_counter: { w: 36, h: 12, col: '#8d6e63' },
-            bar_stools: { w: 6, h: 10, col: '#424242' },
             beer_taps: { w: 8, h: 16, col: '#c0c0c0' },
             bottles_rack: { w: 20, h: 16, col: '#8d6e63' },
             jukebox: { w: 20, h: 36, col: '#8B4513' }, // Estilo anos 50 - madeira marrom grande
             pool_table: { w: 28, h: 16, col: '#2e7d32' },
-            dart_board: { w: 8, h: 8, col: '#212121' },
-            neon_signs: { w: 16, h: 6, col: '#ff5722', wall: true },
+            dart_board: { w: 16, h: 16, col: '#212121', wall: true },
+            neon_signs: { w: 24, h: 10, col: '#ff5722', wall: true },
             clothing_rack: { w: 16, h: 20, col: '#8d6e63' },
             cash_register: { w: 12, h: 10, col: '#424242', surface: true },
             mannequins: { w: 6, h: 24, col: '#f5f5f5' },
@@ -726,6 +726,11 @@
         let tvChannel = 0; // 0-3 para diferentes canais
         let vendingActive = false;
         let jukeboxActive = false;
+
+        // Estados das lâmpadas (todas começam apagadas)
+        let floorLampOn = false;
+        let deskLampOn = false;
+        let streetLampOn = false;
         let punchingBagSwing = 0; // Ângulo de balanço do saco de pancada
         let poolTableActive = false;
         let waterCoolerActive = false;
@@ -1005,6 +1010,17 @@
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
             delayTime: 1000    // 1 segundo de atraso
         };
+
+        let purpleEnemy = {
+            x: 0,              // Iniciar exatamente na posição inicial do jogador
+            y: 0,
+            floor: 0,
+            state: 'idle',
+            isJumping: false,
+            // Sistema de replay cinemático
+            history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
+            delayTime: 1000    // 1 segundo de atraso
+        };
         
         // Variáveis para rastrear interações específicas com o inimigo
         // - se o jogador já pulou sobre o inimigo nesse pulo
@@ -1039,7 +1055,7 @@
             // Procurar todos os objetos interativos próximos
             for (const sector of currentFloor.sectors) {
                 for (const item of sector.items) {
-                    if (['exhibit_light', 'teddy_bear', 'dollhouse', 'abstract_sculpture', 'artifact_display', 'robo_arm', 'server', 'safety_shower', 'chem_rack', 'fridge', 'stove', 'microwave', 'coffee_machine', 'sink', 'arcade', 'tv', 'vending', 'jukebox', 'pool_table', 'water_cooler', 'treadmill', 'dumbbells', 'medicine_ball', 'punching_bag', 'microscope'].includes(item.type)) {
+                    if (['exhibit_light', 'floor_lamp', 'desk_lamp', 'street_lamp', 'teddy_bear', 'dollhouse', 'abstract_sculpture', 'artifact_display', 'robo_arm', 'server', 'safety_shower', 'chem_rack', 'fridge', 'stove', 'microwave', 'coffee_machine', 'sink', 'arcade', 'tv', 'vending', 'jukebox', 'pool_table', 'water_cooler', 'treadmill', 'dumbbells', 'medicine_ball', 'punching_bag', 'microscope'].includes(item.type)) {
                         const distance = Math.abs(player.x - item.x);
                         if (distance < closestDistance) {
                             closestItem = item;
@@ -1126,6 +1142,18 @@
                         break;
                     case 'microscope':
                         toggleMicroscope();
+                        break;
+                    case 'floor_lamp':
+                        toggleFloorLamp();
+                        break;
+                    case 'desk_lamp':
+                        toggleDeskLamp();
+                        break;
+                    case 'street_lamp':
+                        toggleStreetLamp();
+                        break;
+                    case 'exhibit_light':
+                        toggleExhibitLight();
                         break;
                 }
             }
@@ -1251,7 +1279,7 @@
                         'equations_board', 'barrel', 'pallet_jack', 'stool', 'bush', 'statue', 'medicine_cabinet',
                         'laundry_basket', 'resistance_bands', 'foam_roller', 'kettlebell', 'pull_up_bar',
                         'ankle_weights', 'hand_grips', 'massage_ball', 'protein_shaker', 'swing', 'slide', 'seesaw',
-                        'sandbox', 'jungle_gym', 'spring_rider', 'test_cube', 'bar_stools', 'beer_taps', 'bottles_rack',
+                        'sandbox', 'jungle_gym', 'spring_rider', 'test_cube', 'stool', 'beer_taps', 'bottles_rack',
                         'dart_board', 'neon_signs', 'shoe_rack', 'mirror_wall', 'hangers_rack', 'classical_statue',
                         'desk_lamp', 'box_pile'
                     ];
@@ -1558,11 +1586,119 @@
                 completedMissionsCount++;
                 selectNextMission();
 
+                // Resetar contadores de interação com inimigos
+                interactionCounts.jumpOverEnemy = 0;
+                interactionCounts.underEnemyJump = 0;
+
                 // Verificar se todas as missões foram completadas
                 if (completedMissionsCount >= TOTAL_MISSIONS) {
                     gameVictory();
                 }
             }
+        }
+
+        // Função para detectar o setor atual do jogador
+        function getCurrentSector() {
+            const currentFloor = floors.get(player.floor);
+            if (!currentFloor) return null;
+
+            return currentFloor.sectors.find(sector => player.x >= sector.startX && player.x <= sector.endX) || null;
+        }
+
+        // Função para detectar objetos próximos ao jogador
+        function getNearbyObjects() {
+            const currentFloor = floors.get(player.floor);
+            if (!currentFloor) return [];
+
+            const nearbyObjects = [];
+            const maxDistance = 80; // Distância máxima para considerar "próximo"
+
+            for (const sector of currentFloor.sectors) {
+                for (const item of sector.items) {
+                    const distance = Math.abs(player.x - item.x);
+                    if (distance <= maxDistance) {
+                        nearbyObjects.push({
+                            name: getItemDisplayName(item.type),
+                            distance: distance
+                        });
+                    }
+                }
+            }
+
+            // Ordenar por distância (mais próximos primeiro) e limitar a 2 objetos
+            return nearbyObjects
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 2);
+        }
+
+        // Função auxiliar para obter nome displayável do item
+        function getItemDisplayName(itemType) {
+            const nameMap = {
+                'teddy_bear': 'Urso de Pelúcia',
+                'dollhouse': 'Casa de Boneca',
+                'hopscotch': 'Amarelinha',
+                'tire_swing': 'Balanço de Pneu',
+                'ball_pit': 'Piscina de Bolas',
+                'classic_statue': 'Estátua Clássica',
+                'ancient_painting': 'Pintura Antiga',
+                'artifact_display': 'Display de Artefato',
+                'marble_bust': 'Busto de Mármore',
+                'decorative_pedestal': 'Pedestal Decorativo',
+                'exhibit_light': 'Luz de Exposição',
+                'abstract_sculpture': 'Escultura Abstrata',
+                'art_installation': 'Instalação de Arte',
+                'robo_arm': 'Braço Robótico',
+                'server': 'Servidor',
+                'safety_shower': 'Chuveiro de Segurança',
+                'chem_rack': 'Prateleira de Química',
+                'microscope': 'Microscópio',
+                'beaker': 'Béquer',
+                'flower_pot': 'Vaso de Flor',
+                'bench': 'Banco',
+                'garden_gnome': 'Gnomo de Jardim',
+                'watering_can': 'Regador',
+                'lawn_mower': 'Cortador de Grama',
+                'bed': 'Cama',
+                'nightstand': 'Criado-Mudo',
+                'lamp': 'Lâmpada',
+                'dresser': 'Cômoda',
+                'wardrobe': 'Guarda-Roupa',
+                'coat_rack': 'Cabideiro',
+                'chair': 'Cadeira',
+                'desk': 'Escritório',
+                'bookshelf': 'Estante',
+                'computer': 'Computador',
+                'sofa': 'Sofá',
+                'tv': 'TV',
+                'coffee_table': 'Mesa de Centro',
+                'fridge': 'Geladeira',
+                'stove': 'Fogão',
+                'microwave': 'Microondas',
+                'sink': 'Pia',
+                'kitchen_cabinet': 'Armário da Cozinha',
+                'dining_table': 'Mesa de Jantar',
+                'arcade': 'Fliperama',
+                'vending': 'Máquina de Vendas',
+                'jukebox': 'Jukebox',
+                'pool_table': 'Mesa de Sinuca',
+                'water_cooler': 'Bebedouro',
+                'treadmill': 'Esteira',
+                'dumbbells': 'Halteres',
+                'medicine_ball': 'Bola Medicinal',
+                'punching_bag': 'Saco de Pancada',
+                'shower': 'Chuveiro',
+                'toilet': 'Banheiro',
+                'bathtub': 'Banheira',
+                'mirror': 'Espelho',
+                'shoe_rack': 'Prateleira de Sapatos',
+                'clothing_rack': 'Arara de Roupas',
+                'fitting_room': 'Provador',
+                'cash_register': 'Caixa Registradora',
+                'display_window': 'Vitrine',
+                'mannequin': 'Maneco'
+            };
+
+            return nameMap[itemType] || itemType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
 
         function updateMissionsDisplay() {
@@ -1845,13 +1981,20 @@
             playerInvincibilityStart = 0;
             hasMadeFirstMove = false;
 
-            // Resetar inimigo
+            // Resetar inimigos
             enemy.x = 0;
             enemy.y = 0;
             enemy.floor = 0;
             enemy.state = 'idle';
             enemy.history = [];
             enemy.isJumping = false;
+
+            purpleEnemy.x = 0;
+            purpleEnemy.y = 0;
+            purpleEnemy.floor = 0;
+            purpleEnemy.state = 'idle';
+            purpleEnemy.history = [];
+            purpleEnemy.isJumping = false;
 
             // Resetar missões
             missions.jumpOverEnemy.completed = false;
@@ -2059,6 +2202,26 @@
             console.log(`Microscópio ${microscopeOn ? 'ligado' : 'desligado'}`);
         }
 
+        function toggleFloorLamp() {
+            floorLampOn = !floorLampOn;
+            console.log(`Luminária de piso ${floorLampOn ? 'ligada' : 'desligada'}`);
+        }
+
+        function toggleDeskLamp() {
+            deskLampOn = !deskLampOn;
+            console.log(`Luminária de mesa ${deskLampOn ? 'ligada' : 'desligada'}`);
+        }
+
+        function toggleStreetLamp() {
+            streetLampOn = !streetLampOn;
+            console.log(`Poste de luz ${streetLampOn ? 'ligado' : 'desligado'}`);
+        }
+
+        function toggleExhibitLight() {
+            exhibitLightOn = !exhibitLightOn;
+            console.log(`Luminária de exposição ${exhibitLightOn ? 'ligada' : 'desligada'}`);
+        }
+
         // --- Sistema de Pontuação ---
         function collectItem(collectible) {
             let points = 0;
@@ -2099,10 +2262,23 @@
                 timestamp: now
             });
 
+            // Grava o estado invertido para o inimigo roxo (mesmo delay)
+            purpleEnemy.history.push({
+                x: -player.x,  // Posição X invertida
+                y: player.y,
+                floor: player.floor,
+                state: player.state,
+                isJumping: player.isJumping, // Visual apenas
+                timestamp: now
+            });
+
             // Limpeza de buffer (Evita vazamento de memória)
             // Se assumirmos 60fps, 3s = 180 frames. Manter buffer de segurança.
             if (enemy.history.length > 500) {
                 enemy.history.shift();
+            }
+            if (purpleEnemy.history.length > 500) {
+                purpleEnemy.history.shift();
             }
         }
 
@@ -2158,16 +2334,24 @@
 
 
         function checkEnemyPlayerCollision() {
-            const dx = player.x - enemy.x;
-            const dy = player.y - enemy.y;
+            // Verificar colisão com o inimigo vermelho
+            checkCollisionWithEnemy(enemy);
+
+            // Verificar colisão com o inimigo roxo
+            checkCollisionWithEnemy(purpleEnemy);
+        }
+
+        function checkCollisionWithEnemy(enemyObj) {
+            const dx = player.x - enemyObj.x;
+            const dy = player.y - enemyObj.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             // Verificar se o jogador está no mesmo andar que o inimigo
-            const sameFloor = player.floor === enemy.floor;
-            
-            const horizontalDistance = Math.abs(player.x - enemy.x);
+            const sameFloor = player.floor === enemyObj.floor;
+
+            const horizontalDistance = Math.abs(player.x - enemyObj.x);
             const playerRelativeY = player.y - (-player.floor * FLOOR_HEIGHT);
-            const enemyRelativeY = enemy.y - (-enemy.floor * FLOOR_HEIGHT);
+            const enemyRelativeY = enemyObj.y - (-enemyObj.floor * FLOOR_HEIGHT);
 
             // Verificar se o jogador pulou sobre o inimigo
             if (sameFloor && player.isJumping && !hasJumpedOverEnemyThisJump) {
@@ -2182,17 +2366,17 @@
 
             // Verificar se o jogador passou POR BAIXO do inimigo enquanto o inimigo está pulando
             // Condições: mesmo andar, inimigo pulando, jogador no chão, ainda não contou neste pulo
-            if (sameFloor && enemy.isJumping && player.isOnGround && !player.isJumping && !hasPassedUnderEnemyThisEnemyJump) {
+            if (sameFloor && enemyObj.isJumping && player.isOnGround && !player.isJumping && !hasPassedUnderEnemyThisEnemyJump) {
                 // Usar posições absolutas para comparação mais confiável
                 const playerAbsoluteY = player.y;
-                const enemyAbsoluteY = enemy.y;
-                
+                const enemyAbsoluteY = enemyObj.y;
+
                 // Jogador abaixo do inimigo e próximo horizontalmente
                 // Tolerância: jogador precisa estar pelo menos 3 pixels abaixo do inimigo
                 // e dentro de 50 pixels horizontalmente (bem tolerante)
                 const isPlayerBelow = playerAbsoluteY > enemyAbsoluteY + 3;
                 const isHorizontallyClose = horizontalDistance < 50;
-                
+
                 if (isPlayerBelow && isHorizontallyClose) {
                     interactionCounts.underEnemyJump++;
                     hasPassedUnderEnemyThisEnemyJump = true;
@@ -2210,6 +2394,50 @@
 
             if (distance < 20) { // Distância de colisão
                 takeDamage();
+            }
+        }
+
+        function updatePurpleEnemy() {
+            // Se o jogo terminou, não atualizar inimigo
+            if (gameEnded) return;
+
+            const now = Date.now();
+
+            // Delay fixo de 1 segundo para o inimigo roxo
+            const dynamicDelayTime = 1000;
+
+            const targetTime = now - dynamicDelayTime;
+
+            // Se não houver histórico suficiente ainda, o inimigo fica parado no spawn
+            if (purpleEnemy.history.length === 0) return;
+
+            // Encontrar o frame mais próximo do tempo alvo (targetTime)
+            // Otimização: Procurar de trás para frente ou assumir index linear
+            let bestFrame = purpleEnemy.history[0];
+
+            for (let i = 0; i < purpleEnemy.history.length; i++) {
+                const frame = purpleEnemy.history[i];
+                // Se encontrarmos um frame futuro ao target, o anterior é o mais próximo
+                if (frame.timestamp > targetTime) {
+                    // Interpolação simples: pega o anterior (ou o atual se for o primeiro)
+                    bestFrame = (i > 0) ? purpleEnemy.history[i - 1] : frame;
+                    break;
+                }
+                // Se chegarmos ao fim e todos são passados, pega o último
+                bestFrame = frame;
+            }
+
+            // APLICAR ESTADO (Cinemática Pura - Sem Física)
+            // O inimigo roxo usa as coordenadas invertidas diretamente do histórico
+            if (bestFrame) {
+                purpleEnemy.x = bestFrame.x;
+                purpleEnemy.y = bestFrame.y;
+                purpleEnemy.floor = bestFrame.floor;
+                purpleEnemy.state = bestFrame.state;
+                purpleEnemy.isJumping = bestFrame.isJumping;
+
+                // Sistema de "chão" do inimigo (simulado)
+                purpleEnemy.isOnGround = !purpleEnemy.isJumping;
             }
         }
 
@@ -2385,13 +2613,20 @@
             // Reset do tempo de jogo
             gameStartTime = Date.now();
 
-            // Reset do inimigo
+            // Reset dos inimigos
             enemy.x = 0;
             enemy.y = 0;
             enemy.floor = 0;
             enemy.state = 'idle';
             enemy.history = [];
             enemy.isJumping = false;
+
+            purpleEnemy.x = 0;
+            purpleEnemy.y = 0;
+            purpleEnemy.floor = 0;
+            purpleEnemy.state = 'idle';
+            purpleEnemy.history = [];
+            purpleEnemy.isJumping = false;
 
             // Reset dos coletáveis (opcional - pode manter ou resetar)
             // collectibles = []; // Descomente se quiser resetar os itens
@@ -2770,8 +3005,9 @@
             // Gravação de estado do jogador (frame-by-frame)
             recordPlayerState();
 
-            // Atualizar inimigo
+            // Atualizar inimigos
             updateEnemy();
+            updatePurpleEnemy();
 
             document.getElementById('floorDisplay').innerText = player.floor;
 
@@ -2783,8 +3019,25 @@
 
             const currentFloorData = floors.get(player.floor);
             if (currentFloorData) {
-                const themes = currentFloorData.sectors.map(s => ROOM_THEMES[s.theme].label).join(' | ');
-                document.getElementById('roomDisplay').innerText = themes;
+                const currentSector = getCurrentSector();
+                const nearbyObjects = getNearbyObjects();
+
+                let displayText = '';
+
+                // Mostrar objetos próximos acima do nome do setor
+                if (nearbyObjects.length > 0) {
+                    const objectNames = nearbyObjects.map(obj => obj.name);
+                    displayText += objectNames.join(', ') + '<br>';
+                }
+
+                // Mostrar nome do setor atual
+                if (currentSector) {
+                    displayText += ROOM_THEMES[currentSector.theme].label;
+                } else {
+                    displayText += 'Corredor';
+                }
+
+                document.getElementById('roomDisplay').innerHTML = displayText;
                 const totalItems = currentFloorData.sectors.reduce((sum, s) => sum + s.items.length, 0);
                 document.getElementById('objCount').innerText = totalItems;
             }
@@ -3022,9 +3275,9 @@
                 garden: ['plant', 'garden_bench', 'fountain', 'bush', 'statue', 'street_lamp'],
                 bathroom: ['toilet', 'sink', 'shower', 'bathtub', 'medicine_cabinet', 'laundry_basket', 'towel_rack'],
                 playground: ['swing', 'slide', 'seesaw', 'dollhouse', 'sandbox', 'jungle_gym', 'spring_rider', 'ball_pit', 'teddy_bear', 'tire_swing'],
-                music_room: ['piano', 'violin', 'guitar', 'drum_set', 'saxophone', 'trumpet', 'acoustic_guitar', 'keyboard'],
-                bar: ['bar_counter', 'bar_stools', 'beer_taps', 'bottles_rack', 'jukebox', 'pool_table', 'dart_board', 'neon_signs'],
-                clothing_store: ['clothing_rack', 'cash_register', 'mannequins', 'fitting_rooms', 'shoe_rack', 'mirror_wall', 'display_window', 'hangers_rack'],
+                music_room: ['piano', 'violin', 'guitar', 'drum_set', 'saxophone', 'trumpet', 'acoustic_guitar', 'keyboard', 'desk', 'meeting_table'],
+                bar: ['bar_counter', 'stool', 'beer_taps', 'bottles_rack', 'jukebox', 'pool_table', 'dart_board', 'neon_signs'],
+                clothing_store: ['desk', 'clothing_rack', 'cash_register', 'mannequins', 'fitting_rooms', 'shoe_rack', 'mirror_wall', 'display_window', 'hangers_rack'],
                 museum: ['classical_statue', 'ancient_painting', 'artifact_display', 'marble_bust', 'abstract_sculpture', 'art_installation', 'decorative_pedestal', 'exhibit_light'],
                 storage: ['box_pile', 'barrel', 'crate', 'pallet_jack', 'tool_cabinet', 'bookshelf']
             };
@@ -3165,6 +3418,7 @@
             ctx.fill();
         }
 
+
         function drawEllipse(x, y, rx, ry, col) {
             const screenX = (canvas.width / 2) + x - camera.x;
             const screenY = (canvas.height / 2) + y - camera.y;
@@ -3239,6 +3493,289 @@
 
             switch(item.type) {
                 // === OBJETOS REFINADOS ===
+
+                case 'bookshelf': // Biblioteca Detalhada
+                    // Estrutura principal da estante
+                    drawRect(left, y, s.w, s.h, '#8d6e63'); // Madeira escura base
+
+                    // Prateleiras horizontais (5 prateleiras)
+                    const shelfHeight = Math.floor(s.h / 6);
+                    for(let shelf = 1; shelf <= 5; shelf++) {
+                        const shelfY = y + shelf * shelfHeight;
+                        drawRect(left + 2, shelfY - 1, s.w - 4, 3, '#5d4037'); // Prateleira mais escura
+
+                        // Livros em cada prateleira (3-5 livros por prateleira)
+                        const booksCount = 3 + Math.floor(pseudoRandom(seed + shelf) * 3);
+                        const bookWidth = (s.w - 8) / booksCount;
+
+                        for(let book = 0; book < booksCount; book++) {
+                            const bookX = left + 4 + book * bookWidth;
+                            const bookW = bookWidth - 1;
+                            const bookH = shelfHeight - 6;
+
+                            // Variação de cores dos livros baseada na posição
+                            const bookSeed = seed + shelf * 10 + book;
+                            const bookHue = (pseudoRandom(bookSeed) * 360) % 360;
+
+                            // Cores realistas de livros: vermelho, azul, verde, amarelo, roxo, etc.
+                            const bookColors = [
+                                '#d32f2f', '#1976d2', '#388e3c', '#f57c00', '#7b1fa2',
+                                '#0288d1', '#689f38', '#f4511e', '#8e24aa', '#0097a7',
+                                '#558b2f', '#e64a19', '#6a1b9a', '#00796b', '#ff6f00'
+                            ];
+                            const bookCol = bookColors[Math.floor(pseudoRandom(bookSeed) * bookColors.length)];
+
+                            // Livro com lombada
+                            drawRect(bookX, shelfY + 2, bookW, bookH, bookCol);
+
+                            // Lombada mais escura
+                            drawRect(bookX + bookW - 2, shelfY + 2, 2, bookH, `rgba(0,0,0,0.3)`);
+
+                            // Reflexo na capa (brilho sutil)
+                            drawRect(bookX + 1, shelfY + 3, bookW - 2, 1, `rgba(255,255,255,0.4)`);
+
+                            // Algumas variações: livros com títulos ou detalhes
+                            if (pseudoRandom(bookSeed + 1) > 0.7) {
+                                // Livro com "título" (linha horizontal)
+                                drawRect(bookX + 2, shelfY + 4 + bookH * 0.3, bookW - 4, 1, `rgba(255,255,255,0.6)`);
+                            }
+
+                            if (pseudoRandom(bookSeed + 2) > 0.8) {
+                                // Livro mais grosso
+                                drawRect(bookX - 1, shelfY + 2, bookW + 2, bookH, bookCol);
+                                drawRect(bookX, shelfY + 3, bookW, 1, `rgba(255,255,255,0.3)`);
+                            }
+                        }
+                    }
+
+                    // Suportes verticais laterais (pilares)
+                    drawRect(left, y, 4, s.h, '#5d4037'); // Pilar esquerdo
+                    drawRect(right - 4, y, 4, s.h, '#5d4037'); // Pilar direito
+
+                    // Detalhes nos pilares (pregos ou reforços)
+                    for(let i = 0; i < 6; i++) {
+                        const pegY = y + 8 + i * 10;
+                        if (pegY < y + s.h - 5) {
+                            drawCircle(left + 2, pegY, 1, '#212121'); // Pino esquerdo
+                            drawCircle(right - 2, pegY, 1, '#212121'); // Pino direito
+                        }
+                    }
+
+                    // Base inferior reforçada
+                    drawRect(left - 2, y + s.h - 4, s.w + 4, 6, '#4e342e');
+
+                    // Sombras nas prateleiras inferiores
+                    for(let shelf = 2; shelf <= 5; shelf++) {
+                        const shadowY = y + shelf * shelfHeight + 2;
+                        drawRect(left + 4, shadowY, s.w - 8, 1, 'rgba(0,0,0,0.2)');
+                    }
+
+                    // Decoração: alguns livros "saindo" da prateleira
+                    if (pseudoRandom(seed) > 0.6) {
+                        // Livro saindo na segunda prateleira
+                        const shelf2Y = y + 2 * shelfHeight;
+                        drawRect(left + 6, shelf2Y - 3, 8, shelfHeight, '#1976d2');
+                        drawRect(left + 12, shelf2Y - 2, 2, shelfHeight - 4, '#0d47a1');
+                        drawRect(left + 7, shelf2Y - 1, 6, 1, 'rgba(255,255,255,0.5)');
+                    }
+
+                    // Indicador visual de interatividade (piscando sutil)
+                    const blinkBook = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 5, 0.8, `rgba(139, 69, 19, ${blinkBook})`);
+                    break;
+
+                case 'weights': // Halteres Grandes (barra + discos)
+                    // Barra principal de metal
+                    drawRect(cx - 12, y + 8, 24, 2, '#c0c0c0');
+                    drawRect(cx - 11, y + 9, 22, 0.5, '#e0e0e0'); // Reflexo
+
+                    // Discos de peso (múltiplas camadas)
+                    const discColors = ['#ff5722', '#2196f3', '#4caf50', '#ff9800'];
+
+                    // Lado esquerdo
+                    for(let i = 0; i < 4; i++) {
+                        const discSize = 3 - i * 0.3;
+                        const discX = cx - 8 - i * 1.5;
+                        drawCircle(discX, y + 9, discSize, discColors[i % discColors.length]);
+                        drawCircle(discX, y + 9, discSize - 0.5, '#333'); // Centro
+                    }
+
+                    // Lado direito
+                    for(let i = 0; i < 4; i++) {
+                        const discSize = 3 - i * 0.3;
+                        const discX = cx + 8 + i * 1.5;
+                        drawCircle(discX, y + 9, discSize, discColors[i % discColors.length]);
+                        drawCircle(discX, y + 9, discSize - 0.5, '#333'); // Centro
+                    }
+
+                    // Parafusos de fixação
+                    drawCircle(cx - 12, y + 9, 0.8, '#666');
+                    drawCircle(cx + 12, y + 9, 0.8, '#666');
+
+                    // Suportes/base
+                    drawRect(cx - 2, y + 11, 4, 3, '#8d6e63');
+                    drawRect(cx - 1, y + 12, 2, 2, '#a1887f');
+
+                    // Etiqueta de peso
+                    drawRect(cx - 3, y + 7, 6, 1, '#fff');
+                    drawText('100kg', cx - 2.5, y + 8, 0.8, '#000');
+
+                    // Sombras
+                    drawEllipse(cx, y + 15, 14, 1, 'rgba(0,0,0,0.3)');
+                    break;
+
+                case 'resistance_bands': // Faixas Elásticas de Resistência
+                    // Rolos de faixas elásticas empilhados
+                    const bandColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0'];
+
+                    for(let i = 0; i < 5; i++) {
+                        const rollY = y + i * 2;
+                        const rollHeight = Math.max(1, 3 - i * 0.3);
+                        drawRoundRect(cx - 6, rollY, 12, rollHeight, 1, bandColors[i % bandColors.length]);
+
+                        // Centro do rolo (mais escuro)
+                        drawRoundRect(cx - 4, rollY + 0.5, 8, rollHeight - 1, 0.5, bandColors[i % bandColors.length] + '80');
+                    }
+
+                    // Suporte de armazenamento
+                    drawRect(cx - 8, y - 1, 16, 1, '#8d6e63');
+                    drawRect(cx - 7, y - 2, 14, 1, '#a1887f');
+
+                    // Etiqueta
+                    drawRect(cx - 4, y + 11, 8, 1, '#fff');
+                    drawText('5-50lbs', cx - 3.5, y + 12, 0.7, '#000');
+                    break;
+
+                case 'foam_roller': // Rolo de Espuma para Massagem
+                    // Cilindro principal de espuma
+                    drawRoundRect(cx - 8, y + 4, 16, 6, 3, '#e1f5fe');
+
+                    // Textura da espuma (linhas onduladas)
+                    for(let i = 0; i < 8; i++) {
+                        const waveOffset = Math.sin(i * 0.8) * 0.5;
+                        drawRect(cx - 7 + i * 1.8, y + 5 + waveOffset, 1.5, 1, '#b3e5fc');
+                    }
+
+                    // Capas nas extremidades (plástico azul)
+                    drawRoundRect(cx - 10, y + 4, 3, 6, 1.5, '#2196f3');
+                    drawRoundRect(cx + 7, y + 4, 3, 6, 1.5, '#2196f3');
+
+                    // Anéis de reforço
+                    drawCircle(cx - 8.5, y + 7, 0.3, '#1976d2');
+                    drawCircle(cx + 8.5, y + 7, 0.3, '#1976d2');
+
+                    // Base/suporte
+                    drawRect(cx - 2, y + 10, 4, 2, '#8d6e63');
+
+                    // Etiqueta de tamanho
+                    drawRect(cx - 3, y + 2, 6, 1, '#fff');
+                    drawText('36"', cx - 2, y + 3, 0.8, '#000');
+                    break;
+
+                case 'ankle_weights': // Pesos de Tornozelo
+                    // Par de pesos conectados por correia
+                    for(let side = 0; side < 2; side++) {
+                        const sideX = cx + (side === 0 ? -6 : 2);
+                        // Corpo do peso
+                        drawRoundRect(sideX, y + 4, 6, 8, 1, '#424242');
+                        drawRoundRect(sideX + 1, y + 5, 4, 6, 0.5, '#616161');
+
+                        // Correias de velcro
+                        drawRect(sideX - 1, y + 2, 8, 1, '#000');
+                        drawRect(sideX - 1, y + 3, 8, 0.5, '#ff5722');
+
+                        // Fivela
+                        drawRect(sideX + 2, y + 1, 2, 2, '#c0c0c0');
+                        drawRect(sideX + 2.5, y + 1.5, 1, 1, '#666');
+                    }
+
+                    // Correia conectora
+                    drawRect(cx - 4, y + 6, 8, 1, '#000');
+
+                    // Etiqueta de peso
+                    drawRect(cx - 3, y + 13, 6, 1, '#fff');
+                    drawText('5lbs', cx - 2, y + 14, 0.8, '#000');
+                    break;
+
+                case 'hand_grips': // Aperto de Mão (Hand Grippers)
+                    // Par de aparelhos de aperto
+                    for(let hand = 0; hand < 2; hand++) {
+                        const handX = cx + (hand === 0 ? -4 : 2);
+
+                        // Alças (metal)
+                        drawRoundRect(handX, y + 3, 3, 8, 0.5, '#c0c0c0');
+                        drawRoundRect(handX + 2, y + 3, 3, 8, 0.5, '#c0c0c0');
+
+                        // Mola central
+                        drawRect(handX + 1.5, y + 4, 2, 6, '#666');
+                        for(let spring = 0; spring < 4; spring++) {
+                            drawRect(handX + 1.5, y + 5 + spring * 1.2, 2, 0.3, '#999');
+                        }
+
+                        // Alavanca de ajuste
+                        drawRect(handX - 1, y + 6, 1, 3, '#ff5722');
+                        drawCircle(handX - 0.5, y + 7.5, 0.3, '#666');
+                    }
+
+                    // Etiqueta de resistência
+                    drawRect(cx - 3, y + 12, 6, 1, '#fff');
+                    drawText('100lbs', cx - 2.5, y + 13, 0.7, '#000');
+                    break;
+
+                case 'massage_ball': // Bola de Massagem
+                    // Bola esférica com texturas
+                    drawCircle(cx, y + 5, 4, '#ff5722');
+
+                    // Texturas pontiagudas (nódulos)
+                    for(let i = 0; i < 12; i++) {
+                        const angle = (i * Math.PI * 2) / 12;
+                        const spikeX = cx + Math.cos(angle) * 3.5;
+                        const spikeY = y + 5 + Math.sin(angle) * 3.5;
+                        drawCircle(spikeX, spikeY, 0.4, '#d84315');
+                    }
+
+                    // Centro macio
+                    drawCircle(cx, y + 5, 2, '#ff8a65');
+
+                    // Base pequena
+                    drawRect(cx - 1, y + 9, 2, 1, '#8d6e63');
+
+                    // Etiqueta de tamanho
+                    drawRect(cx - 2, y + 1, 4, 0.8, '#fff');
+                    drawText('8cm', cx - 1.5, y + 2, 0.6, '#000');
+                    break;
+
+                case 'protein_shaker': // Shaker de Proteína
+                    // Corpo cilíndrico do shaker
+                    drawRoundRect(cx - 3, y, 6, 12, 1, '#c0c0c0');
+                    drawRoundRect(cx - 2.5, y + 0.5, 5, 11, 0.8, '#e0e0e0');
+
+                    // Tampa com rosca
+                    drawRoundRect(cx - 3.5, y - 1, 7, 2, 1.5, '#424242');
+
+                    // Tampa da tampa (para misturar)
+                    drawCircle(cx, y - 2, 1.5, '#666');
+                    drawCircle(cx, y - 2, 0.8, '#999');
+
+                    // Janela de medição
+                    drawRect(cx - 2, y + 2, 4, 6, '#b3e5fc');
+                    drawRect(cx - 1.5, y + 2.5, 3, 5, '#e1f5fe');
+
+                    // Marcas de medição
+                    for(let mark = 0; mark < 5; mark++) {
+                        drawRect(cx - 1, y + 3 + mark * 1, 2, 0.2, '#000');
+                    }
+
+                    // Conteúdo (líquido)
+                    drawRect(cx - 1.5, y + 7, 3, 2, 'rgba(255, 193, 7, 0.7)');
+
+                    // Base
+                    drawRoundRect(cx - 2, y + 12, 4, 1, 0.5, '#8d6e63');
+
+                    // Etiqueta
+                    drawRect(cx - 2.5, y + 4, 5, 0.8, '#fff');
+                    drawText('32oz', cx - 2, y + 5, 0.6, '#000');
+                    break;
 
                 case 'box_pile': // Caixas Empilhadas
                     drawRect(left, y + 10, s.w, s.h - 10, '#d7ccc8'); 
@@ -3861,40 +4398,87 @@
                     ctx.fill();
                     break;
 
-                case 'seesaw':
-                    // Base de concreto reforçada
-                    drawRect(cx - 20, y + 10, 40, 6, '#8d6e63');
-                    drawRect(cx - 18, y + 12, 36, 2, '#a1887f');
-                    // Suportes metálicos com parafusos
-                    drawRect(cx - 18, y, 4, 16, '#424242');
-                    drawRect(cx + 14, y, 4, 16, '#424242');
-                    drawCircle(cx - 16, y + 2, 1, '#silver');
-                    drawCircle(cx - 16, y + 8, 1, '#silver');
-                    drawCircle(cx + 16, y + 2, 1, '#silver');
-                    drawCircle(cx + 16, y + 8, 1, '#silver');
-                    // Eixo central cromado
-                    drawRect(cx - 2, y + 8, 4, 4, '#c0c0c0');
-                    drawCircle(cx, y + 10, 2, '#silver');
-                    // Pranchas de madeira com textura
-                    drawRect(cx - 16, y + 6, 14, 4, s.col);
-                    drawRect(cx + 2, y + 6, 14, 4, s.col);
-                    // Textura de madeira
-                    for(let i = 0; i < 6; i++) {
-                        drawRect(cx - 16, y + 7 + i*0.5, 14, 0.5, '#8d6e63');
-                        drawRect(cx + 2, y + 7 + i*0.5, 14, 0.5, '#8d6e63');
+                case 'seesaw': // Gangorra Melhorada com Mais Detalhes
+                    // Base de concreto reforçada com mais detalhes
+                    drawRect(cx - 22, y + 10, 44, 8, '#8d6e63'); // Base maior
+                    drawRect(cx - 20, y + 12, 40, 4, '#a1887f'); // Revestimento superior
+                    drawRect(cx - 18, y + 14, 36, 2, '#795548'); // Detalhe de concreto
+
+                    // Suportes metálicos robustos com reforços
+                    drawRect(cx - 20, y, 6, 18, '#424242'); // Suporte esquerdo mais largo
+                    drawRect(cx + 14, y, 6, 18, '#424242'); // Suporte direito mais largo
+
+                    // Detalhes dos suportes
+                    drawRect(cx - 19, y + 1, 4, 16, '#616161'); // Interior mais claro
+                    drawRect(cx + 15, y + 1, 4, 16, '#616161'); // Interior mais claro
+
+                    // Parafusos e reforços
+                    for(let i = 0; i < 3; i++) {
+                        const boltY = y + 3 + i * 4;
+                        drawCircle(cx - 17, boltY, 0.8, '#silver'); // Parafusos esquerdo
+                        drawCircle(cx + 17, boltY, 0.8, '#silver'); // Parafusos direito
+                        drawRect(cx - 17.5, boltY - 0.5, 1, 1, '#666'); // Porca
+                        drawRect(cx + 16.5, boltY - 0.5, 1, 1, '#666'); // Porca
                     }
-                    // Movimento animado
-                    const seesawAngle = Math.sin(Date.now() / 1200) * 0.15;
+
+                    // Eixo central com rolamento
+                    drawRect(cx - 3, y + 8, 6, 6, '#c0c0c0'); // Mancal maior
+                    drawRect(cx - 2, y + 9, 4, 4, '#e0e0e0'); // Interior
+                    drawCircle(cx, y + 11, 2.5, '#silver'); // Rolamento exterior
+                    drawCircle(cx, y + 11, 1.5, '#c0c0c0'); // Rolamento interior
+
+                    // Pranchas de madeira com textura aprimorada
+                    // Prancha esquerda
+                    drawRect(cx - 18, y + 6, 16, 5, s.col);
+                    drawRect(cx - 17, y + 7, 14, 3, '#8d6e63');
+                    // Prancha direita
+                    drawRect(cx, y + 6, 16, 5, s.col);
+                    drawRect(cx + 1, y + 7, 14, 3, '#8d6e63');
+
+                    // Textura de madeira mais detalhada
+                    for(let i = 0; i < 8; i++) {
+                        const grainY = y + 7.5 + i * 0.4;
+                        if (i % 2 === 0) {
+                            drawRect(cx - 17, grainY, 14, 0.2, '#a1887f'); // Vênulas escuras
+                            drawRect(cx + 1, grainY, 14, 0.2, '#a1887f');
+                        } else {
+                            drawRect(cx - 17, grainY, 14, 0.1, '#795548'); // Vênulas mais escuras
+                            drawRect(cx + 1, grainY, 14, 0.1, '#795548');
+                        }
+                    }
+
+                    // Apoios para mãos (pegadores)
+                    drawRect(cx - 4, y + 8, 2, 3, '#666'); // Pegador esquerdo
+                    drawRect(cx - 3, y + 9, 1, 1, '#c0c0c0');
+                    drawRect(cx + 2, y + 8, 2, 3, '#666'); // Pegador direito
+                    drawRect(cx + 2, y + 9, 1, 1, '#c0c0c0');
+
+                    // Movimento animado mais suave
+                    const seesawAngle = Math.sin(Date.now() / 1200) * 0.12; // Ângulo menor
                     ctx.save();
-                    ctx.translate(scx, sy + 10);
+                    ctx.translate(scx, sy + 11);
                     ctx.rotate(seesawAngle);
-                    drawRect(-16, -4, 14, 4, s.col);
-                    drawRect(2, -4, 14, 4, s.col);
+
+                    // Pranchas animadas com detalhes
+                    drawRect(-18, -5, 16, 5, s.col);
+                    drawRect(0, -5, 16, 5, s.col);
+                    // Adicionar pegadores nas pranchas animadas
+                    drawRect(-4, -3, 2, 3, '#666');
+                    drawRect(2, -3, 2, 3, '#666');
+
                     ctx.restore();
-                    // Sombras dinâmicas
-                    const shadowOffset = seesawAngle * 20;
-                    drawEllipse(cx - 8 + shadowOffset, y + 18, 10, 3, 'rgba(0, 0, 0, 0.2)');
-                    drawEllipse(cx + 8 + shadowOffset, y + 18, 10, 3, 'rgba(0, 0, 0, 0.2)');
+
+                    // Sombras dinâmicas mais realistas
+                    const shadowOffset = seesawAngle * 25;
+                    drawEllipse(cx - 10 + shadowOffset, y + 20, 12, 4, 'rgba(0, 0, 0, 0.25)');
+                    drawEllipse(cx + 6 + shadowOffset, y + 20, 12, 4, 'rgba(0, 0, 0, 0.25)');
+
+                    // Placas de segurança nas bases
+                    drawRect(cx - 22, y + 18, 4, 2, '#ff5722'); // Aviso vermelho esquerdo
+                    drawRect(cx + 18, y + 18, 4, 2, '#ff5722'); // Aviso vermelho direito
+                    drawText('!', cx - 20, y + 19, 0.8, '#fff');
+                    drawText('!', cx + 20, y + 19, 0.8, '#fff');
+
                     break;
 
                 case 'dollhouse':
@@ -4249,24 +4833,51 @@
                     }
                     break;
 
-                case 'floor_lamp':
+                case 'floor_lamp': // Luminária de Piso com Estado de Energia
+                    // Base pesada
+                    drawRect(cx - 3, y + 16, 6, 2, '#424242');
+
+                    // Haste vertical
                     drawRect(cx - 2, y + 16, 4, s.h - 16, '#212121');
-                    drawRect(cx - 8, floorY - 2, 16, 2, '#212121'); 
+                    drawRect(cx - 1.5, y + 17, 3, s.h - 18, '#666');
+
+                    // Braço horizontal
+                    drawRect(cx - 8, y, 16, 2, '#212121');
+                    drawRect(cx - 7.5, y + 0.5, 15, 1, '#666');
+
+                    // Abajur (difusor)
                     ctx.fillStyle = s.col;
                     ctx.beginPath();
-                    ctx.moveTo(scx - 8, sy);      
-                    ctx.lineTo(scx + 8, sy);      
-                    ctx.lineTo(scx + 12, sy + 16); 
-                    ctx.lineTo(scx - 12, sy + 16); 
+                    ctx.moveTo(scx - 8, sy);
+                    ctx.lineTo(scx + 8, sy);
+                    ctx.lineTo(scx + 12, sy + 16);
+                    ctx.lineTo(scx - 12, sy + 16);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
-                    ctx.beginPath();
-                    ctx.moveTo(scx - 12, sy + 16);
-                    ctx.lineTo(scx + 12, sy + 16);
-                    ctx.lineTo(scx + 20, sy + 60);
-                    ctx.lineTo(scx - 20, sy + 60);
-                    ctx.fill();
+
+                    // Moldura do abajur
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                    // Efeito de luz - só quando ligada
+                    if (floorLampOn) {
+                        ctx.fillStyle = 'rgba(255, 235, 59, 0.4)';
+                        ctx.beginPath();
+                        ctx.moveTo(scx - 12, sy + 16);
+                        ctx.lineTo(scx + 12, sy + 16);
+                        ctx.lineTo(scx + 20, sy + 60);
+                        ctx.lineTo(scx - 20, sy + 60);
+                        ctx.fill();
+
+                        // Filamento visível
+                        drawCircle(cx, y + 8, 0.3, '#ffff88');
+                    }
+
+                    // Interruptor na base
+                    let floorSwitchColor = floorLampOn ? '#4caf50' : '#ff5722';
+                    drawCircle(cx, y + 17.5, 0.4, floorSwitchColor);
+
                     break;
 
                 case 'sofa':
@@ -4409,10 +5020,10 @@
                     break;
 
                 case 'chair':
-                    drawRect(left + 3, y + s.h/2, s.w - 6, 4, '#3e2723'); 
-                    drawRect(left + 3, y, 3, s.h, '#5d4037'); 
-                    drawLine(left + 3, y + 5, left + s.w - 3, y + 5, 2, '#5d4037'); 
-                    drawRect(right - 5, y + s.h/2, 3, s.h/2, '#5d4037'); 
+                    drawRect(left + 3, y + s.h/2, s.w - 6, 4, '#3e2723');
+                    drawRect(left + 3, y, 3, s.h, '#5d4037');
+                    drawLine(left + 3, y + 5, left + s.w - 3, y + 5, 2, '#5d4037');
+                    drawRect(right - 5, y + s.h/2, 3, s.h/2, '#5d4037');
                     break;
 
                 case 'bed':
@@ -4581,10 +5192,38 @@
                     drawRect(cx - 4, y + 30, 8, s.h - 38, '#bdbdbd'); 
                     break;
 
-                case 'street_lamp':
-                    drawRect(cx - 1, y, 2, s.h, '#212121'); 
-                    drawRect(cx - 5, y, 10, 12, '#212121');
-                    drawRect(cx - 3, y + 2, 6, 8, '#ffeb3b'); 
+                case 'street_lamp': // Poste de Luz com Estado
+                    // Poste vertical
+                    drawRect(cx - 1, y, 2, s.h, '#212121');
+                    drawRect(cx - 0.8, y + 1, 1.6, s.h - 2, '#666');
+
+                    // Braço horizontal
+                    drawRect(cx - 5, y + 4, 10, 2, '#212121');
+                    drawRect(cx - 4.5, y + 4.5, 9, 1, '#666');
+
+                    // Luminária
+                    drawRect(cx - 4, y + 2, 8, 3, '#424242');
+
+                    // Bulbo e luz - só quando ligado
+                    if (streetLampOn) {
+                        drawCircle(cx, y + 3.5, 1, '#ffeb3b'); // Bulbo
+                        drawCircle(cx, y + 3.5, 0.6, '#ffffff'); // Centro brilhante
+
+                        // Feixe de luz para baixo
+                        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+                        ctx.beginPath();
+                        ctx.moveTo(cx - 6, y + 6);
+                        ctx.lineTo(cx + 6, y + 6);
+                        ctx.lineTo(cx + 12, y + 20);
+                        ctx.lineTo(cx - 12, y + 20);
+                        ctx.fill();
+                    } else {
+                        drawCircle(cx, y + 3.5, 1, '#666'); // Bulbo apagado
+                    }
+
+                    // Cabo elétrico
+                    drawLine(cx + 2, y + 6, cx + 8, y + 6, 0.5, '#000');
+
                     break;
 
                 case 'garden_bench':
@@ -4997,35 +5636,88 @@
                     }
                     break;
 
-                case 'piano':
-                    // Estrutura principal do piano
-                    drawRect(left, y + 16, s.w, 8, s.col);
-                    // Corpo inferior
-                    drawRect(left + 2, y + 8, s.w - 4, 8, '#3e2723');
-                    // Tampa superior
-                    drawRect(left + 4, y, s.w - 8, 8, '#5d4037');
-                    // Teclas brancas (88 teclas em 7 oitavas)
+                case 'piano': // Piano Melhorado com Mais Detalhes
+                    // Estrutura principal de madeira polida
+                    drawRect(left, y + 16, s.w, 8, '#8d6e63'); // Base inferior
+                    drawRect(left + 1, y + 17, s.w - 2, 6, '#a1887f'); // Revestimento
+
+                    // Corpo principal (caixa de ressonância)
+                    drawRect(left + 2, y + 8, s.w - 4, 8, '#5d4037');
+                    drawRect(left + 3, y + 9, s.w - 6, 6, '#8d6e63');
+
+                    // Tampa superior articulada
+                    drawRect(left + 4, y, s.w - 8, 8, '#3e2723');
+                    drawRect(left + 5, y + 1, s.w - 10, 6, '#5d4037');
+
+                    // Dobradiça da tampa
+                    drawCircle(left + 6, y + 4, 0.5, '#c0c0c0');
+                    drawCircle(right - 6, y + 4, 0.5, '#c0c0c0');
+
+                    // Teclado completo
+                    // Teclas brancas (88 teclas, mostrando apenas 24 visíveis)
                     for(let i = 0; i < 24; i++) {
                         const keyX = left + 6 + i * 1.2;
-                        drawRect(keyX, y + 16, 1, 6, '#ffffff');
-                        drawRect(keyX, y + 17, 1, 1, '#e0e0e0');
+                        drawRect(keyX, y + 16, 1.1, 6, '#ffffff');
+                        // Reflexo sutil
+                        drawRect(keyX, y + 17, 1.1, 1, '#f5f5f5');
+                        // Sombra inferior
+                        drawRect(keyX, y + 21, 1.1, 1, '#e0e0e0');
                     }
+
                     // Teclas pretas (bem temperadas)
                     for(let i = 0; i < 20; i++) {
                         if(i % 7 !== 2 && i % 7 !== 6) { // Padrão de teclas pretas
                             const blackKeyX = left + 7.4 + i * 1.2;
                             drawRect(blackKeyX, y + 16, 0.8, 4, '#000000');
+                            // Brilho nas teclas pretas
+                            drawRect(blackKeyX, y + 16, 0.8, 0.5, '#333333');
                         }
                     }
-                    // Pedais
-                    drawRect(cx - 8, y + 22, 3, 2, '#c0c0c0');
-                    drawRect(cx - 3, y + 22, 3, 2, '#c0c0c0');
-                    drawRect(cx + 2, y + 22, 3, 2, '#c0c0c0');
-                    // Detalhes ornamentais
-                    drawRect(left + 6, y + 2, s.w - 12, 1, '#8d6e63');
-                    // Partitura sobre o piano
-                    drawRect(cx - 4, y - 6, 8, 4, '#f5f5f5');
-                    drawRect(cx - 3, y - 5, 6, 1, '#000000');
+
+                    // Mecanismo interno visível (parcialmente)
+                    for(let i = 0; i < 8; i++) {
+                        drawRect(left + 8 + i * 2, y + 12, 0.5, 4, '#c0c0c0');
+                    }
+
+                    // Pedais com detalhes
+                    drawRect(cx - 8, y + 22, 3, 2, '#c0c0c0'); // Sustain (direito)
+                    drawRect(cx - 8, y + 23, 3, 0.5, '#e0e0e0');
+                    drawCircle(cx - 6.5, y + 22.5, 0.3, '#666');
+
+                    drawRect(cx - 3, y + 22, 3, 2, '#c0c0c0'); // Soft (meio)
+                    drawRect(cx - 3, y + 23, 3, 0.5, '#e0e0e0');
+                    drawCircle(cx - 1.5, y + 22.5, 0.3, '#666');
+
+                    drawRect(cx + 2, y + 22, 3, 2, '#c0c0c0'); // Una corda (esquerdo)
+                    drawRect(cx + 2, y + 23, 3, 0.5, '#e0e0e0');
+                    drawCircle(cx + 3.5, y + 22.5, 0.3, '#666');
+
+                    // Detalhes ornamentais na madeira
+                    drawRect(left + 6, y + 2, s.w - 12, 1, '#8d6e63'); // Moldura superior
+                    drawRect(left + 6, y + 6, s.w - 12, 0.5, '#a1887f'); // Detalhe
+
+                    // Partitura sobre o piano (folhas musicais)
+                    drawRect(cx - 5, y - 6, 10, 4, '#f5f5f5'); // Papel
+                    drawRect(cx - 4, y - 5, 8, 0.5, '#000000'); // Pauta superior
+                    drawRect(cx - 4, y - 4, 8, 0.5, '#000000'); // Pauta inferior
+                    drawRect(cx - 4, y - 3, 8, 0.5, '#000000'); // Pauta média
+
+                    // Notas musicais simples
+                    drawCircle(cx - 3, y - 4.5, 0.3, '#000000');
+                    drawCircle(cx - 1, y - 3.5, 0.3, '#000000');
+                    drawCircle(cx + 1, y - 4.5, 0.3, '#000000');
+
+                    // Suporte do piano (pernas)
+                    drawRect(left + 6, y + 24, 3, 4, '#5d4037');
+                    drawRect(right - 9, y + 24, 3, 4, '#5d4037');
+
+                    // Etiqueta de marca
+                    drawRect(cx - 3, y + 1, 6, 1, '#daa520');
+                    drawText('STEINWAY', cx - 2.5, y + 2, 0.6, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkPiano = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y - 2, 0.8, `rgba(139, 69, 19, ${blinkPiano})`);
                     break;
 
                 case 'violin':
@@ -5258,30 +5950,6 @@
                     drawRect(cx + 6, y - 5, 2, 5, '#ff5722'); // Vinho
                     break;
 
-                case 'bar_stools':
-                    // Assento circular
-                    ctx.fillStyle = s.col;
-                    ctx.beginPath();
-                    ctx.arc(scx, sy + 6, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Encosto
-                    drawRect(cx - 1, y + 2, 2, 4, '#616161');
-                    drawRect(cx - 2, y, 4, 2, '#757575');
-                    // Pernas
-                    drawRect(cx - 2.5, y + 8, 1, 4, '#424242');
-                    drawRect(cx - 0.5, y + 8, 1, 4, '#424242');
-                    drawRect(cx + 1.5, y + 8, 1, 4, '#424242');
-                    // Base circular
-                    ctx.fillStyle = '#c0c0c0';
-                    ctx.beginPath();
-                    ctx.arc(scx, sy + 12, 2.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Detalhes do assento
-                    ctx.fillStyle = '#e0e0e0';
-                    ctx.beginPath();
-                    ctx.arc(scx, sy + 6, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    break;
 
                 case 'beer_taps':
                     // Estrutura metálica
@@ -5544,16 +6212,16 @@
                     // Tacos apoiados
                     drawRect(cx + 12, y + 8, 1, 8, '#8d6e63'); // Taco 1
                     drawRect(cx + 14, y + 6, 1, 10, '#8d6e63'); // Taco 2
-                    // Pernas da mesa
-                    drawRect(left + 4, y + s.h, 2, 3, '#8d6e63');
-                    drawRect(right - 6, y + s.h, 2, 3, '#8d6e63');
-                    drawRect(cx - 1, y + s.h, 2, 3, '#8d6e63');
+                    // Pernas da mesa (mais longas)
+                    drawRect(left + 4, y + s.h, 2, 5, '#8d6e63');
+                    drawRect(right - 6, y + s.h, 2, 5, '#8d6e63');
+                    drawRect(cx - 1, y + s.h, 2, 5, '#8d6e63');
 
-                    // Pequenos pés da mesa (um pouco acima do chão)
+                    // Pequenos pés da mesa (mais altos do chão)
                     const footHeight = 2;
-                    const footOffset = 1; // Espaço entre a perna e o pé
-                    drawRect(left + 3, y + s.h + 3 + footOffset, 4, footHeight, '#654321'); // Pé esquerdo
-                    drawRect(right - 7, y + s.h + 3 + footOffset, 4, footHeight, '#654321'); // Pé direito
+                    const footOffset = 3; // Maior espaço entre a perna e o pé
+                    drawRect(left + 3, y + s.h + 5 + footOffset, 4, footHeight, '#654321'); // Pé esquerdo
+                    drawRect(right - 7, y + s.h + 5 + footOffset, 4, footHeight, '#654321'); // Pé direito
                     drawRect(cx - 2, y + s.h + 3 + footOffset, 4, footHeight, '#654321'); // Pé central
 
                     // Indicador visual de interatividade
@@ -5625,101 +6293,295 @@
                     }
                     break;
 
-                case 'clothing_rack':
-                    // Estrutura tubular metálica
-                    drawRect(cx - 1, y, 2, s.h, '#c0c0c0');
-                    // Barras transversais
-                    drawRect(cx - 8, y + 4, 16, 2, '#a0a0a0');
-                    drawRect(cx - 8, y + 10, 16, 2, '#a0a0a0');
-                    drawRect(cx - 8, y + 16, 16, 2, '#a0a0a0');
-                    // Roupas penduradas
-                    for(let i = 0; i < 6; i++) {
-                        const clothX = cx - 7 + i * 2.5;
-                        const clothType = Math.floor(Math.random() * 4);
-                        // Cabides
-                        drawRect(clothX - 0.5, y + 5 + (i % 3) * 6, 1, 0.5, '#424242');
-                        // Roupas
-                        if(clothType === 0) { // Camisa
-                            drawRect(clothX - 1, y + 5.5 + (i % 3) * 6, 2, 3, '#ff5722');
-                            drawRect(clothX - 0.5, y + 8.5 + (i % 3) * 6, 1, 1, '#fff'); // Manga
-                        } else if(clothType === 1) { // Calça
-                            drawRect(clothX - 1, y + 5.5 + (i % 3) * 6, 2, 4, '#2196f3');
-                        } else if(clothType === 2) { // Vestido
-                            drawRect(clothX - 1.5, y + 5.5 + (i % 3) * 6, 3, 4, '#e91e63');
-                        } else { // Jaqueta
-                            drawRect(clothX - 1.5, y + 5.5 + (i % 3) * 6, 3, 3, '#4caf50');
-                            drawRect(clothX - 1, y + 8.5 + (i % 3) * 6, 1.5, 1, '#8d6e63'); // Manga
+                case 'clothing_rack': // Cabideiro de Roupas Detalhado
+                    // Estrutura tubular metálica principal (mais robusta)
+                    drawRect(cx - 1.5, y, 3, s.h, '#c0c0c0'); // Poste central mais grosso
+                    drawRect(cx - 1, y + 1, 2, s.h - 2, '#e0e0e0'); // Interior mais claro
+
+                    // Barras horizontais para cabides (4 níveis)
+                    for(let level = 0; level < 4; level++) {
+                        const barY = y + 3 + level * 3;
+                        const barLength = level % 2 === 0 ? 18 : 16; // Barras alternadas
+                        const barOffset = level % 2 === 0 ? -9 : -8;
+
+                        drawRect(cx + barOffset, barY, barLength, 2, '#a0a0a0');
+                        drawRect(cx + barOffset + 1, barY + 1, barLength - 2, 0.5, '#c0c0c0'); // Reflexo
+                    }
+
+                    // Suportes diagonais para estabilidade
+                    drawLine(cx - 1.5, y + 2, cx - 6, y + 6, 2, '#a0a0a0'); // Suporte esquerdo
+                    drawLine(cx + 1.5, y + 2, cx + 6, y + 6, 2, '#a0a0a0'); // Suporte direito
+
+                    // Roupas penduradas com mais detalhes
+                    const clothes = [
+                        { type: 'shirt', color: '#ff5722', width: 2, height: 3 },
+                        { type: 'pants', color: '#2196f3', width: 2, height: 4 },
+                        { type: 'dress', color: '#e91e63', width: 3, height: 4 },
+                        { type: 'jacket', color: '#4caf50', width: 3, height: 3 },
+                        { type: 'skirt', color: '#9c27b0', width: 2.5, height: 2.5 },
+                        { type: 'blouse', color: '#ff9800', width: 2, height: 2.5 }
+                    ];
+
+                    for(let i = 0; i < 8; i++) {
+                        const clothX = cx - 7 + i * 2.2;
+                        const level = i % 4;
+                        const clothY = y + 5 + level * 3;
+                        const cloth = clothes[i % clothes.length];
+
+                        // Cabide (mais detalhado)
+                        drawRect(clothX - 0.8, clothY - 0.5, 1.6, 0.3, '#424242'); // Arco do cabide
+                        drawRect(clothX - 0.2, clothY - 0.8, 0.4, 0.5, '#666'); // Gancho
+
+                        // Roupa com detalhes específicos por tipo
+                        drawRect(clothX - cloth.width/2, clothY, cloth.width, cloth.height, cloth.color);
+
+                        // Detalhes específicos por tipo de roupa
+                        if (cloth.type === 'shirt' || cloth.type === 'blouse') {
+                            // Mangas
+                            drawRect(clothX - cloth.width/2 + 0.2, clothY + cloth.height - 0.8, 0.6, 0.8, '#fff');
+                            drawRect(clothX + cloth.width/2 - 0.8, clothY + cloth.height - 0.8, 0.6, 0.8, '#fff');
+                            // Gola
+                            drawRect(clothX - 0.3, clothY, 0.6, 0.3, '#fff');
+                        } else if (cloth.type === 'jacket') {
+                            // Zíper ou botões
+                            drawRect(clothX - 0.1, clothY + 0.5, 0.2, cloth.height - 1, '#c0c0c0');
+                            // Mangas
+                            drawRect(clothX - cloth.width/2 + 0.2, clothY + cloth.height - 0.8, 0.6, 0.8, cloth.color);
+                            drawRect(clothX + cloth.width/2 - 0.8, clothY + cloth.height - 0.8, 0.6, 0.8, cloth.color);
+                        } else if (cloth.type === 'dress') {
+                            // Cintura
+                            drawRect(clothX - cloth.width/2 + 0.5, clothY + cloth.height/2, cloth.width - 1, 0.3, '#fff');
                         }
                     }
-                    // Rodinhas na base
-                    drawCircle(cx - 6, y + s.h, 1, '#silver');
-                    drawCircle(cx + 6, y + s.h, 1, '#silver');
+
+                    // Base com rodinhas (4 rodinhas)
+                    let rackWheelPositions = [-8, -3, 3, 8];
+                    rackWheelPositions.forEach(wheelX => {
+                        drawCircle(cx + wheelX, y + s.h, 1.2, '#silver'); // Rodinha externa
+                        drawCircle(cx + wheelX, y + s.h, 0.6, '#424242'); // Centro da rodinha
+                        drawRect(cx + wheelX - 0.8, y + s.h - 0.2, 1.6, 0.4, '#666'); // Eixo
+                    });
+
+                    // Etiqueta de preço em um dos cabides
+                    drawRect(cx - 5, y + 5, 2, 1, '#fff');
+                    drawText('$49', cx - 4.5, y + 5.8, 0.6, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkRack = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(255, 193, 7, ${blinkRack})`);
                     break;
 
-                case 'cash_register':
-                    // Corpo principal
-                    drawRoundRect(left, y + 4, s.w, 6, 2, s.col);
-                    // Gaveta de dinheiro
-                    drawRect(left + 1, y + 2, s.w - 2, 2, '#424242');
-                    drawRect(left + 2, y + 1, 2, 3, '#silver'); // Puxador
-                    // Tela digital
-                    drawRect(cx - 3, y, 6, 3, '#000');
-                    drawRect(cx - 2.5, y + 0.5, 5, 2, '#001122');
-                    drawText('R$ 0.00', cx - 2, y + 1.5, 1, '#00ff00');
-                    // Teclado
+                case 'cash_register': // Caixa Registradora com Balcão
+                    // Primeiro desenhar o balcão/suporte (sempre visível)
+                    drawRect(left - 2, y + 8, s.w + 4, 4, '#8d6e63'); // Balcão de madeira
+                    drawRect(left, y + 10, s.w, 2, '#a1887f'); // Superfície superior
+                    drawRect(left - 1, y + 12, s.w + 2, 1, '#5d4037'); // Sombra inferior
+
+                    // Pernas do balcão
+                    drawRect(left + 2, y + 12, 2, 4, '#5d4037'); // Perna esquerda
+                    drawRect(right - 4, y + 12, 2, 4, '#5d4037'); // Perna direita
+
+                    // Corpo principal da caixa registradora
+                    drawRoundRect(left, y + 4, s.w, 6, 2, '#e0e0e0'); // Corpo branco
+                    drawRoundRect(left + 1, y + 5, s.w - 2, 4, 1, '#f5f5f5'); // Interior
+
+                    // Gaveta de dinheiro (mais detalhada)
+                    drawRect(left + 1, y + 2, s.w - 2, 2.5, '#424242'); // Gaveta externa
+                    drawRect(left + 2, y + 2.5, s.w - 4, 1.5, '#212121'); // Interior da gaveta
+
+                    // Puxador da gaveta
+                    drawRect(left + 2, y + 1, 2, 3.5, '#silver'); // Puxador cromado
+                    drawRect(left + 2.3, y + 1.3, 1.4, 3, '#e0e0e0'); // Interior do puxador
+
+                    // Tela digital LCD
+                    drawRect(cx - 3, y, 6, 3, '#000'); // Moldura
+                    drawRect(cx - 2.5, y + 0.3, 5, 2.4, '#001122'); // Tela azul
+                    drawText('$0.00', cx - 2, y + 1.5, 1, '#00ff00'); // Valor
+
+                    // Teclado numérico (4x3)
+                    const keyLabels = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '0', '.', 'C'];
+                    let keyIndex = 0;
+
                     for(let row = 0; row < 4; row++) {
                         for(let col = 0; col < 3; col++) {
-                            const keyX = left + 2 + col * 2.5;
-                            const keyY = y + 6 + row * 1.5;
-                            drawRect(keyX, keyY, 2, 1.2, '#f0f0f0');
-                            drawRect(keyX + 0.2, keyY + 0.2, 1.6, 0.8, '#e0e0e0');
+                            if (keyIndex < keyLabels.length) {
+                                const keyX = left + 2 + col * 2.5;
+                                const keyY = y + 6 + row * 1.5;
+
+                                // Tecla
+                                drawRect(keyX, keyY, 2, 1.2, '#f0f0f0'); // Fundo
+                                drawRect(keyX + 0.2, keyY + 0.2, 1.6, 0.8, '#e0e0e0'); // Interior
+                                drawRect(keyX + 0.3, keyY + 0.3, 1.4, 0.6, '#fff'); // Destaque
+
+                                // Número na tecla
+                                drawText(keyLabels[keyIndex], keyX + 1, keyY + 0.9, 0.8, '#000');
+                                keyIndex++;
+                            }
                         }
                     }
-                    // Leitor de cartão
-                    drawRect(cx + 3, y + 8, 3, 2, '#212121');
-                    // Luz de status
-                    drawCircle(cx + 5, y + 1, 0.5, '#00ff00');
+
+                    // Leitor de cartão (maquininha)
+                    drawRect(cx + 3, y + 8, 3, 2, '#212121'); // Corpo
+                    drawRect(cx + 3.5, y + 8.5, 2, 0.5, '#666'); // Fenda do cartão
+                    drawRect(cx + 3.2, y + 9.2, 2.6, 0.5, '#000'); // Tela pequena
+
+                    // Luz de status (LED)
+                    const statusLed = Math.sin(Date.now() / 1000) > 0 ? '#00ff00' : '#004400';
+                    drawCircle(cx + 5, y + 1, 0.5, statusLed);
+
+                    // Cabo de energia
+                    drawLine(cx - 4, y + 10, cx - 4, y + 14, 0.5, '#000');
+                    drawCircle(cx - 4, y + 14, 0.5, '#silver'); // Plug
+
+                    // Etiqueta de preço na lateral
+                    drawRect(left - 1, y + 6, 1, 2, '#fff');
+                    drawText('$', left - 0.8, y + 7, 0.8, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkRegister = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(0, 255, 0, ${blinkRegister})`);
                     break;
 
-                case 'mannequins':
-                    // Corpo básico
-                    drawRect(cx - 2, y + 4, 4, 8, s.col);
-                    // Cabeça
-                    drawCircle(cx, y + 2, 2, s.col);
-                    // Braços
-                    drawRect(cx - 4, y + 6, 2, 6, s.col);
-                    drawRect(cx + 2, y + 6, 2, 6, s.col);
-                    // Pernas
-                    drawRect(cx - 1.5, y + 12, 1.5, 4, s.col);
-                    drawRect(cx, y + 12, 1.5, 4, s.col);
-                    // Roupas no manequim
-                    drawRect(cx - 2.5, y + 4, 5, 3, '#e91e63'); // Blusa
-                    drawRect(cx - 2, y + 7, 4, 5, '#2196f3'); // Calça
-                    // Detalhes faciais
-                    drawCircle(cx - 0.5, y + 1.5, 0.3, '#000'); // Olho esquerdo
-                    drawCircle(cx + 0.5, y + 1.5, 0.3, '#000'); // Olho direito
-                    drawRect(cx - 0.5, y + 3, 1, 0.3, '#c2185b'); // Boca
-                    // Cabelo
-                    drawEllipse(cx, y, 2.5, 1.5, '#8d6e63');
-                    // Base de metal
-                    drawRect(cx - 1, y + 16, 2, 2, '#c0c0c0');
+                case 'mannequins': // Mannequins Detalhados
+                    // Corpo principal (mais estilizado)
+                    drawRect(cx - 2, y + 4, 4, 8, '#f5f5f5'); // Corpo branco fosco
+                    drawRect(cx - 1.5, y + 5, 3, 6, '#fafafa'); // Interior
+
+                    // Cabeça oval (mais realista)
+                    drawEllipse(cx, y + 2, 1.8, 2.2, '#f5f5f5');
+
+                    // Braços articulados
+                    drawRect(cx - 4, y + 5, 2, 5, '#f5f5f5'); // Braço esquerdo
+                    drawRect(cx + 2, y + 5, 2, 5, '#f5f5f5'); // Braço direito
+                    // Cotovelos
+                    drawCircle(cx - 3, y + 7.5, 0.3, '#e0e0e0');
+                    drawCircle(cx + 3, y + 7.5, 0.3, '#e0e0e0');
+
+                    // Pernas (mais finas)
+                    drawRect(cx - 1.2, y + 12, 1.2, 4, '#f5f5f5'); // Perna esquerda
+                    drawRect(cx - 0.2, y + 12, 1.2, 4, '#f5f5f5'); // Perna direita
+                    // Joelhos
+                    drawCircle(cx - 0.6, y + 14, 0.3, '#e0e0e0');
+                    drawCircle(cx + 0.6, y + 14, 0.3, '#e0e0e0');
+
+                    // Roupas no manequim (conjunto completo)
+                    // Blusa/camiseta
+                    drawRect(cx - 2.8, y + 4.5, 5.6, 3.2, '#ff5722');
+                    drawRect(cx - 2.2, y + 6, 4.4, 0.8, '#fff'); // Barra inferior
+                    // Mangas
+                    drawRect(cx - 3.2, y + 4.5, 1, 2, '#ff5722');
+                    drawRect(cx + 2.2, y + 4.5, 1, 2, '#ff5722');
+
+                    // Calça
+                    drawRect(cx - 2.2, y + 7.2, 4.4, 5, '#2196f3');
+                    drawRect(cx - 1.8, y + 9, 3.6, 0.4, '#1976d2'); // Cintura
+                    // Pernas da calça
+                    drawRect(cx - 1.8, y + 9.4, 1.6, 2.8, '#2196f3');
+                    drawRect(cx + 0.2, y + 9.4, 1.6, 2.8, '#2196f3');
+
+                    // Detalhes faciais minimalistas
+                    drawCircle(cx - 0.4, y + 1.8, 0.2, '#000'); // Olho esquerdo
+                    drawCircle(cx + 0.4, y + 1.8, 0.2, '#000'); // Olho direito
+                    drawRect(cx - 0.3, y + 3.2, 0.6, 0.2, '#c2185b'); // Boca
+
+                    // Cabelo estilizado
+                    drawEllipse(cx, y + 0.5, 2, 1, '#8d6e63');
+                    drawEllipse(cx - 0.5, y + 0.2, 1, 0.8, '#5d4037'); // Mecha
+
+                    // Base de metal com ajuste de altura
+                    drawRect(cx - 1.5, y + 16, 3, 2, '#c0c0c0'); // Base circular
+                    drawRect(cx - 1, y + 17, 2, 1, '#e0e0e0'); // Centro
+                    drawRect(cx - 0.5, y + 16.5, 1, 1.5, '#666'); // Pino de ajuste
+
+                    // Etiqueta de preço
+                    drawRect(cx - 1, y + 6, 2, 1, '#fff');
+                    drawText('$89', cx - 0.8, y + 6.8, 0.6, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkMannequin = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y, 0.8, `rgba(255, 105, 180, ${blinkMannequin})`);
                     break;
 
-                case 'fitting_rooms':
-                    // Estrutura das cabines
-                    drawRect(left, y, s.w, s.h, s.col);
-                    // Divisórias internas
-                    drawRect(cx - 1, y, 2, s.h, '#e0e0e0');
-                    drawRect(cx - 8, y, 2, s.h, '#e0e0e0');
-                    drawRect(cx + 6, y, 2, s.h, '#e0e0e0');
-                    // Cortinas
-                    drawRect(cx - 9, y + 2, 1, s.h - 2, '#9c27b0');
-                    drawRect(cx - 2, y + 2, 1, s.h - 2, '#ff5722');
-                    drawRect(cx + 7, y + 2, 1, s.h - 2, '#2196f3');
-                    // Números das cabines
-                    drawText('1', cx - 6.5, y + 4, 2, '#000');
-                    drawText('2', cx + 0.5, y + 4, 2, '#000');
-                    drawText('3', cx + 8.5, y + 4, 2, '#000');
+                case 'fitting_rooms': // Cabines de Prova Detalhadas
+                    // Estrutura principal das cabines (parede de fundo)
+                    drawRect(left, y, s.w, s.h, '#e8e8e8'); // Parede bege clara
+
+                    // Divisórias internas (painéis divisórios)
+                    drawRect(cx - 1, y, 2, s.h, '#d0d0d0'); // Divisória central
+                    drawRect(cx - 1.5, y + 1, 3, s.h - 2, '#e0e0e0'); // Sombra interna
+
+                    drawRect(cx - 8, y, 2, s.h, '#d0d0d0'); // Divisória esquerda
+                    drawRect(cx - 8.5, y + 1, 3, s.h - 2, '#e0e0e0');
+
+                    drawRect(cx + 6, y, 2, s.h, '#d0d0d0'); // Divisória direita
+                    drawRect(cx + 5.5, y + 1, 3, s.h - 2, '#e0e0e0');
+
+                    // Cortinas com dobras (mais realistas)
+                    // Cabine 1 (esquerda)
+                    ctx.fillStyle = '#9c27b0';
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 9, y + 2);
+                    ctx.quadraticCurveTo(cx - 8.5, y + 5, cx - 9, y + 8);
+                    ctx.quadraticCurveTo(cx - 8.5, y + 11, cx - 9, y + 14);
+                    ctx.lineTo(cx - 9, y + s.h - 2);
+                    ctx.fill();
+
+                    // Cabine 2 (meio)
+                    ctx.fillStyle = '#ff5722';
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 2, y + 2);
+                    ctx.quadraticCurveTo(cx - 1.5, y + 5, cx - 2, y + 8);
+                    ctx.quadraticCurveTo(cx - 1.5, y + 11, cx - 2, y + 14);
+                    ctx.lineTo(cx - 2, y + s.h - 2);
+                    ctx.fill();
+
+                    // Cabine 3 (direita)
+                    ctx.fillStyle = '#2196f3';
+                    ctx.beginPath();
+                    ctx.moveTo(cx + 7, y + 2);
+                    ctx.quadraticCurveTo(cx + 6.5, y + 5, cx + 7, y + 8);
+                    ctx.quadraticCurveTo(cx + 6.5, y + 11, cx + 7, y + 14);
+                    ctx.lineTo(cx + 7, y + s.h - 2);
+                    ctx.fill();
+
+                    // Números das cabines em placas douradas
+                    // Cabine 1
+                    drawRect(cx - 7.5, y + 3, 2, 1.5, '#daa520');
+                    drawText('1', cx - 6.8, y + 4, 1.2, '#000');
+
+                    // Cabine 2
+                    drawRect(cx - 0.5, y + 3, 2, 1.5, '#daa520');
+                    drawText('2', cx + 0.2, y + 4, 1.2, '#000');
+
+                    // Cabine 3
+                    drawRect(cx + 6.5, y + 3, 2, 1.5, '#daa520');
+                    drawText('3', cx + 7.2, y + 4, 1.2, '#000');
+
+                    // Travas/indicadores de ocupado
+                    // Cabine 1 - livre (verde)
+                    drawCircle(cx - 6.5, y + 6, 0.4, '#4caf50');
+                    // Cabine 2 - ocupado (vermelho)
+                    drawCircle(cx + 0.5, y + 6, 0.4, '#f44336');
+                    // Cabine 3 - livre (verde)
+                    drawCircle(cx + 7.5, y + 6, 0.4, '#4caf50');
+
+                    // Espelhos internos (visíveis nas aberturas)
+                    drawRect(cx - 7, y + 8, 0.5, 3, 'rgba(255, 255, 255, 0.7)');
+                    drawRect(cx + 1, y + 8, 0.5, 3, 'rgba(255, 255, 255, 0.7)');
+                    drawRect(cx + 8, y + 8, 0.5, 3, 'rgba(255, 255, 255, 0.7)');
+
+                    // Bancos internos
+                    drawRect(cx - 6, y + s.h - 3, 2, 1, '#8d6e63'); // Banco cabine 1
+                    drawRect(cx + 0, y + s.h - 3, 2, 1, '#8d6e63'); // Banco cabine 2
+                    drawRect(cx + 7, y + s.h - 3, 2, 1, '#8d6e63'); // Banco cabine 3
+
+                    // Placa "Fitting Rooms" acima
+                    drawRect(cx - 6, y - 3, 12, 2, '#8d6e63');
+                    drawText('FITTING ROOMS', cx - 5.5, y - 1.5, 1, '#fff');
+
+                    // Indicador visual de interatividade
+                    const blinkFitting = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(255, 0, 255, ${blinkFitting})`);
                     // Cabides internos
                     drawRect(cx - 7, y + 8, 1, 4, '#c0c0c0');
                     drawRect(cx - 1, y + 8, 1, 4, '#c0c0c0');
@@ -5730,102 +6592,395 @@
                     drawRect(cx + 8, y + 6, 2, 4, 'rgba(255, 255, 255, 0.8)');
                     break;
 
-                case 'shoe_rack':
-                    // Estrutura de madeira
-                    drawRect(left, y, s.w, s.h, s.col);
-                    // Prateleiras
+                case 'shoe_rack': // Rack de Sapatos Detalhado
+                    // Estrutura principal de madeira polida
+                    drawRect(left, y, s.w, s.h, '#d7ccc8'); // Madeira clara
+                    drawRect(left + 1, y + 1, s.w - 2, s.h - 2, '#f5f5f5'); // Interior
+
+                    // Prateleiras com detalhes
                     for(let i = 0; i < 3; i++) {
                         const shelfY = y + 2 + i * 3.5;
-                        drawRect(left + 1, shelfY, s.w - 2, 1, '#8d6e63');
-                        // Sapatos na prateleira
-                        for(let j = 0; j < 4; j++) {
+                        // Prateleira principal
+                        drawRect(left + 1, shelfY, s.w - 2, 1.5, '#8d6e63');
+                        drawRect(left + 2, shelfY + 0.5, s.w - 4, 0.8, '#a1887f');
+
+                        // Sapatos organizados por tipo
+                        const shoesOnShelf = [
+                            { type: 'sneakers', color: '#fff', size: 2.2 },
+                            { type: 'heels', color: '#000', size: 1.8 },
+                            { type: 'boots', color: '#8d6e63', size: 2.5 },
+                            { type: 'sandals', color: '#ff9800', size: 1.5 }
+                        ];
+
+                        for(let j = 0; j < shoesOnShelf.length; j++) {
+                            const shoe = shoesOnShelf[j];
                             const shoeX = left + 2 + j * 4;
-                            const shoeType = Math.floor(Math.random() * 3);
-                            if(shoeType === 0) { // Tênis
-                                drawRect(shoeX, shelfY + 1, 2, 1.5, '#fff');
-                                drawRect(shoeX + 2, shelfY + 1, 1.5, 1.5, '#fff');
-                            } else if(shoeType === 1) { // Salto alto
-                                drawRect(shoeX, shelfY + 1, 2, 2, '#000');
-                                drawRect(shoeX + 0.5, shelfY + 3, 1, 0.5, '#silver');
-                            } else { // Bota
-                                drawRect(shoeX, shelfY + 1, 2, 2.5, '#8d6e63');
-                                drawRect(shoeX + 0.2, shelfY + 3.5, 1.6, 0.5, '#a1887f');
+
+                            if (shoe.type === 'sneakers') {
+                                // Tênis esportivo
+                                drawRect(shoeX, shelfY + 1, shoe.size, 1.5, shoe.color);
+                                drawRect(shoeX + shoe.size, shelfY + 1, shoe.size * 0.8, 1.5, shoe.color);
+                                // Cadarços
+                                drawRect(shoeX + 0.3, shelfY + 1.2, shoe.size - 0.6, 0.3, '#000');
+                                drawRect(shoeX + shoe.size + 0.2, shelfY + 1.2, shoe.size * 0.8 - 0.4, 0.3, '#000');
+                                // Logo
+                                drawRect(shoeX + 0.5, shelfY + 2, 0.5, 0.3, '#ff5722');
+
+                            } else if (shoe.type === 'heels') {
+                                // Salto alto elegante
+                                drawRect(shoeX, shelfY + 1, shoe.size, 2, shoe.color);
+                                // Salto
+                                drawRect(shoeX + 0.3, shelfY + 3, 0.4, 0.8, '#silver');
+                                drawRect(shoeX + shoe.size - 0.7, shelfY + 3, 0.4, 0.8, '#silver');
+                                // Detalhes
+                                drawRect(shoeX + 0.2, shelfY + 1.2, shoe.size - 0.4, 0.3, '#c2185b');
+
+                            } else if (shoe.type === 'boots') {
+                                // Bota estilo cowboy
+                                drawRect(shoeX, shelfY + 1, shoe.size, 2.5, shoe.color);
+                                drawRect(shoeX + 0.2, shelfY + 3.5, shoe.size - 0.4, 0.5, '#a1887f');
+                                // Bico fino
+                                drawRect(shoeX + 0.5, shelfY + 2.5, shoe.size - 1, 0.3, '#5d4037');
+
+                            } else if (shoe.type === 'sandals') {
+                                // Sandália
+                                drawRect(shoeX, shelfY + 1, shoe.size, 0.8, shoe.color);
+                                drawRect(shoeX + 0.3, shelfY + 1.8, 0.3, 0.5, '#8d6e63'); // Correia
+                                drawRect(shoeX + shoe.size - 0.6, shelfY + 1.8, 0.3, 0.5, '#8d6e63');
+                            }
+
+                            // Etiqueta de tamanho
+                            drawRect(shoeX + shoe.size/2 - 0.3, shelfY + 0.5, 0.6, 0.4, '#fff');
+                            drawText(Math.floor(35 + j * 2) + '', shoeX + shoe.size/2 - 0.2, shelfY + 0.7, 0.3, '#000');
+                        }
+                    }
+
+                    // Suportes laterais reforçados
+                    drawRect(left + 2, y, 2, s.h, '#5d4037'); // Lateral esquerda
+                    drawRect(left + 2.5, y + 1, 1, s.h - 2, '#8d6e63');
+                    drawRect(right - 4, y, 2, s.h, '#5d4037'); // Lateral direita
+                    drawRect(right - 3.5, y + 1, 1, s.h - 2, '#8d6e63');
+
+                    // Placa identificadora
+                    drawRect(cx - 4, y - 2, 8, 1.5, '#8d6e63');
+                    drawText('SHOE RACK', cx - 3.5, y - 0.8, 0.8, '#fff');
+
+                    // Etiqueta de preço
+                    drawRect(cx - 2, y + s.h + 1, 4, 1, '#fff');
+                    drawText('FROM $39', cx - 1.5, y + s.h + 1.8, 0.6, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkShoe = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(160, 82, 45, ${blinkShoe})`);
+                    break;
+
+                case 'mirror_wall': // Espelho de Parede Decorativo
+                    // Moldura elegante em madeira dourada
+                    drawRect(left, y, s.w, 3, '#daa520'); // Moldura superior dourada
+                    drawRect(left, y + s.h - 3, s.w, 3, '#daa520'); // Moldura inferior
+                    drawRect(left, y, 3, s.h, '#daa520'); // Lateral esquerda
+                    drawRect(right - 3, y, 3, s.h, '#daa520'); // Lateral direita
+
+                    // Interior da moldura (preto fosco)
+                    drawRect(left + 1, y + 1, s.w - 2, 2, '#424242');
+                    drawRect(left + 1, y + s.h - 3, s.w - 2, 2, '#424242');
+                    drawRect(left + 1, y + 1, 2, s.h - 2, '#424242');
+                    drawRect(right - 3, y + 1, 2, s.h - 2, '#424242');
+
+                    // Superfície espelhada com reflexo realista
+                    drawRect(left + 3, y + 3, s.w - 6, s.h - 6, 'rgba(255, 255, 255, 0.95)');
+
+                    // Reflexos luminosos (como luz ambiente)
+                    // Luz superior esquerda
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.beginPath();
+                    ctx.arc(left + 6, y + 6, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Reflexo inferior direito
+                    ctx.fillStyle = 'rgba(255, 193, 7, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(right - 8, y + s.h - 8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Pessoa refletida (cliente olhando no espelho)
+                    // Corpo
+                    drawRect(cx - 1.5, y + 8, 3, 6, 'rgba(0, 0, 0, 0.3)');
+                    // Cabeça
+                    drawCircle(cx, y + 6, 1.2, 'rgba(0, 0, 0, 0.3)');
+                    // Braços (posição de provar roupa)
+                    drawRect(cx - 3, y + 9, 1.5, 4, 'rgba(0, 0, 0, 0.3)');
+                    drawRect(cx + 1.5, y + 9, 1.5, 4, 'rgba(0, 0, 0, 0.3)');
+
+                    // Reflexos de produtos ao redor
+                    // Cabides refletidos
+                    for(let i = 0; i < 3; i++) {
+                        const refX = left + 8 + i * 4;
+                        drawRect(refX, y + 10, 0.8, 3, 'rgba(139, 69, 19, 0.2)');
+                    }
+
+                    // Detalhes ornamentais na moldura
+                    for(let i = 0; i < Math.floor((s.w - 6) / 6); i++) {
+                        // Superior
+                        drawCircle(left + 6 + i * 6, y + 1.5, 0.4, '#ffd700');
+                        // Inferior
+                        drawCircle(left + 6 + i * 6, y + s.h - 1.5, 0.4, '#ffd700');
+                    }
+
+                    // Laterais
+                    for(let i = 0; i < Math.floor((s.h - 6) / 8); i++) {
+                        drawCircle(left + 1.5, y + 6 + i * 8, 0.4, '#ffd700');
+                        drawCircle(right - 1.5, y + 6 + i * 8, 0.4, '#ffd700');
+                    }
+
+                    // Logo da loja refletido
+                    drawRect(cx - 4, y + 4, 8, 1.5, 'rgba(255, 0, 255, 0.3)');
+                    drawText('Fashion', cx - 3.5, y + 5, 0.8, 'rgba(255, 0, 255, 0.5)');
+
+                    // Indicador visual de interatividade
+                    const blinkMirror = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(255, 215, 0, ${blinkMirror})`);
+                    break;
+
+                case 'display_window': // Vitrine de Exposição Detalhada
+                    // Estrutura externa da vitrine
+                    drawRect(left, y, s.w, s.h, '#f5f5f5');
+
+                    // Moldura elegante em madeira escura
+                    drawRect(left, y, s.w, 3, '#5d4037'); // Superior
+                    drawRect(left, y + s.h - 3, s.w, 3, '#5d4037'); // Inferior
+                    drawRect(left, y, 3, s.h, '#5d4037'); // Esquerda
+                    drawRect(right - 3, y, 3, s.h, '#5d4037'); // Direita
+
+                    // Vidro temperado com reflexo sutil
+                    drawRect(left + 3, y + 3, s.w - 6, s.h - 6, 'rgba(255, 255, 255, 0.85)');
+                    // Reflexo do ambiente
+                    drawRect(left + 4, y + 4, s.w - 8, 2, 'rgba(135, 206, 235, 0.3)');
+
+                    // Manequim principal central (modelo apresentando coleção)
+                    // Corpo estilizado
+                    drawRect(cx - 1.5, y + 7, 3, 6, '#f5f5f5');
+                    drawRect(cx - 1, y + 8, 2, 4, '#fafafa');
+                    // Cabeça oval elegante
+                    drawEllipse(cx, y + 5, 1.2, 1.5, '#f5f5f5');
+                    // Cabelos estilizados
+                    drawEllipse(cx, y + 4, 1.5, 1, '#8d6e63');
+
+                    // Look principal - conjunto elegante
+                    // Blusa/top
+                    drawRect(cx - 3, y + 7.5, 6, 2.5, '#e91e63');
+                    drawRect(cx - 2.5, y + 8.5, 5, 0.8, '#fff'); // Decote
+                    // Saia/calça
+                    drawRect(cx - 2.5, y + 10, 5, 3, '#2196f3');
+                    drawRect(cx - 2, y + 11.5, 4, 0.5, '#1976d2'); // Cintura
+
+                    // Acessórios do manequim principal
+                    // Colar
+                    drawCircle(cx, y + 9, 0.3, '#ffd700');
+                    drawRect(cx - 0.5, y + 9, 1, 0.1, '#ffd700');
+                    // Brincos
+                    drawCircle(cx - 0.8, y + 5.5, 0.15, '#c2185b');
+                    drawCircle(cx + 0.8, y + 5.5, 0.15, '#c2185b');
+
+                    // Manequins laterais (exposições secundárias)
+                    // Esquerda - vestido longo
+                    drawRect(cx - 8, y + 8, 2.5, 5, '#f5f5f5'); // Corpo
+                    drawCircle(cx - 7, y + 6.5, 0.8, '#f5f5f5'); // Cabeça
+                    drawRect(cx - 9.5, y + 8.5, 5, 4, '#4caf50'); // Vestido
+                    drawRect(cx - 9, y + 11, 4, 0.5, '#388e3c'); // Cintura
+
+                    // Direita - look casual
+                    drawRect(cx + 5.5, y + 7, 2.5, 5, '#f5f5f5'); // Corpo
+                    drawCircle(cx + 6.5, y + 5.5, 0.8, '#f5f5f5'); // Cabeça
+                    drawRect(cx + 4, y + 7.5, 5, 2, '#ff9800'); // Blusa
+                    drawRect(cx + 4.5, y + 9.5, 4, 2.5, '#795548'); // Calça jeans
+
+                    // Acessórios diversos na vitrine
+                    // Bolsas
+                    drawRect(cx - 10, y + 10, 1.5, 2, '#8d6e63'); // Bolsa marrom
+                    drawCircle(cx + 8, y + 8, 1, '#ffd700'); // Bolsa dourada
+
+                    // Chapéus/óculos
+                    drawRect(cx + 9, y + 5, 2, 0.8, '#000'); // Chapéu
+                    drawRect(cx - 5, y + 4, 1.5, 0.5, '#000'); // Óculos
+
+                    // Calçados expostos
+                    drawRect(cx - 6, y + 14, 1.5, 1, '#fff'); // Tênis
+                    drawRect(cx + 7, y + 14, 1.2, 1.8, '#000'); // Bota
+
+                    // Letreiro "NEW COLLECTION"
+                    drawRect(cx - 6, y + 1, 12, 2, '#9c27b0');
+                    drawText('NEW COLLECTION', cx - 5.5, y + 2, 0.9, '#fff');
+
+                    // Etiqueta de preço na vitrine
+                    drawRect(cx - 2, y + 13, 4, 1, '#fff');
+                    drawText('$299', cx - 1.5, y + 13.8, 0.7, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkWindow = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(255, 0, 255, ${blinkWindow})`);
+                    break;
+
+                case 'hangers_rack': // Rack de Cabides Industrial
+                    // Estrutura metálica principal
+                    const rackWidth = Math.min(s.w, 20); // Largura limitada
+
+                    // Barra principal cromada
+                    drawRect(cx - rackWidth/2, y + 3, rackWidth, 2.5, '#c0c0c0');
+                    drawRect(cx - rackWidth/2 + 0.5, y + 3.5, rackWidth - 1, 1, '#e0e0e0');
+
+                    // Suportes verticais reforçados
+                    drawRect(cx - rackWidth/2, y, 3, 10, '#424242'); // Esquerdo
+                    drawRect(cx - rackWidth/2 + 1, y + 1, 1, 8, '#616161');
+                    drawRect(cx + rackWidth/2 - 3, y, 3, 10, '#424242'); // Direito
+                    drawRect(cx + rackWidth/2 - 2, y + 1, 1, 8, '#616161');
+
+                    // Base de suporte
+                    drawRect(cx - rackWidth/2 - 1, y + 10, rackWidth + 2, 1.5, '#666');
+                    drawRect(cx - rackWidth/2, y + 11, rackWidth, 0.5, '#999');
+
+                    // Cabides pendurados com variedade
+                    const hangerTypes = ['wire', 'wood', 'plastic', 'metal'];
+                    const hangerColors = ['#c0c0c0', '#8d6e63', '#ff9800', '#424242'];
+
+                    for(let i = 0; i < 10; i++) {
+                        const hangerX = cx - rackWidth/2 + 2 + i * ((rackWidth - 4) / 9);
+                        const hangerType = hangerTypes[i % hangerTypes.length];
+                        const hangerColor = hangerColors[i % hangerColors.length];
+
+                        if (hangerType === 'wire') {
+                            // Cabide de arame fino
+                            drawRect(hangerX, y + 1, 0.3, 2, '#666'); // Gancho fino
+                            drawRect(hangerX - 0.8, y + 3, 1.8, 0.2, '#c0c0c0'); // Corpo
+                            // Curva sutil
+                            drawCircle(hangerX - 0.5, y + 3.1, 0.2, '#c0c0c0');
+
+                        } else if (hangerType === 'wood') {
+                            // Cabide de madeira
+                            drawRect(hangerX, y + 1, 0.4, 2, '#8d6e63'); // Gancho
+                            drawRect(hangerX - 1, y + 3, 2.2, 0.4, '#a1887f'); // Corpo
+                            // Textura de madeira
+                            drawRect(hangerX - 0.8, y + 3.1, 1.8, 0.2, '#795548');
+
+                        } else if (hangerType === 'plastic') {
+                            // Cabide plástico colorido
+                            drawRect(hangerX, y + 1, 0.4, 2, '#666'); // Gancho
+                            drawRect(hangerX - 1, y + 3, 2.2, 0.3, hangerColor); // Corpo
+                            // Brilho plástico
+                            drawRect(hangerX - 0.9, y + 3.1, 2, 0.1, '#fff');
+
+                        } else if (hangerType === 'metal') {
+                            // Cabide metálico pesado
+                            drawRect(hangerX, y + 1, 0.5, 2, '#424242'); // Gancho grosso
+                            drawRect(hangerX - 1.2, y + 3, 2.6, 0.4, '#616161'); // Corpo reforçado
+                            // Detalhes metálicos
+                            drawRect(hangerX - 1, y + 3.2, 2.2, 0.1, '#c0c0c0');
+                        }
+
+                        // Algumas roupas penduradas
+                        if (i % 3 === 0) { // Apenas alguns cabides com roupa
+                            const clothColor = ['#e91e63', '#2196f3', '#4caf50', '#ff9800'][i % 4];
+                            const clothType = i % 4;
+                            const clothY = y + 3.5;
+
+                            if (clothType === 0) { // Camisa
+                                drawRect(hangerX - 1.2, clothY, 2.6, 2, clothColor);
+                            } else if (clothType === 1) { // Calça
+                                drawRect(hangerX - 1, clothY, 2.2, 3, clothColor);
+                            } else if (clothType === 2) { // Vestido
+                                drawRect(hangerX - 1.5, clothY, 3.2, 3.5, clothColor);
+                            } else { // Jaqueta
+                                drawRect(hangerX - 1.8, clothY, 3.8, 2.5, clothColor);
                             }
                         }
                     }
-                    // Suportes laterais
-                    drawRect(left + 2, y, 2, s.h, '#5d4037');
-                    drawRect(right - 4, y, 2, s.h, '#5d4037');
+
+                    // Detalhes dos suportes com rebites
+                    drawCircle(cx - rackWidth/2 + 1.5, y + 1, 0.5, '#silver');
+                    drawCircle(cx - rackWidth/2 + 1.5, y + 4, 0.5, '#silver');
+                    drawCircle(cx + rackWidth/2 - 1.5, y + 1, 0.5, '#silver');
+                    drawCircle(cx + rackWidth/2 - 1.5, y + 4, 0.5, '#silver');
+
+                    // Etiquetas de organização
+                    drawRect(cx - 3, y - 2, 6, 1.5, '#fff');
+                    drawText('S | M | L', cx - 2.5, y - 0.8, 0.8, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkHangers = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(192, 192, 192, ${blinkHangers})`);
                     break;
 
-                case 'mirror_wall':
-                    // Moldura do espelho
-                    drawRect(left, y, s.w, 2, '#c0c0c0');
-                    drawRect(left, y + s.h - 2, s.w, 2, '#c0c0c0');
-                    drawRect(left, y, 2, s.h, '#c0c0c0');
-                    drawRect(right - 2, y, 2, s.h, '#c0c0c0');
-                    // Superfície refletora
-                    drawRect(left + 2, y + 2, s.w - 4, s.h - 4, 'rgba(255, 255, 255, 0.9)');
-                    // Reflexos sutis
-                    drawLine(left + 4, y + 4, left + 8, y + 8, 1, 'rgba(0, 191, 255, 0.3)');
-                    drawLine(right - 8, y + 6, right - 4, y + 10, 1, 'rgba(255, 87, 34, 0.3)');
-                    // Pessoa refletida (silhueta simples)
-                    drawRect(cx - 1, y + 6, 2, 6, 'rgba(0, 0, 0, 0.4)');
-                    drawCircle(cx, y + 4, 1, 'rgba(0, 0, 0, 0.4)');
-                    // Moldura decorativa
-                    for(let i = 0; i < s.w - 4; i += 4) {
-                        drawCircle(left + 4 + i, y + 1, 0.3, '#silver');
-                        drawCircle(left + 4 + i, y + s.h - 1, 0.3, '#silver');
+                case 'info_kiosk': // Quiosque de Informações Interativo
+                    // Base sólida
+                    drawRect(left, y + 12, s.w, 4, '#424242');
+                    drawRect(left + 1, y + 13, s.w - 2, 2, '#616161');
+
+                    // Estrutura principal (coluna central)
+                    drawRect(cx - 2, y, 4, 14, '#e0e0e0');
+                    drawRect(cx - 1.5, y + 1, 3, 12, '#f5f5f5');
+
+                    // Tela touchscreen grande
+                    drawRect(cx - 8, y + 2, 16, 10, '#000'); // Moldura preta
+                    drawRect(cx - 7.5, y + 2.5, 15, 9, '#001122'); // Tela azul escura
+
+                    // Interface na tela
+                    // Cabeçalho
+                    drawRect(cx - 7, y + 3, 14, 1.5, '#1976d2');
+                    drawText('INFORMAÇÕES', cx - 6.5, y + 4, 0.8, '#fff');
+
+                    // Botões na tela
+                    const buttons = [
+                        { label: 'MAPA', y: y + 6, color: '#4caf50' },
+                        { label: 'HORÁRIOS', y: y + 8, color: '#ff9800' },
+                        { label: 'SERVIÇOS', y: y + 10, color: '#2196f3' }
+                    ];
+
+                    buttons.forEach((btn, i) => {
+                        drawRect(cx - 6, btn.y, 12, 1.5, btn.color);
+                        drawText(btn.label, cx - 5.5, btn.y + 1, 0.8, '#fff');
+                    });
+
+                    // Teclado numérico lateral
+                    drawRect(cx + 10, y + 4, 4, 8, '#424242');
+                    drawRect(cx + 10.5, y + 4.5, 3, 7, '#212121');
+
+                    // Botões do teclado (3x4)
+                    for(let row = 0; row < 4; row++) {
+                        for(let col = 0; col < 3; col++) {
+                            const keyX = cx + 11 + col * 0.9;
+                            const keyY = y + 5.5 + row * 1.5;
+                            drawRect(keyX, keyY, 0.8, 1, '#666');
+                            drawRect(keyX + 0.1, keyY + 0.1, 0.6, 0.8, '#999');
+                        }
                     }
-                    break;
 
-                case 'display_window':
-                    // Estrutura da vitrine
-                    drawRect(left, y, s.w, s.h, '#f5f5f5');
-                    // Moldura
-                    drawRect(left, y, s.w, 2, '#8d6e63');
-                    drawRect(left, y + s.h - 2, s.w, 2, '#8d6e63');
-                    drawRect(left, y, 2, s.h, '#8d6e63');
-                    drawRect(right - 2, y, 2, s.h, '#8d6e63');
-                    // Vidro
-                    drawRect(left + 2, y + 2, s.w - 4, s.h - 4, 'rgba(255, 255, 255, 0.7)');
-                    // Roupas em exposição
-                    // Manequim central
-                    drawRect(cx - 1, y + 6, 2, 6, '#f5f5f5');
-                    drawCircle(cx, y + 4, 1, '#f5f5f5');
-                    // Roupas no manequim
-                    drawRect(cx - 2, y + 6, 4, 3, '#e91e63');
-                    drawRect(cx - 1.5, y + 9, 3, 3, '#2196f3');
-                    // Roupas laterais
-                    drawRect(cx - 8, y + 8, 3, 4, '#4caf50');
-                    drawRect(cx + 5, y + 7, 3, 5, '#ff9800');
-                    // Acessórios
-                    drawCircle(cx - 6, y + 5, 0.8, '#ffd700'); // Bolsa
-                    drawRect(cx + 7, y + 4, 2, 1, '#000'); // Chapéu
-                    // Letreiro "SALE"
-                    drawRect(cx - 2, y + 2, 4, 2, '#ff5722');
-                    drawText('SALE', cx - 1.5, y + 3, 1, '#fff');
-                    break;
+                    // Luzes indicadoras
+                    drawCircle(cx + 12.5, y + 2, 0.4, '#00ff00'); // Verde - operacional
+                    drawCircle(cx + 12.5, y + 3, 0.4, '#2196f3'); // Azul - wifi
+                    drawCircle(cx + 12.5, y + 4, 0.4, '#ff5722'); // Vermelho - alerta
 
-                case 'hangers_rack':
-                    // Barra principal
-                    drawRect(cx - s.w/2, y + 3, s.w, 2, s.col);
-                    // Suportes verticais
-                    drawRect(cx - s.w/2, y, 3, 8, s.col);
-                    drawRect(cx + s.w/2 - 3, y, 3, 8, s.col);
-                    // Cabides pendurados
-                    for(let i = 0; i < 8; i++) {
-                        const hangerX = cx - 6 + i * 1.5;
-                        // Gancho
-                        drawRect(hangerX, y + 1, 0.5, 2, '#424242');
-                        // Corpo do cabide
-                        drawRect(hangerX - 0.8, y + 3, 2, 0.3, '#c0c0c0');
-                        // Curva
-                        drawRect(hangerX - 0.5, y + 3.3, 1, 0.5, '#c0c0c0');
+                    // Alto-falante
+                    drawRect(cx - 10, y + 8, 2, 4, '#212121');
+                    drawRect(cx - 9.5, y + 8.5, 1, 3, '#666');
+                    // Grade do alto-falante
+                    for(let i = 0; i < 6; i++) {
+                        drawRect(cx - 9.3, y + 9 + i * 0.3, 0.6, 0.1, '#000');
                     }
-                    // Detalhes dos suportes
-                    drawCircle(cx - s.w/2 + 1.5, y + 1, 0.5, '#silver');
-                    drawCircle(cx + s.w/2 - 1.5, y + 1, 0.5, '#silver');
+
+                    // Suporte inferior
+                    drawRect(cx - 4, y + 16, 8, 2, '#666');
+                    drawRect(cx - 3.5, y + 17, 7, 1, '#999');
+
+                    // Logotipo/identificação
+                    drawRect(cx - 3, y - 2, 6, 1.5, '#1976d2');
+                    drawText('INFO POINT', cx - 2.5, y - 0.8, 0.7, '#fff');
+
+                    // Cabo de energia
+                    drawLine(cx + 4, y + 16, cx + 8, y + 20, 0.5, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkInfo = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(25, 118, 210, ${blinkInfo})`);
                     break;
 
                 case 'classical_statue':
@@ -6402,6 +7557,257 @@
 
                     break;
 
+                case 'computer': // Workstation Detalhada
+                    // Monitor principal (retângulo principal)
+                    drawRect(left + 2, y, s.w - 4, s.h - 4, '#2c2c2c'); // Gabinete escuro
+                    drawRect(left + 4, y + 2, s.w - 8, s.h - 6, '#000'); // Tela preta
+                    drawRect(left + 6, y + 4, s.w - 12, s.h - 8, '#1a1a1a'); // Tela interna
+
+                    // Conteúdo da tela (simulação de interface)
+                    const monitorW = s.w - 12;
+                    const monitorH = s.h - 8;
+
+                    // Barra superior (janela)
+                    drawRect(left + 6, y + 4, monitorW, 3, '#424242');
+                    // Pontos de controle da janela (vermelho, amarelo, verde)
+                    drawCircle(left + 8, y + 5.5, 0.8, '#f44336'); // Fechar
+                    drawCircle(left + 11, y + 5.5, 0.8, '#ff9800'); // Minimizar
+                    drawCircle(left + 14, y + 5.5, 0.8, '#4CAF50'); // Maximizar
+
+                    // Conteúdo da tela (linhas de código/tabela)
+                    for(let i = 0; i < 6; i++) {
+                        const lineY = y + 10 + i * 2;
+                        const lineLength = monitorW - 4 - (pseudoRandom(seed + i) * 6);
+                        drawRect(left + 8, lineY, lineLength, 1, `rgba(0, 255, 0, ${0.6 + pseudoRandom(seed + i) * 0.4})`);
+                    }
+
+                    // Barra de tarefas inferior
+                    drawRect(left + 6, y + s.h - 6, monitorW, 2, '#424242');
+
+                    // Ícones na barra de tarefas
+                    for(let i = 0; i < 4; i++) {
+                        drawRect(left + 8 + i * 4, y + s.h - 5, 3, 1, '#fff');
+                    }
+
+                    // Teclado (abaixo do monitor)
+                    const keyboardY = y + s.h;
+                    drawRect(cx - 8, keyboardY, 16, 3, '#333'); // Corpo do teclado
+                    drawRect(cx - 7, keyboardY + 1, 14, 1, '#666'); // Fileira de teclas
+
+                    // Mouse (próximo ao teclado)
+                    drawRect(cx + 10, keyboardY, 3, 2, '#666'); // Corpo do mouse
+                    drawRect(cx + 10.5, keyboardY + 0.5, 0.5, 1, '#000'); // Roda do scroll
+                    drawLine(cx + 11, keyboardY + 1.5, cx + 12, keyboardY + 2, 1, '#000'); // Cabo
+
+                    // Gabinete da CPU (ao lado)
+                    drawRect(right - 6, y + 8, 6, 8, '#2c2c2c'); // Gabinete
+                    drawRect(right - 5, y + 9, 4, 6, '#1a1a1a'); // Interior
+
+                    // LED de energia no gabinete
+                    const powerLed = Math.sin(time / 500) > 0 ? '#00ff00' : '#004400';
+                    drawCircle(right - 4, y + 10, 0.5, powerLed);
+
+                    // LEDs de atividade (HD/CPU)
+                    const hdLed = Math.sin(time / 300) > 0 ? '#0000ff' : '#000044';
+                    drawCircle(right - 4, y + 12, 0.5, hdLed);
+
+                    // Ventoinhas (linhas indicando movimento)
+                    for(let i = 0; i < 3; i++) {
+                        const fanAngle = time / 200 + i * Math.PI * 2 / 3;
+                        const fanX = right - 4 + Math.cos(fanAngle) * 0.5;
+                        const fanY = y + 14 + Math.sin(fanAngle) * 0.5;
+                        drawCircle(fanX, fanY, 0.2, '#666');
+                    }
+
+                    // Cabo de energia
+                    drawLine(cx - 4, keyboardY + 3, cx - 4, keyboardY + 6, 1, '#000');
+
+                    // Indicador visual de interatividade (LED pulsante)
+                    const blinkComputer = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(0, 255, 0, ${blinkComputer})`);
+                    break;
+
+                case 'waiting_bench': // Banco de Espera Detalhado
+                    // Estrutura principal de madeira
+                    drawRect(left, y + 8, s.w, 4, '#8d6e63'); // Assento
+                    drawRect(left + 2, y + 10, s.w - 4, 2, '#a1887f'); // Espessura do assento
+
+                    // Encosto
+                    drawRect(left + 2, y, s.w - 4, 6, '#8d6e63');
+                    drawRect(left + 4, y + 2, s.w - 8, 2, '#a1887f');
+
+                    // Pernas/suportes
+                    drawRect(left + 4, y + 12, 2, 4, '#5d4037'); // Perna esquerda frente
+                    drawRect(right - 6, y + 12, 2, 4, '#5d4037'); // Perna direita frente
+                    drawRect(left + 4, y + 8, 2, 8, '#5d4037'); // Perna esquerda trás
+                    drawRect(right - 6, y + 8, 2, 8, '#5d4037'); // Perna direita trás
+
+                    // Braços laterais
+                    drawRect(left, y + 4, 2, 4, '#8d6e63'); // Braço esquerdo
+                    drawRect(right - 2, y + 4, 2, 4, '#8d6e63'); // Braço direito
+
+                    // Detalhes de carpintaria
+                    drawRect(left + 6, y + 9, s.w - 12, 1, '#795548'); // Junta do assento
+                    drawRect(left + 6, y + 1, s.w - 12, 1, '#795548'); // Junta do encosto
+
+                    // Sombras
+                    drawRect(left + 2, y + 16, s.w - 4, 1, 'rgba(0,0,0,0.3)');
+                    break;
+
+                case 'coffee_machine': // Máquina de Café Expresso Detalhada
+                    // Corpo principal metálico
+                    drawRoundRect(left, y, s.w, s.h, 2, '#c0c0c0');
+                    drawRoundRect(left + 1, y + 1, s.w - 2, s.h - 2, 1, '#e0e0e0');
+
+                    // Painel de controle
+                    drawRect(left + 4, y + 4, 8, 6, '#2c2c2c');
+                    drawRect(left + 5, y + 5, 6, 4, '#000');
+
+                    // Botões e indicadores
+                    drawCircle(left + 6, y + 7, 0.8, '#ff5722'); // Botão de power
+                    drawCircle(left + 9, y + 7, 0.8, '#4caf50'); // Botão de start
+
+                    // LED de status
+                    const coffeeLed = Math.sin(time / 800) > 0 ? '#00ff00' : '#004400';
+                    drawCircle(left + 7.5, y + 6, 0.5, coffeeLed);
+
+                    // Porta do reservatório de água
+                    drawRect(left + 14, y + 6, 4, 8, '#1976d2');
+                    drawRect(left + 15, y + 7, 2, 6, '#42a5f5');
+                    drawCircle(left + 16, y + 9, 0.3, '#fff'); // Indicador de nível
+
+                    // Bandeja de gotejamento
+                    drawRect(left + 2, y + 12, s.w - 4, 2, '#424242');
+                    drawRect(left + 3, y + 13, s.w - 6, 0.5, '#666');
+
+                    // Suporte para xícaras
+                    drawRect(cx - 4, y + 14, 8, 1, '#8d6e63');
+                    drawRect(cx - 3, y + 15, 6, 0.5, '#a1887f');
+
+                    // Vaporizador (cano de vapor)
+                    drawRect(cx + 6, y + 2, 1, 8, '#666');
+                    drawCircle(cx + 6.5, y + 1, 1, '#c0c0c0'); // Ponta do vaporizador
+
+                    // Etiqueta de modelo
+                    drawRect(left + 6, y + 11, 6, 1, '#fff');
+                    drawText('ESPRESSO', left + 7, y + 12, 0.6, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkCoffee = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(255, 193, 7, ${blinkCoffee})`);
+                    break;
+
+                case 'desk_lamp': // Luminária de Mesa Detalhada
+                    // Base circular pesada
+                    drawCircle(cx, y + 12, 3, '#424242');
+                    drawCircle(cx, y + 12, 2.5, '#616161');
+
+                    // Haste vertical
+                    drawRect(cx - 0.5, y + 4, 1, 8, '#c0c0c0');
+                    drawRect(cx - 0.3, y + 5, 0.6, 6, '#e0e0e0');
+
+                    // Braço articulado
+                    drawRoundRect(cx - 6, y + 2, 8, 2, 1, '#c0c0c0');
+                    drawRoundRect(cx - 5, y + 3, 6, 0.5, 0.5, '#e0e0e0');
+
+                    // Abraçadeira de ajuste
+                    drawCircle(cx - 6, y + 3, 0.8, '#666');
+                    drawCircle(cx - 6, y + 3, 0.3, '#c0c0c0');
+
+                    // Cúpula do abajur (difusor)
+                    ctx.fillStyle = '#fff8e1';
+                    ctx.beginPath();
+                    ctx.ellipse(scx, sy, 4, 3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Moldura do abajur
+                    ctx.strokeStyle = '#c0c0c0';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.ellipse(scx, sy, 4, 3, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Interruptor na base
+                    drawRect(cx - 1, y + 14, 2, 0.5, '#666');
+                    drawCircle(cx, y + 14.5, 0.3, '#ff5722'); // Interruptor vermelho
+
+                    // Cabo elétrico
+                    drawLine(cx + 2, y + 12, cx + 6, y + 16, 0.5, '#000');
+                    drawLine(cx + 6, y + 16, cx + 10, y + 16, 0.5, '#000');
+
+                    // Brilho da lâmpada (efeito de luz) - só quando ligada
+                    if (deskLampOn) {
+                        ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+                        ctx.beginPath();
+                        ctx.ellipse(scx, sy, 6, 5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Filamento visível quando ligado
+                        drawCircle(cx, y + 1, 0.3, '#ffff88');
+                    }
+
+                    // Interruptor muda de cor baseado no estado
+                    let deskSwitchColor = deskLampOn ? '#4caf50' : '#ff5722';
+                    drawCircle(cx, y + 14.5, 0.3, deskSwitchColor);
+
+                    // Indicador visual de interatividade
+                    const blinkLamp = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y, 0.8, `rgba(255, 255, 0, ${blinkLamp})`);
+                    break;
+
+                case 'printer': // Impressora LaserJet Detalhada
+                    // Corpo principal da impressora
+                    drawRoundRect(left, y + 4, s.w, 8, 1, '#e0e0e0');
+                    drawRoundRect(left + 1, y + 5, s.w - 2, 6, 0.5, '#f5f5f5');
+
+                    // Painel de controle LCD
+                    drawRect(left + 4, y, 8, 3, '#000');
+                    drawRect(left + 5, y + 0.5, 6, 2, '#1a1a1a');
+
+                    // Tela LCD (linhas de texto simuladas)
+                    drawRect(left + 5.5, y + 1, 5, 0.3, '#00ff00');
+                    drawRect(left + 5.5, y + 1.8, 3, 0.3, '#00ff00');
+
+                    // Botões de controle
+                    drawCircle(left + 7, y + 3.5, 0.6, '#666'); // Online
+                    drawCircle(left + 9, y + 3.5, 0.6, '#ff5722'); // Cancel
+
+                    // LED de status
+                    const printerLed = Math.sin(time / 600) > 0 ? '#00ff00' : '#004400';
+                    drawCircle(left + 6, y + 3.5, 0.4, printerLed);
+
+                    // Bandeja de entrada (cima)
+                    drawRect(left + 2, y + 2, s.w - 4, 1, '#c0c0c0');
+                    drawRect(left + 3, y + 3, s.w - 6, 0.5, '#e0e0e0');
+
+                    // Folhas na bandeja
+                    for(let i = 0; i < 3; i++) {
+                        drawRect(left + 4 + i * 1.5, y + 2.2, 3, 0.6, '#fff');
+                        drawRect(left + 4.2 + i * 1.5, y + 2.4, 2.6, 0.2, '#e0e0e0');
+                    }
+
+                    // Bandeja de saída (baixo)
+                    drawRect(left + 2, y + 12, s.w - 4, 2, '#c0c0c0');
+                    drawRect(left + 3, y + 13, s.w - 6, 0.5, '#e0e0e0');
+
+                    // Papéis impressos na saída
+                    drawRect(left + 4, y + 12.5, 4, 1, '#fff');
+                    drawRect(left + 8, y + 12.5, 4, 1, '#fff');
+                    drawRect(left + 4.2, y + 12.7, 3.6, 0.6, '#f0f0f0');
+
+                    // Porta USB lateral
+                    drawRect(right - 4, y + 7, 2, 0.5, '#666');
+
+                    // Etiqueta de modelo
+                    drawRect(left + 6, y + 11, 6, 0.8, '#fff');
+                    drawText('LASERJET', left + 7, y + 11.8, 0.5, '#000');
+
+                    // Indicador visual de interatividade
+                    const blinkPrinter = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    drawCircle(cx, y + 2, 0.8, `rgba(0, 150, 255, ${blinkPrinter})`);
+                    break;
+
+
                 default:
                     drawRoundRect(left, y, s.w, s.h, 2, s.col);
             }
@@ -6506,7 +7912,7 @@
                  drawCircle(particle.x, particle.y, particle.size, colorWithAlpha);
              });
 
-            // Renderizar INIMIGO
+            // Renderizar INIMIGO VERMELHO
             if (enemy.floor === index) {
                 const enemySize = PLAYER.w;
                 const enemyHeight = PLAYER.h;
@@ -6518,7 +7924,7 @@
                     drawRect(enemy.x - enemySize/2, enemy.y - enemyHeight + 5, enemySize, 5, '#ff00ff');
                     drawRect(enemy.x - enemySize/2, enemy.y - enemyHeight + 15, enemySize, 5, '#00ffff');
                     drawRect(enemy.x - enemySize/2, enemy.y - enemyHeight + 25, enemySize, 5, '#ffff00');
-                    
+
                     // Rosto branco
                     drawRect(enemy.x - enemySize/2 + 2, enemy.y - enemyHeight + 2, enemySize - 4, 10, '#ffffff');
                     // Nariz vermelho
@@ -6529,7 +7935,7 @@
                     // Chapéu de festa
                     drawTriangle(enemy.x - 5, enemy.y - enemyHeight, enemy.x + 5, enemy.y - enemyHeight, enemy.x, enemy.y - enemyHeight - 10, '#00ff00');
                 } else if (gameMode === 'game') {
-                    // SKIN ORIGINAL (Modo Jogo)
+                    // SKIN ORIGINAL (Modo Jogo) - VERMELHO
                     drawRect(enemy.x - enemySize/2, enemy.y - enemyHeight, enemySize, enemyHeight, '#ff0000');
                     drawRect(enemy.x - enemySize/2, enemy.y - enemyHeight, enemySize, 10, '#ffffff');
                     drawCircle(enemy.x, enemy.y - enemyHeight - 5, 2, '#ff0000');
@@ -6539,6 +7945,42 @@
                 if (enemy.isJumping || (enemy.state && enemy.state !== 'idle' && !enemy.isOnGround)) {
                     const shadowOffset = 10;
                     drawRect(enemy.x - enemySize/2, enemy.y - enemyHeight + shadowOffset, enemySize, enemyHeight, `rgba(0, 0, 0, 0.1)`);
+                }
+            }
+
+            // Renderizar INIMIGO ROXO
+            if (purpleEnemy.floor === index) {
+                const enemySize = PLAYER.w;
+                const enemyHeight = PLAYER.h;
+
+                if (gameMode === 'explore') {
+                    // SKIN DE PALHAÇO ROXO (Modo Exploratório)
+                    // Roupa colorida (listrada) em tons roxos
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight, enemySize, enemyHeight, '#ffffff');
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight + 5, enemySize, 5, '#800080');
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight + 15, enemySize, 5, '#9370db');
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight + 25, enemySize, 5, '#dda0dd');
+
+                    // Rosto branco
+                    drawRect(purpleEnemy.x - enemySize/2 + 2, purpleEnemy.y - enemyHeight + 2, enemySize - 4, 10, '#ffffff');
+                    // Nariz roxo
+                    drawCircle(purpleEnemy.x, purpleEnemy.y - enemyHeight + 7, 2, '#800080');
+                    // Cabelo colorido (pompons) roxos
+                    drawCircle(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight + 4, 3, '#4b0082');
+                    drawCircle(purpleEnemy.x + enemySize/2, purpleEnemy.y - enemyHeight + 4, 3, '#4b0082');
+                    // Chapéu de festa roxo
+                    drawTriangle(purpleEnemy.x - 5, purpleEnemy.y - enemyHeight, purpleEnemy.x + 5, purpleEnemy.y - enemyHeight, purpleEnemy.x, purpleEnemy.y - enemyHeight - 10, '#800080');
+                } else if (gameMode === 'game') {
+                    // SKIN ROXA (Modo Jogo)
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight, enemySize, enemyHeight, '#800080');
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight, enemySize, 10, '#ffffff');
+                    drawCircle(purpleEnemy.x, purpleEnemy.y - enemyHeight - 5, 2, '#800080');
+                }
+
+                // Efeitos visuais do Inimigo Roxo (Sombra/Pulo)
+                if (purpleEnemy.isJumping || (purpleEnemy.state && purpleEnemy.state !== 'idle' && !purpleEnemy.isOnGround)) {
+                    const shadowOffset = 10;
+                    drawRect(purpleEnemy.x - enemySize/2, purpleEnemy.y - enemyHeight + shadowOffset, enemySize, enemyHeight, `rgba(0, 0, 0, 0.1)`);
                 }
             }
         }
