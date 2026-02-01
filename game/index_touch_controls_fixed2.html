@@ -8740,12 +8740,6 @@ canvas.addEventListener("touchend", (e) => {
                 ev.stopPropagation();
                 keys[keyName] = true;
 
-
-            // Double-tap para correr (igual teclado/gamepad)
-            if ((keyName === 'left' || keyName === 'right') && typeof detectDoubleClick === 'function') {
-                const now = (typeof getGameTime === 'function') ? getGameTime() : performance.now();
-                detectDoubleClick(keyName, now);
-            }
                 // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
                 if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
                     const now = getGameTime();
@@ -8760,11 +8754,6 @@ canvas.addEventListener("touchend", (e) => {
                 ev.preventDefault?.();
                 ev.stopPropagation?.();
                 keys[keyName] = false;
-
-            // Resetar corrida quando soltar direções (igual teclado)
-            if (!keys.left && !keys.right) {
-                player.isRunning = false;
-            }
             };
 
             // Pointer events cobrem touch + mouse + caneta

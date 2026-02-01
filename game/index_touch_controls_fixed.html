@@ -129,9 +129,6 @@ html, body {
 .touchPadRight { right: 18px; }
 
 .touchBtn {
-    pointer-events: auto;
-    touch-action: none;
-
     width: 74px;
     height: 74px;
     border-radius: 18px;
@@ -184,18 +181,6 @@ html, body {
     white-space: normal !important;
     line-height: 1.15 !important;
     word-break: break-word !important;
-    animation: none !important;
-}
-
-
-/* ===============================
-   MISSION UI (mobile: above touch buttons)
-   =============================== */
-#missionBottomDisplay {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 230px) !important; /* acima do touchUI */
-    z-index: 16001 !important; /* acima do touchUI */
-}
-#currentMission {
     animation: none !important;
 }
 
@@ -8695,122 +8680,105 @@ canvas.addEventListener("touchend", (e) => {
    TOUCH CONTROLS (Mobile Buttons + Swipe Andares)
    - Swipe vertical no canvas: sobe/desce andar
    - Botões: esquerda/direita (hold), Carregar/soltar, Ação, Pular
-   - Funciona no TOUCH e no MOUSE (Pointer Events)
    =============================== */
 
-(function(){
-    function initTouchControls(){
-        if (typeof canvas === 'undefined') return;
+(function initTouchControls(){
+    // falha segura
+    if (typeof canvas === 'undefined') return;
 
-        // ----- Swipe vertical (apenas para mudar andares) -----
-        let sX = 0, sY = 0;
-        const SWIPE_THRESHOLD = 40;
+    // ----- Swipe vertical (apenas para mudar andares) -----
+    let sX = 0, sY = 0;
+    const SWIPE_THRESHOLD = 40;
 
-        canvas.addEventListener("pointerdown", (e) => {
-            // só para toque/caneta (mouse não deve disparar swipe)
-            if (e.pointerType === 'mouse') return;
-            if (gamePaused || gameEnded) return;
-            sX = e.clientX;
-            sY = e.clientY;
-        });
+    canvas.addEventListener("touchstart", (e) => {
+        if (gamePaused || gameEnded) return;
+        const t = e.touches[0];
+        sX = t.clientX;
+        sY = t.clientY;
+    }, { passive: true });
 
-        canvas.addEventListener("pointerup", (e) => {
-            if (e.pointerType === 'mouse') return;
-            if (gamePaused || gameEnded) return;
+    canvas.addEventListener("touchend", (e) => {
+        if (gamePaused || gameEnded) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - sX;
+        const dy = t.clientY - sY;
 
-            const dx = e.clientX - sX;
-            const dy = e.clientY - sY;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
 
-            const absX = Math.abs(dx);
-            const absY = Math.abs(dy);
-
-            if (absY > absX && absY > SWIPE_THRESHOLD) {
-                if (dy < 0) attemptVerticalMove(1);   // up
-                else        attemptVerticalMove(-1);  // down
-            }
-        });
-
-        // ----- Helpers para botões -----
-        function bindHold(btn, keyName){
-            if (!btn) return;
-
-            const down = (ev) => {
-                if (gamePaused || gameEnded) return;
-                ev.preventDefault();
-                ev.stopPropagation();
-                keys[keyName] = true;
-
-
-            // Double-tap para correr (igual teclado/gamepad)
-            if ((keyName === 'left' || keyName === 'right') && typeof detectDoubleClick === 'function') {
-                const now = (typeof getGameTime === 'function') ? getGameTime() : performance.now();
-                detectDoubleClick(keyName, now);
-            }
-                // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
-                if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
-                    const now = getGameTime();
-                    hasMadeFirstMove = true;
-                    playerInvincible = true;
-                    playerInvincibilityStart = now;
-                    updateProtectionIndicator();
-                }
-            };
-
-            const up = (ev) => {
-                ev.preventDefault?.();
-                ev.stopPropagation?.();
-                keys[keyName] = false;
-
-            // Resetar corrida quando soltar direções (igual teclado)
-            if (!keys.left && !keys.right) {
-                player.isRunning = false;
-            }
-            };
-
-            // Pointer events cobrem touch + mouse + caneta
-            btn.addEventListener("pointerdown", down);
-            btn.addEventListener("pointerup", up);
-            btn.addEventListener("pointercancel", up);
-            btn.addEventListener("pointerleave", up);
+        if (absY > absX && absY > SWIPE_THRESHOLD) {
+            if (dy < 0) attemptVerticalMove(1);   // up
+            else        attemptVerticalMove(-1);  // down
         }
+    }, { passive: true });
 
-        function bindTap(btn, fn){
-            if (!btn) return;
-            const act = (ev) => {
-                if (gamePaused || gameEnded) return;
-                ev.preventDefault();
-                ev.stopPropagation();
-                fn();
-            };
-            btn.addEventListener("pointerdown", act);
-        }
+    // ----- Helpers para botões -----
+    function bindHold(btn, keyName){
+        if (!btn) return;
 
-        // ----- Mapear botões -----
-        const btnLeft  = document.getElementById("btnLeft");
-        const btnRight = document.getElementById("btnRight");
-        const btnCarry = document.getElementById("btnCarry");
-        const btnAction= document.getElementById("btnAction");
-        const btnJump  = document.getElementById("btnJump");
+        const down = (ev) => {
+            if (gamePaused || gameEnded) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            keys[keyName] = true;
 
-        bindHold(btnLeft, "left");
-        bindHold(btnRight, "right");
+            // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
+            if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
+                const now = getGameTime();
+                hasMadeFirstMove = true;
+                playerInvincible = true;
+                playerInvincibilityStart = now;
+                updateProtectionIndicator();
+            }
+        };
 
-        bindTap(btnCarry, () => attemptPickupOrDrop());
-        bindTap(btnAction, () => attemptInteract());
-        bindTap(btnJump, () => attemptJump());
+        const up = (ev) => {
+            ev.preventDefault?.();
+            ev.stopPropagation?.();
+            keys[keyName] = false;
+        };
 
-        // Debug rápido (pode remover depois)
-        console.log("[TouchUI] ready:", !!btnLeft, !!btnRight, !!btnCarry, !!btnAction, !!btnJump);
+        btn.addEventListener("touchstart", down, { passive: false });
+        btn.addEventListener("touchend", up, { passive: false });
+        btn.addEventListener("touchcancel", up, { passive: false });
+
+        // Desktop fallback
+        btn.addEventListener("mousedown", down);
+        window.addEventListener("mouseup", up);
+        btn.addEventListener("mouseleave", up);
     }
 
-    // Importante: o touchUI foi inserido depois do script.
-    // Então precisamos inicializar após o DOM estar pronto.
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initTouchControls, { once: true });
-    } else {
-        initTouchControls();
+    function bindTap(btn, fn){
+        if (!btn) return;
+
+        const act = (ev) => {
+            if (gamePaused || gameEnded) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            fn();
+        };
+
+        btn.addEventListener("touchstart", act, { passive: false });
+        btn.addEventListener("click", act);
     }
-})();/* ===============================
+
+    // ----- Mapear botões -----
+    const btnLeft  = document.getElementById("btnLeft");
+    const btnRight = document.getElementById("btnRight");
+    const btnCarry = document.getElementById("btnCarry");
+    const btnAction= document.getElementById("btnAction");
+    const btnJump  = document.getElementById("btnJump");
+
+    bindHold(btnLeft, "left");
+    bindHold(btnRight, "right");
+
+    bindTap(btnCarry, () => attemptPickupOrDrop());
+    bindTap(btnAction, () => attemptInteract());
+    bindTap(btnJump, () => attemptJump());
+})();
+
+
+/* ===============================
    TOUCH UI VISIBILITY (menu vs game)
    =============================== */
 (function(){
