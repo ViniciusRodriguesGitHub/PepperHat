@@ -95,72 +95,7 @@
             color: #ffd700;
         }
 
-    
-/* ===============================
-   TOUCH UI (Mobile Buttons)
-   =============================== */
-html, body {
-    touch-action: none; /* evita scroll/zoom durante o jogo */
-    overscroll-behavior: none;
-}
-#worldCanvas {
-    touch-action: none;
-}
-
-#touchUI {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 220px;
-    z-index: 15000;
-    pointer-events: none; /* só os botões recebem clique */
-}
-
-.touchPadLeft, .touchPadRight {
-    position: absolute;
-    bottom: 18px;
-    display: flex;
-    gap: 12px;
-    pointer-events: auto;
-}
-
-.touchPadLeft { left: 18px; }
-.touchPadRight { right: 18px; }
-
-.touchBtn {
-    width: 74px;
-    height: 74px;
-    border-radius: 18px;
-    border: 1px solid rgba(255,255,255,0.25);
-    background: rgba(0,0,0,0.45);
-    color: rgba(255,255,255,0.92);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    display: grid;
-    place-items: center;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
-    backdrop-filter: blur(6px);
-}
-
-.touchBtn:active {
-    transform: scale(0.96);
-    background: rgba(0,0,0,0.62);
-}
-
-.touchBtn.smallText {
-    font-size: 11px;
-    line-height: 1.05;
-    padding: 8px;
-    text-align: center;
-}
-
-</style>
+    </style>
 </head>
 <body>
 
@@ -215,11 +150,6 @@ html, body {
                 🛡️ Protegido - Use ← → para iniciar o jogo!
             </div>
             <div style="margin-top: 10px; font-size: 0.9rem;">
-                <div id="missionsSection" style="display: none;">
-                    <div style="color: #ffd700; font-weight: bold; margin-bottom: 5px;">
-                        MISSÃO ATUAL: <span id="missionProgress" style="color: #fff;">0/10</span>
-                    </div>
-                </div>
                 <div id="exploreModeIndicator" style="display: none; color: #4ecdc4; font-weight: bold;">
                     🗺️ MODO EXPLORATÓRIO - Explore livremente!
                 </div>
@@ -228,7 +158,38 @@ html, body {
                 </div>
             </div>
 
-            <!-- Missão atual na parte inferior central -->
+            
+        </div>
+    </div>
+
+
+    <!-- Overlay minimal (Setor e Objetos) -->
+    <div id="infoOverlay">
+        <div id="sectorBox">...</div>
+        <div id="objectBox" style="display:none;">...</div>
+    </div>
+
+    <!-- Display de Missões (Sempre Visível) -->
+    <div id="missionsSection" style="
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        z-index: 1000;
+        pointer-events: none;
+        font-family: 'Consolas', monospace;
+        font-size: 0.9rem;
+        background: rgba(0, 0, 0, 0.70);
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 10px 14px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        color: #ffd700;
+        font-weight: bold;
+    ">
+        MISSÃO ATUAL: <span id="missionProgress" style="color: #fff;">0/10</span>
+    </div>
+
+    <!-- Missão atual na parte inferior central -->
             <div id="missionBottomDisplay" style="
                 position: fixed;
                 bottom: 20px;
@@ -313,17 +274,8 @@ html, body {
         }
 
     </style>
-        </div>
-    </div>
 
-
-    <!-- Overlay minimal (Setor e Objetos) -->
-    <div id="infoOverlay">
-        <div id="sectorBox">...</div>
-        <div id="objectBox" style="display:none;">...</div>
-    </div>
-
-    <canvas id="worldCanvas"></canvas>
+<canvas id="worldCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('worldCanvas');
@@ -1111,7 +1063,6 @@ html, body {
                 hud.style.display = 'none'; // HUD oculto por padrão
                 var infoOverlay = document.getElementById('infoOverlay');
                 if (infoOverlay) infoOverlay.style.display = 'none';
-                document.getElementById('missionsSection').style.display = 'block';
                 document.getElementById('missionBottomDisplay').style.display = 'block';
                 document.getElementById('exploreModeIndicator').style.display = 'none';
                 initMissionSystem(); // Inicializar sistema de missões
@@ -1236,7 +1187,7 @@ html, body {
             isJumping: false,
             // Sistema de replay cinemático
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
-            delayTime: 3000    // 1 segundo de atraso
+            delayTime: 1000    // 1 segundo de atraso
         };
 
         let purpleEnemy = {
@@ -1247,7 +1198,7 @@ html, body {
             isJumping: false,
             // Sistema de replay cinemático
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
-            delayTime: 2000    // 1 segundo de atraso
+            delayTime: 200    // 1 segundo de atraso
         };
         
         // Variáveis para rastrear interações específicas com o inimigo
@@ -1931,32 +1882,62 @@ html, body {
 
         function updateMissionsDisplay() {
             const missionDisplay = document.getElementById('currentMission');
+            const missionsSection = document.getElementById('missionsSection');
 
             if (missionDisplay) {
                 if (currentMission) {
                     const mission = missions[currentMission];
                     const status = mission.completed ? '✅' : '🎯';
                     let description = mission.description;
-                    
+
                     // Mostrar progresso para missão de pular sobre o inimigo
                     if (currentMission === 'jumpOverEnemy' && !mission.completed) {
                         description = `${mission.description} (${interactionCounts.jumpOverEnemy}/3)`;
                     }
-                    
+
                     // Mostrar progresso para missão de passar por baixo do inimigo
                     if (currentMission === 'underEnemyJump' && !mission.completed) {
                         description = `${mission.description} (${interactionCounts.underEnemyJump}/2)`;
                     }
-                    
+
                     missionDisplay.innerHTML = `${status} ${description}`;
                     missionDisplay.style.color = mission.completed ? '#4CAF50' : '#ffd700';
-                } else {
+                } else if (completedMissionsCount >= TOTAL_MISSIONS) {
                     missionDisplay.innerHTML = '🎉 Todas as missões completadas!';
                     missionDisplay.style.color = '#4CAF50';
+                } else {
+                    missionDisplay.innerHTML = '🎯 Carregando missão...';
+                    missionDisplay.style.color = '#ffd700';
                 }
             }
 
-            // Atualizar contador de progresso
+            // Atualizar missionsSection com nome da missão atual
+            if (missionsSection) {
+                if (currentMission) {
+                    const mission = missions[currentMission];
+                    const status = mission.completed ? '✅' : '🎯';
+                    let shortDescription = mission.description;
+
+                    // Versão curta para o display lateral (remover contadores se necessário)
+                    if (currentMission === 'jumpOverEnemy' && !mission.completed) {
+                        shortDescription = `Pular sobre inimigo (${interactionCounts.jumpOverEnemy}/3)`;
+                    } else if (currentMission === 'underEnemyJump' && !mission.completed) {
+                        shortDescription = `Passar baixo do inimigo (${interactionCounts.underEnemyJump}/2)`;
+                    }
+
+                    missionsSection.innerHTML = `
+                        MISSÃO ATUAL: <span id="missionProgress" style="color: #fff;">${completedMissionsCount}/${TOTAL_MISSIONS}</span><br>
+                        <span style="color: #ffd700; font-size: 0.8rem; font-weight: normal;">${shortDescription}</span>
+                    `;
+                } else {
+                    missionsSection.innerHTML = `
+                        MISSÃO ATUAL: <span id="missionProgress" style="color: #fff;">${completedMissionsCount}/${TOTAL_MISSIONS}</span><br>
+                        <span style="color: #4CAF50; font-size: 0.8rem; font-weight: normal;">Todas as missões completadas!</span>
+                    `;
+                }
+            }
+
+            // Atualizar contador de progresso (caso ainda exista)
             const progressElement = document.getElementById('missionProgress');
             if (progressElement) {
                 progressElement.textContent = `${completedMissionsCount}/${TOTAL_MISSIONS}`;
@@ -2529,7 +2510,7 @@ html, body {
             const now = getGameTime();
 
             // Calcular delay dinâmico (diminui 2% por segundo, aumenta 5% por item coletado)
-            const elapsedSeconds = (now - gameStartTime) / 3000;
+            const elapsedSeconds = (now - gameStartTime) / 1000;
             const dynamicDelayTime = enemy.delayTime * Math.pow(0.95, elapsedSeconds) * Math.pow(1.15, collectedItemsCount);
 
             const targetTime = now - dynamicDelayTime;
@@ -2644,7 +2625,7 @@ html, body {
             const now = getGameTime();
 
             // Delay fixo de 1 segundo para o inimigo roxo
-            const dynamicDelayTime = 2000;
+            const dynamicDelayTime = 200;
 
             const targetTime = now - dynamicDelayTime;
 
@@ -2878,9 +2859,7 @@ html, body {
             updateMissionsDisplay();
 
             // Resetar exibição da missão na parte inferior
-            if (gameMode === 'game') {
-                document.getElementById('missionBottomDisplay').style.display = 'block';
-            }
+            document.getElementById('missionBottomDisplay').style.display = 'block';
 
             // Remover tela de game over
             const gameOverScreen = document.getElementById('gameOverScreen');
@@ -3249,7 +3228,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 }
             }
             camera.y += (player.y - camera.y) * 0.1;
-            camera.x += (player.x - camera.x) * 0.12; // camera segue o player no eixo X
+            camera.x = 0;
 
             // Atualizar sistema de partículas
             updateParticles();
@@ -8593,182 +8572,6 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         }
 
 
-    
-canvas.addEventListener("touchmove", (e) => {
-    touchMoved = true;
-}, { passive: true });
-
-canvas.addEventListener("touchend", (e) => {
-    if (gamePaused || gameEnded) return;
-
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
-
-    const dx = endX - touchStartX;
-    const dy = endY - touchStartY;
-
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    const screenW = window.innerWidth;
-
-    /* ---------- SWIPE VERTICAL ---------- */
-    if (absY > absX && absY > SWIPE_THRESHOLD) {
-        if (dy < 0) {
-            // deslizar para cima
-            attemptVerticalMove(1);
-        } else {
-            // deslizar para baixo
-            attemptVerticalMove(-1);
-        }
-        return;
-    }
-
-    /* ---------- TOQUE (sem swipe) ---------- */
-    const touchXRatio = endX / screenW;
-
-    // borda esquerda
-    if (touchXRatio < EDGE_ZONE) {
-        keys.left = true;
-        setTimeout(() => keys.left = false, 120);
-        return;
-    }
-
-    // borda direita
-    if (touchXRatio > 1 - EDGE_ZONE) {
-        keys.right = true;
-        setTimeout(() => keys.right = false, 120);
-        return;
-    }
-
-    // centro da tela → pulo
-    const centerMin = 0.5 - CENTER_ZONE / 2;
-    const centerMax = 0.5 + CENTER_ZONE / 2;
-
-    if (touchXRatio > centerMin && touchXRatio < centerMax) {
-        attemptJump();
-    }
-
-}, { passive: true });
-
-
-/* ===============================
-   TOUCH CONTROLS (Mobile Buttons + Swipe Andares)
-   - Swipe vertical no canvas: sobe/desce andar
-   - Botões: esquerda/direita (hold), Carregar/soltar, Ação, Pular
-   =============================== */
-
-(function initTouchControls(){
-    // falha segura
-    if (!window.canvas) return;
-
-    // ----- Swipe vertical (apenas para mudar andares) -----
-    let sX = 0, sY = 0;
-    const SWIPE_THRESHOLD = 40;
-
-    canvas.addEventListener("touchstart", (e) => {
-        if (gamePaused || gameEnded) return;
-        const t = e.touches[0];
-        sX = t.clientX;
-        sY = t.clientY;
-    }, { passive: true });
-
-    canvas.addEventListener("touchend", (e) => {
-        if (gamePaused || gameEnded) return;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - sX;
-        const dy = t.clientY - sY;
-
-        const absX = Math.abs(dx);
-        const absY = Math.abs(dy);
-
-        if (absY > absX && absY > SWIPE_THRESHOLD) {
-            if (dy < 0) attemptVerticalMove(1);   // up
-            else        attemptVerticalMove(-1);  // down
-        }
-    }, { passive: true });
-
-    // ----- Helpers para botões -----
-    function bindHold(btn, keyName){
-        if (!btn) return;
-
-        const down = (ev) => {
-            if (gamePaused || gameEnded) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            keys[keyName] = true;
-
-            // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
-            if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
-                const now = getGameTime();
-                hasMadeFirstMove = true;
-                playerInvincible = true;
-                playerInvincibilityStart = now;
-                updateProtectionIndicator();
-            }
-        };
-
-        const up = (ev) => {
-            ev.preventDefault?.();
-            ev.stopPropagation?.();
-            keys[keyName] = false;
-        };
-
-        btn.addEventListener("touchstart", down, { passive: false });
-        btn.addEventListener("touchend", up, { passive: false });
-        btn.addEventListener("touchcancel", up, { passive: false });
-
-        // Desktop fallback
-        btn.addEventListener("mousedown", down);
-        window.addEventListener("mouseup", up);
-        btn.addEventListener("mouseleave", up);
-    }
-
-    function bindTap(btn, fn){
-        if (!btn) return;
-
-        const act = (ev) => {
-            if (gamePaused || gameEnded) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            fn();
-        };
-
-        btn.addEventListener("touchstart", act, { passive: false });
-        btn.addEventListener("click", act);
-    }
-
-    // ----- Mapear botões -----
-    const btnLeft  = document.getElementById("btnLeft");
-    const btnRight = document.getElementById("btnRight");
-    const btnCarry = document.getElementById("btnCarry");
-    const btnAction= document.getElementById("btnAction");
-    const btnJump  = document.getElementById("btnJump");
-
-    bindHold(btnLeft, "left");
-    bindHold(btnRight, "right");
-
-    bindTap(btnCarry, () => attemptPickupOrDrop());
-    bindTap(btnAction, () => attemptInteract());
-    bindTap(btnJump, () => attemptJump());
-})();
-
-</script>
-
-<!-- ===============================
-     TOUCH UI (Botões Mobile)
-     =============================== -->
-<div id="touchUI" aria-hidden="true">
-    <div class="touchPadLeft">
-        <div class="touchBtn" id="btnLeft">◀</div>
-        <div class="touchBtn" id="btnRight">▶</div>
-    </div>
-    <div class="touchPadRight">
-        <div class="touchBtn smallText" id="btnCarry">Carregar/<br>soltar</div>
-        <div class="touchBtn" id="btnAction">Ação</div>
-        <div class="touchBtn" id="btnJump">Pular</div>
-    </div>
-</div>
-
+    </script>
 </body>
 </html>

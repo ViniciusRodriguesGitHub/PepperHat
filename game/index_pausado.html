@@ -95,72 +95,7 @@
             color: #ffd700;
         }
 
-    
-/* ===============================
-   TOUCH UI (Mobile Buttons)
-   =============================== */
-html, body {
-    touch-action: none; /* evita scroll/zoom durante o jogo */
-    overscroll-behavior: none;
-}
-#worldCanvas {
-    touch-action: none;
-}
-
-#touchUI {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 220px;
-    z-index: 15000;
-    pointer-events: none; /* só os botões recebem clique */
-}
-
-.touchPadLeft, .touchPadRight {
-    position: absolute;
-    bottom: 18px;
-    display: flex;
-    gap: 12px;
-    pointer-events: auto;
-}
-
-.touchPadLeft { left: 18px; }
-.touchPadRight { right: 18px; }
-
-.touchBtn {
-    width: 74px;
-    height: 74px;
-    border-radius: 18px;
-    border: 1px solid rgba(255,255,255,0.25);
-    background: rgba(0,0,0,0.45);
-    color: rgba(255,255,255,0.92);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    display: grid;
-    place-items: center;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
-    backdrop-filter: blur(6px);
-}
-
-.touchBtn:active {
-    transform: scale(0.96);
-    background: rgba(0,0,0,0.62);
-}
-
-.touchBtn.smallText {
-    font-size: 11px;
-    line-height: 1.05;
-    padding: 8px;
-    text-align: center;
-}
-
-</style>
+    </style>
 </head>
 <body>
 
@@ -234,7 +169,7 @@ html, body {
                 bottom: 20px;
                 left: 50%;
                 transform: translateX(-50%);
-                display: block;
+                display: none;
                 z-index: 1000;
                 pointer-events: none;
                 text-align: center;
@@ -596,12 +531,12 @@ html, body {
             acoustic_guitar: { w: 12, h: 22, col: '#8d6e63' },
             keyboard: { w: 24, h: 12, col: '#212121' },
             bar_counter: { w: 36, h: 12, col: '#8d6e63' },
-            beer_taps: { w: 14, h: 26, col: '#c0c0c0' },
+            beer_taps: { w: 8, h: 16, col: '#c0c0c0' },
             bottles_rack: { w: 20, h: 16, col: '#8d6e63' },
             jukebox: { w: 20, h: 36, col: '#8B4513' }, // Estilo anos 50 - madeira marrom grande
             pool_table: { w: 28, h: 16, col: '#2e7d32' },
-            dart_board: { w: 22, h: 22, col: '#212121', wall: true },
-            neon_signs: { w: 34, h: 14, col: '#ff5722', wall: true },
+            dart_board: { w: 16, h: 16, col: '#212121', wall: true },
+            neon_signs: { w: 24, h: 10, col: '#ff5722', wall: true },
             clothing_rack: { w: 16, h: 20, col: '#8d6e63' },
             cash_register: { w: 12, h: 10, col: '#424242', surface: true },
             mannequins: { w: 6, h: 24, col: '#f5f5f5' },
@@ -1236,7 +1171,7 @@ html, body {
             isJumping: false,
             // Sistema de replay cinemático
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
-            delayTime: 3000    // 1 segundo de atraso
+            delayTime: 1000    // 1 segundo de atraso
         };
 
         let purpleEnemy = {
@@ -1247,7 +1182,7 @@ html, body {
             isJumping: false,
             // Sistema de replay cinemático
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
-            delayTime: 2000    // 1 segundo de atraso
+            delayTime: 200    // 1 segundo de atraso
         };
         
         // Variáveis para rastrear interações específicas com o inimigo
@@ -2273,7 +2208,7 @@ html, body {
                 hud.style.display = 'none';
                 var infoOverlay = document.getElementById('infoOverlay');
                 if (infoOverlay) infoOverlay.style.display = 'none';
-                document.getElementById('missionBottomDisplay').style.display = 'block';
+                document.getElementById('missionBottomDisplay').style.display = 'none';
                 document.getElementById('exploreModeIndicator').style.display = 'none';
             }
 
@@ -2529,7 +2464,7 @@ html, body {
             const now = getGameTime();
 
             // Calcular delay dinâmico (diminui 2% por segundo, aumenta 5% por item coletado)
-            const elapsedSeconds = (now - gameStartTime) / 3000;
+            const elapsedSeconds = (now - gameStartTime) / 1000;
             const dynamicDelayTime = enemy.delayTime * Math.pow(0.95, elapsedSeconds) * Math.pow(1.15, collectedItemsCount);
 
             const targetTime = now - dynamicDelayTime;
@@ -2644,7 +2579,7 @@ html, body {
             const now = getGameTime();
 
             // Delay fixo de 1 segundo para o inimigo roxo
-            const dynamicDelayTime = 2000;
+            const dynamicDelayTime = 200;
 
             const targetTime = now - dynamicDelayTime;
 
@@ -3249,7 +3184,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 }
             }
             camera.y += (player.y - camera.y) * 0.1;
-            camera.x += (player.x - camera.x) * 0.12; // camera segue o player no eixo X
+            camera.x = 0;
 
             // Atualizar sistema de partículas
             updateParticles();
@@ -6234,54 +6169,30 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
 
                 case 'beer_taps':
-                    // Torneiras de chope (maiores e mais realistas)
-                    // Base/placa inox
-                    drawRect(cx - s.w/2, y, s.w, s.h, '#bdbdbd');
-                    // Brilho lateral
-                    drawRect(cx - s.w/2 + 1, y + 1, 2, s.h - 2, 'rgba(255,255,255,0.25)');
-                    drawRect(cx + s.w/2 - 3, y + 2, 2, s.h - 4, 'rgba(0,0,0,0.15)');
-
-                    // Bandeja coletora
-                    drawRect(cx - s.w/2 - 1, y + s.h - 5, s.w + 2, 4, '#424242');
-                    // Grelha da bandeja
-                    for (let gx = -Math.floor(s.w/2); gx <= Math.floor(s.w/2); gx += 2) {
-                        drawLine(cx + gx, y + s.h - 5, cx + gx, y + s.h - 1, 0.5, 'rgba(255,255,255,0.25)');
-                    }
-
-                    // Coluna central (torre)
-                    drawRect(cx - 2.5, y + 2, 5, s.h - 10, '#9e9e9e');
-                    drawRect(cx - 2.2, y + 3, 1, s.h - 12, 'rgba(255,255,255,0.25)');
-
-                    // 3 torneiras
-                    const tapCount = 3;
-                    for (let i = 0; i < tapCount; i++) {
-                        const t = (tapCount === 1) ? 0 : (i / (tapCount - 1));
-                        const tapX = cx - (s.w * 0.28) + t * (s.w * 0.56);
-
+                    // Estrutura metálica
+                    drawRect(cx - 3, y, 6, s.h, '#c0c0c0');
+                    // Base
+                    drawRect(cx - 4, y + 14, 8, 2, '#424242');
+                    // Torneiras (3 unidades)
+                    for(let i = 0; i < 3; i++) {
+                        const tapX = cx - 2 + i * 2;
                         // Corpo da torneira
-                        drawRect(tapX - 0.8, y + 7, 1.6, 10, '#757575');
-                        drawRect(tapX - 0.6, y + 8, 0.6, 8, 'rgba(255,255,255,0.25)');
-
-                        // Bico
-                        drawRect(tapX - 1.2, y + 16, 2.4, 1.2, '#616161');
-                        drawRect(tapX - 0.7, y + 17.2, 1.4, 1.2, '#424242');
-
-                        // Alavanca (vermelha)
-                        drawRect(tapX - 2.2, y + 10, 4.4, 1.4, '#c62828');
-                        drawRect(tapX - 2.2, y + 9.6, 1.0, 0.8, '#7f1d1d');
-
-                        // Plaquinha de sabor
-                        drawRect(tapX - 2.0, y + 5, 4.0, 1.8, '#eeeeee');
-                        drawRect(tapX - 1.8, y + 5.3, 3.6, 0.4, '#b0bec5');
+                        drawRect(tapX - 0.5, y + 2, 1, 10, '#silver');
+                        // Alavanca
+                        drawRect(tapX - 1, y + 4, 2, 1, '#c62828');
+                        // Saída
+                        drawRect(tapX - 0.3, y + 12, 0.6, 2, '#silver');
+                        // Gotas
+                        if(i === 1) { // Uma torneira pingando
+                            drawCircle(tapX, y + 14, 0.3, '#4fc3f7');
+                            drawCircle(tapX, y + 15, 0.2, '#4fc3f7');
+                        }
                     }
-
-                    // Mangueiras laterais
-                    drawLine(cx - s.w/2, y + s.h*0.55, cx - s.w/2 - 6, y + s.h*0.55 + 4, 1.2, '#616161');
-                    drawLine(cx + s.w/2, y + s.h*0.55, cx + s.w/2 + 6, y + s.h*0.55 + 4, 1.2, '#616161');
-
-                    // Pingos discretos (uma torneira)
-                    drawCircle(cx, y + s.h - 3.2, 0.35, 'rgba(79,195,247,0.9)');
-                    drawCircle(cx, y + s.h - 2.0, 0.25, 'rgba(79,195,247,0.8)');
+                    // Tanque superior
+                    drawRect(cx - 3, y, 6, 2, '#e0e0e0');
+                    // Tubulações
+                    drawLine(cx - 3, y + 8, cx - 6, y + 8, 1, '#666');
+                    drawLine(cx + 3, y + 8, cx + 6, y + 8, 1, '#666');
                     break;
 
                 case 'bottles_rack':
@@ -6536,179 +6447,67 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     break;
 
                 case 'dart_board':
-                    // Alvo de dardos (maior e mais realista)
-                    const r = Math.min(s.w, s.h) * 0.48;
-                    const cy = y + s.h/2;
-
-                    // Moldura
-                    drawCircle(cx, cy, r + 1.8, '#3e2723');
-                    drawCircle(cx, cy, r + 1.2, '#5d4037');
-
-                    // Fundo preto
-                    drawCircle(cx, cy, r, '#1b1b1b');
-
-                    // Anéis (cores tradicionais simplificadas)
-                    const ring1 = r * 0.86;   // duplo
-                    const ring2 = r * 0.62;   // triplo
-                    const ring3 = r * 0.38;   // interno
-                    const bull  = r * 0.14;   // bull
-                    const bull2 = r * 0.06;   // bullseye
-
-                    // Segmentos (20) com alternância
-                    const segs = 20;
-                    ctx.save();
-                    ctx.translate(cx, cy);
-                    for (let i = 0; i < segs; i++) {
-                        const a0 = (i / segs) * Math.PI * 2;
-                        const a1 = ((i + 1) / segs) * Math.PI * 2;
-
-                        // setor base
-                        ctx.beginPath();
-                        ctx.moveTo(0,0);
-                        ctx.arc(0,0, r, a0, a1);
-                        ctx.closePath();
-                        ctx.fillStyle = (i % 2 === 0) ? '#f5f5f5' : '#212121';
-                        ctx.fill();
-
-                        // recorte para manter só a área do setor (sem cobrir o centro demais)
-                        ctx.globalCompositeOperation = 'source-atop';
-
-                        // faixa dupla (verde/vermelha)
-                        ctx.beginPath();
-                        ctx.arc(0,0, ring1, a0, a1);
-                        ctx.arc(0,0, ring1 - r*0.06, a1, a0, true);
-                        ctx.closePath();
-                        ctx.fillStyle = (i % 2 === 0) ? '#2e7d32' : '#c62828';
-                        ctx.fill();
-
-                        // faixa tripla (verde/vermelha invertido)
-                        ctx.beginPath();
-                        ctx.arc(0,0, ring2, a0, a1);
-                        ctx.arc(0,0, ring2 - r*0.06, a1, a0, true);
-                        ctx.closePath();
-                        ctx.fillStyle = (i % 2 === 0) ? '#c62828' : '#2e7d32';
-                        ctx.fill();
-
-                        ctx.globalCompositeOperation = 'source-over';
+                    // Quadro de dardos
+                    drawCircle(cx, y + 4, 4, '#212121');
+                    // Alvo segmentado
+                    drawCircle(cx, y + 4, 3.5, '#fff');
+                    drawCircle(cx, y + 4, 3, '#000');
+                    drawCircle(cx, y + 4, 2.5, '#fff');
+                    drawCircle(cx, y + 4, 2, '#ff0000');
+                    drawCircle(cx, y + 4, 1.5, '#fff');
+                    drawCircle(cx, y + 4, 1, '#ff0000');
+                    drawCircle(cx, y + 4, 0.5, '#fff');
+                    // Linhas radiais
+                    for(let i = 0; i < 20; i++) {
+                        const angle = (i * Math.PI * 2) / 20;
+                        const x1 = cx + Math.cos(angle) * 0.5;
+                        const y1 = y + 4 + Math.sin(angle) * 0.5;
+                        const x2 = cx + Math.cos(angle) * 3.5;
+                        const y2 = y + 4 + Math.sin(angle) * 3.5;
+                        drawLine(x1, y1, x2, y2, 0.5, '#000');
                     }
-                    ctx.restore();
-
-                    // Anel interno claro/escuro
-                    drawCircle(cx, cy, ring3, 'rgba(255,255,255,0.06)');
-
-                    // Bull e bullseye
-                    drawCircle(cx, cy, bull, '#2e7d32');
-                    drawCircle(cx, cy, bull2, '#c62828');
-
-                    // Divisórias radiais
-                    ctx.save();
-                    ctx.translate(cx, cy);
-                    for (let i = 0; i < segs; i++) {
-                        const a = (i / segs) * Math.PI * 2;
-                        ctx.beginPath();
-                        ctx.moveTo(Math.cos(a) * (r*0.22), Math.sin(a) * (r*0.22));
-                        ctx.lineTo(Math.cos(a) * (r*0.98), Math.sin(a) * (r*0.98));
-                        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-                        ctx.lineWidth = 0.8;
-                        ctx.stroke();
-                    }
-                    ctx.restore();
-
+                    // Dardos cravados
+                    drawLine(cx - 1, y + 2, cx - 0.5, y + 3, 1, '#silver'); // Ponta
+                    drawRect(cx - 1.5, y + 3, 1, 3, '#ff5722'); // Corpo
+                    drawRect(cx - 2, y + 2, 2, 1, '#212121'); // Aletas
                     // Suporte na parede
-                    drawRect(cx - (r + 3), y + s.h - 4, (r + 3) * 2, 3.5, '#8d6e63');
-                    drawRect(cx - (r + 3), y + s.h - 4, (r + 3) * 2, 0.8, 'rgba(0,0,0,0.2)');
-
-                    // 2 dardos cravados (simples)
-                    function drawDart(dx, dy, ang) {
-                        ctx.save();
-                        ctx.translate(cx + dx, cy + dy);
-                        ctx.rotate(ang);
-                        // haste
-                        drawLine(-6, 0, 4, 0, 1.2, '#b0bec5');
-                        // ponta
-                        drawLine(4, 0, 6, 0, 1.2, '#757575');
-                        // penas
-                        drawRect(-9, -2, 3, 4, '#1565c0');
-                        drawRect(-12, -1.5, 3, 3, '#42a5f5');
-                        ctx.restore();
-                    }
-                    drawDart(-r*0.15, -r*0.08, -0.2);
-                    drawDart(r*0.10, r*0.12, 0.5);
+                    drawRect(cx - 3, y + 8, 6, 2, '#8d6e63');
                     break;
 
                 case 'neon_signs':
-                    // Letreiro neon (maior e mais realista)
-                    const pad = 2;
-                    // Placa de fundo
-                    drawRect(left, y, s.w, s.h, 'rgba(0,0,0,0.55)');
-                    drawRect(left + 1, y + 1, s.w - 2, s.h - 2, 'rgba(255,255,255,0.05)');
+                    // Tubos de neon formando letras
+                    ctx.strokeStyle = s.col;
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = s.col;
+                    ctx.shadowBlur = 10;
 
-                    // Caixa do transformador
-                    drawRect(left + s.w - 6, y + s.h - 5, 5, 4, '#263238');
-                    drawRect(left + s.w - 5.6, y + s.h - 4.6, 4.2, 0.6, 'rgba(255,255,255,0.15)');
+                    // Letra "B"
+                    drawLine(cx - 6, y + 1, cx - 6, y + 5, 2, s.col);
+                    drawLine(cx - 6, y + 1, cx - 4, y + 1, 2, s.col);
+                    drawLine(cx - 6, y + 3, cx - 4, y + 3, 2, s.col);
+                    drawLine(cx - 6, y + 5, cx - 4, y + 5, 2, s.col);
+                    drawLine(cx - 4, y + 1, cx - 4, y + 3, 2, s.col);
+                    drawLine(cx - 4, y + 3, cx - 4, y + 5, 2, s.col);
 
-                    // Texto em neon: "BAR"
-                    ctx.save();
-                    ctx.translate(left + pad, y + pad);
-                    const textW = s.w - pad*2 - 6;
-                    const textH = s.h - pad*2;
+                    // Letra "A"
+                    drawLine(cx - 2, y + 5, cx - 1, y + 1, 2, s.col);
+                    drawLine(cx - 1, y + 1, cx, y + 5, 2, s.col);
+                    drawLine(cx - 1.5, y + 3, cx - 0.5, y + 3, 2, s.col);
 
-                    // glow forte + tubo
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
+                    // Letra "R"
+                    drawLine(cx + 1, y + 1, cx + 1, y + 5, 2, s.col);
+                    drawLine(cx + 1, y + 1, cx + 3, y + 1, 2, s.col);
+                    drawLine(cx + 1, y + 3, cx + 3, y + 3, 2, s.col);
+                    drawLine(cx + 3, y + 1, cx + 3, y + 3, 2, s.col);
+                    drawLine(cx + 1, y + 3, cx + 3, y + 5, 2, s.col);
 
-                    function neonStroke(strokeW, glowW, alpha) {
-                        ctx.strokeStyle = `rgba(255, 87, 34, ${alpha})`;
-                        ctx.shadowColor = `rgba(255, 87, 34, ${alpha})`;
-                        ctx.shadowBlur = glowW;
-                        ctx.lineWidth = strokeW;
-                        ctx.stroke();
+                    // Brilho do neon
+                    ctx.shadowBlur = 0;
+                    for(let i = 0; i < 10; i++) {
+                        const x = cx - 7 + Math.random() * 14;
+                        const y_pos = y + 0.5 + Math.random() * 5;
+                        drawCircle(x, y_pos, 0.2, 'rgba(255, 87, 34, 0.8)');
                     }
-
-                    // Desenhar letras como caminhos simples
-                    const baseX = 2;
-                    const midY = textH/2 + 1;
-
-                    // B
-                    ctx.beginPath();
-                    ctx.moveTo(baseX, 1);
-                    ctx.lineTo(baseX, textH - 1);
-                    ctx.moveTo(baseX, 1);
-                    ctx.lineTo(baseX + textW*0.18, 3);
-                    ctx.lineTo(baseX + textW*0.18, midY - 2);
-                    ctx.lineTo(baseX, midY);
-                    ctx.moveTo(baseX, midY);
-                    ctx.lineTo(baseX + textW*0.18, midY + 2);
-                    ctx.lineTo(baseX + textW*0.18, textH - 3);
-                    ctx.lineTo(baseX, textH - 1);
-
-                    // A
-                    const ax = baseX + textW*0.32;
-                    ctx.moveTo(ax, textH - 1);
-                    ctx.lineTo(ax + textW*0.08, 1);
-                    ctx.lineTo(ax + textW*0.16, textH - 1);
-                    ctx.moveTo(ax + textW*0.04, midY);
-                    ctx.lineTo(ax + textW*0.12, midY);
-
-                    // R
-                    const rx = baseX + textW*0.62;
-                    ctx.moveTo(rx, textH - 1);
-                    ctx.lineTo(rx, 1);
-                    ctx.lineTo(rx + textW*0.18, 3);
-                    ctx.lineTo(rx + textW*0.18, midY - 2);
-                    ctx.lineTo(rx, midY);
-                    ctx.moveTo(rx, midY);
-                    ctx.lineTo(rx + textW*0.18, textH - 1);
-
-                    // Glow + tubo
-                    neonStroke(6, 14, 0.35);
-                    neonStroke(3.5, 10, 0.55);
-                    neonStroke(2.2, 6, 0.9);
-
-                    ctx.restore();
-
-                    // Cabinho do transformador
-                    drawLine(left + s.w - 6, y + s.h - 3, left + s.w - 12, y + s.h - 2, 1, '#616161');
                     break;
 
                 case 'clothing_rack': // Cabideiro de Roupas Detalhado
@@ -8593,182 +8392,6 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         }
 
 
-    
-canvas.addEventListener("touchmove", (e) => {
-    touchMoved = true;
-}, { passive: true });
-
-canvas.addEventListener("touchend", (e) => {
-    if (gamePaused || gameEnded) return;
-
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
-
-    const dx = endX - touchStartX;
-    const dy = endY - touchStartY;
-
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    const screenW = window.innerWidth;
-
-    /* ---------- SWIPE VERTICAL ---------- */
-    if (absY > absX && absY > SWIPE_THRESHOLD) {
-        if (dy < 0) {
-            // deslizar para cima
-            attemptVerticalMove(1);
-        } else {
-            // deslizar para baixo
-            attemptVerticalMove(-1);
-        }
-        return;
-    }
-
-    /* ---------- TOQUE (sem swipe) ---------- */
-    const touchXRatio = endX / screenW;
-
-    // borda esquerda
-    if (touchXRatio < EDGE_ZONE) {
-        keys.left = true;
-        setTimeout(() => keys.left = false, 120);
-        return;
-    }
-
-    // borda direita
-    if (touchXRatio > 1 - EDGE_ZONE) {
-        keys.right = true;
-        setTimeout(() => keys.right = false, 120);
-        return;
-    }
-
-    // centro da tela → pulo
-    const centerMin = 0.5 - CENTER_ZONE / 2;
-    const centerMax = 0.5 + CENTER_ZONE / 2;
-
-    if (touchXRatio > centerMin && touchXRatio < centerMax) {
-        attemptJump();
-    }
-
-}, { passive: true });
-
-
-/* ===============================
-   TOUCH CONTROLS (Mobile Buttons + Swipe Andares)
-   - Swipe vertical no canvas: sobe/desce andar
-   - Botões: esquerda/direita (hold), Carregar/soltar, Ação, Pular
-   =============================== */
-
-(function initTouchControls(){
-    // falha segura
-    if (!window.canvas) return;
-
-    // ----- Swipe vertical (apenas para mudar andares) -----
-    let sX = 0, sY = 0;
-    const SWIPE_THRESHOLD = 40;
-
-    canvas.addEventListener("touchstart", (e) => {
-        if (gamePaused || gameEnded) return;
-        const t = e.touches[0];
-        sX = t.clientX;
-        sY = t.clientY;
-    }, { passive: true });
-
-    canvas.addEventListener("touchend", (e) => {
-        if (gamePaused || gameEnded) return;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - sX;
-        const dy = t.clientY - sY;
-
-        const absX = Math.abs(dx);
-        const absY = Math.abs(dy);
-
-        if (absY > absX && absY > SWIPE_THRESHOLD) {
-            if (dy < 0) attemptVerticalMove(1);   // up
-            else        attemptVerticalMove(-1);  // down
-        }
-    }, { passive: true });
-
-    // ----- Helpers para botões -----
-    function bindHold(btn, keyName){
-        if (!btn) return;
-
-        const down = (ev) => {
-            if (gamePaused || gameEnded) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            keys[keyName] = true;
-
-            // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
-            if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
-                const now = getGameTime();
-                hasMadeFirstMove = true;
-                playerInvincible = true;
-                playerInvincibilityStart = now;
-                updateProtectionIndicator();
-            }
-        };
-
-        const up = (ev) => {
-            ev.preventDefault?.();
-            ev.stopPropagation?.();
-            keys[keyName] = false;
-        };
-
-        btn.addEventListener("touchstart", down, { passive: false });
-        btn.addEventListener("touchend", up, { passive: false });
-        btn.addEventListener("touchcancel", up, { passive: false });
-
-        // Desktop fallback
-        btn.addEventListener("mousedown", down);
-        window.addEventListener("mouseup", up);
-        btn.addEventListener("mouseleave", up);
-    }
-
-    function bindTap(btn, fn){
-        if (!btn) return;
-
-        const act = (ev) => {
-            if (gamePaused || gameEnded) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            fn();
-        };
-
-        btn.addEventListener("touchstart", act, { passive: false });
-        btn.addEventListener("click", act);
-    }
-
-    // ----- Mapear botões -----
-    const btnLeft  = document.getElementById("btnLeft");
-    const btnRight = document.getElementById("btnRight");
-    const btnCarry = document.getElementById("btnCarry");
-    const btnAction= document.getElementById("btnAction");
-    const btnJump  = document.getElementById("btnJump");
-
-    bindHold(btnLeft, "left");
-    bindHold(btnRight, "right");
-
-    bindTap(btnCarry, () => attemptPickupOrDrop());
-    bindTap(btnAction, () => attemptInteract());
-    bindTap(btnJump, () => attemptJump());
-})();
-
-</script>
-
-<!-- ===============================
-     TOUCH UI (Botões Mobile)
-     =============================== -->
-<div id="touchUI" aria-hidden="true">
-    <div class="touchPadLeft">
-        <div class="touchBtn" id="btnLeft">◀</div>
-        <div class="touchBtn" id="btnRight">▶</div>
-    </div>
-    <div class="touchPadRight">
-        <div class="touchBtn smallText" id="btnCarry">Carregar/<br>soltar</div>
-        <div class="touchBtn" id="btnAction">Ação</div>
-        <div class="touchBtn" id="btnJump">Pular</div>
-    </div>
-</div>
-
+    </script>
 </body>
 </html>

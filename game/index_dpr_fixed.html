@@ -19,14 +19,6 @@
             font-family: 'Consolas', monospace;
         }
 
-
-        body.paused * {
-            animation-play-state: paused !important;
-        }
-        body.paused #currentMission:hover {
-            transform: none !important;
-        }
-
         .hud {
             position: absolute;
             top: 20px;
@@ -56,111 +48,7 @@
             display: block;
             image-rendering: pixelated;
         }
-    
-        /* --- Info overlay (Setor + Objetos) --- */
-        #infoOverlay {
-            position: absolute;
-            top: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
-            z-index: 9999;
-            pointer-events: none;
-            font-family: 'Consolas', monospace;
-            text-align: center;
-        }
-        #sectorBox, #objectBox {
-            background: rgba(0, 0, 0, 0.70);
-            border: 1px solid #333;
-            border-radius: 10px;
-            padding: 10px 14px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            display: inline-block;
-            max-width: min(92vw, 720px);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #sectorBox {
-            font-size: 2.4rem; /* dobro do antigo 1.2rem */
-            font-weight: 800;
-            color: var(--accent-color);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-        #objectBox {
-            margin-top: 8px;
-            font-size: 1.0rem;
-            font-weight: 600;
-            color: #ffd700;
-        }
-
-    
-/* ===============================
-   TOUCH UI (Mobile Buttons)
-   =============================== */
-html, body {
-    touch-action: none; /* evita scroll/zoom durante o jogo */
-    overscroll-behavior: none;
-}
-#worldCanvas {
-    touch-action: none;
-}
-
-#touchUI {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 220px;
-    z-index: 15000;
-    pointer-events: none; /* só os botões recebem clique */
-}
-
-.touchPadLeft, .touchPadRight {
-    position: absolute;
-    bottom: 18px;
-    display: flex;
-    gap: 12px;
-    pointer-events: auto;
-}
-
-.touchPadLeft { left: 18px; }
-.touchPadRight { right: 18px; }
-
-.touchBtn {
-    width: 74px;
-    height: 74px;
-    border-radius: 18px;
-    border: 1px solid rgba(255,255,255,0.25);
-    background: rgba(0,0,0,0.45);
-    color: rgba(255,255,255,0.92);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    display: grid;
-    place-items: center;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
-    backdrop-filter: blur(6px);
-}
-
-.touchBtn:active {
-    transform: scale(0.96);
-    background: rgba(0,0,0,0.62);
-}
-
-.touchBtn.smallText {
-    font-size: 11px;
-    line-height: 1.05;
-    padding: 8px;
-    text-align: center;
-}
-
-</style>
+    </style>
 </head>
 <body>
 
@@ -223,9 +111,6 @@ html, body {
                 <div id="exploreModeIndicator" style="display: none; color: #4ecdc4; font-weight: bold;">
                     🗺️ MODO EXPLORATÓRIO - Explore livremente!
                 </div>
-                <div id="pauseIndicator" style="display: none; color: #ffcc00; font-weight: bold; font-size: 1.1rem;">
-                    ⏸️ JOGO PAUSADO - Pressione ENTER ou START para continuar
-                </div>
             </div>
 
             <!-- Missão atual na parte inferior central -->
@@ -234,7 +119,7 @@ html, body {
                 bottom: 20px;
                 left: 50%;
                 transform: translateX(-50%);
-                display: block;
+                display: none;
                 z-index: 1000;
                 pointer-events: none;
                 text-align: center;
@@ -273,54 +158,8 @@ html, body {
                 #currentMission:hover {
                     transform: scale(1.1);
                 }
-            
-        /* --- Info overlay (Setor + Objetos) --- */
-        #infoOverlay {
-            position: absolute;
-            top: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
-            z-index: 9999;
-            pointer-events: none;
-            font-family: 'Consolas', monospace;
-            text-align: center;
-        }
-        #sectorBox, #objectBox {
-            background: rgba(0, 0, 0, 0.70);
-            border: 1px solid #333;
-            border-radius: 10px;
-            padding: 10px 14px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            display: inline-block;
-            max-width: min(92vw, 720px);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #sectorBox {
-            font-size: 2.4rem; /* dobro do antigo 1.2rem */
-            font-weight: 800;
-            color: var(--accent-color);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-        #objectBox {
-            margin-top: 8px;
-            font-size: 1.0rem;
-            font-weight: 600;
-            color: #ffd700;
-        }
-
-    </style>
+            </style>
         </div>
-    </div>
-
-
-    <!-- Overlay minimal (Setor e Objetos) -->
-    <div id="infoOverlay">
-        <div id="sectorBox">...</div>
-        <div id="objectBox" style="display:none;">...</div>
     </div>
 
     <canvas id="worldCanvas"></canvas>
@@ -596,12 +435,12 @@ html, body {
             acoustic_guitar: { w: 12, h: 22, col: '#8d6e63' },
             keyboard: { w: 24, h: 12, col: '#212121' },
             bar_counter: { w: 36, h: 12, col: '#8d6e63' },
-            beer_taps: { w: 14, h: 26, col: '#c0c0c0' },
+            beer_taps: { w: 8, h: 16, col: '#c0c0c0' },
             bottles_rack: { w: 20, h: 16, col: '#8d6e63' },
             jukebox: { w: 20, h: 36, col: '#8B4513' }, // Estilo anos 50 - madeira marrom grande
             pool_table: { w: 28, h: 16, col: '#2e7d32' },
-            dart_board: { w: 22, h: 22, col: '#212121', wall: true },
-            neon_signs: { w: 34, h: 14, col: '#ff5722', wall: true },
+            dart_board: { w: 16, h: 16, col: '#212121', wall: true },
+            neon_signs: { w: 24, h: 10, col: '#ff5722', wall: true },
             clothing_rack: { w: 16, h: 20, col: '#8d6e63' },
             cash_register: { w: 12, h: 10, col: '#424242', surface: true },
             mannequins: { w: 6, h: 24, col: '#f5f5f5' },
@@ -741,13 +580,8 @@ html, body {
             const BTN_A = 0;
             const BTN_B = 1;
             const BTN_X = 2;
-            const BTN_START = 9; // Botão Start (normalmente pausa)
 
-            // Start => pause/unpause
-            if (buttonPressedNow(pad, BTN_START)) {
-                togglePause();
-            }
-// X => interagir
+            // X => interagir
             if (buttonPressedNow(pad, BTN_X)) {
                 attemptInteract();
             }
@@ -787,7 +621,7 @@ html, body {
                 console.log("Gamepad mapping:", pad.mapping, "axes:", pad.axes?.length || 0);
             }
 
-            const now = getGameTime();
+            const now = Date.now();
 
             // Direções: dpad (botões + axes[6]/axes[7]) + analógico esquerdo
             const axX = pad.axes?.[0] ?? 0;
@@ -1106,11 +940,8 @@ html, body {
             gameModeBtn.addEventListener('click', () => {
                 stopGameLoop(); // Garantir que não há loops antigos
                 gameMode = 'game';
-                gamePaused = false; // Começar sem pause
                 mainMenu.style.display = 'none';
-                hud.style.display = 'none'; // HUD oculto por padrão
-                var infoOverlay = document.getElementById('infoOverlay');
-                if (infoOverlay) infoOverlay.style.display = 'none';
+                hud.style.display = 'block';
                 document.getElementById('missionsSection').style.display = 'block';
                 document.getElementById('missionBottomDisplay').style.display = 'block';
                 document.getElementById('exploreModeIndicator').style.display = 'none';
@@ -1121,11 +952,8 @@ html, body {
             exploreModeBtn.addEventListener('click', () => {
                 stopGameLoop(); // Garantir que não há loops antigos
                 gameMode = 'explore';
-                gamePaused = false; // Começar sem pause
                 mainMenu.style.display = 'none';
-                hud.style.display = 'none'; // HUD oculto por padrão
-                var infoOverlay = document.getElementById('infoOverlay');
-                if (infoOverlay) infoOverlay.style.display = 'none';
+                hud.style.display = 'block';
                 // Modo exploratório agora também usa o sistema de missões
                 document.getElementById('missionsSection').style.display = 'block';
                 document.getElementById('missionBottomDisplay').style.display = 'block';
@@ -1153,11 +981,8 @@ html, body {
 
                     stopGameLoop(); // Garantir que não há loops antigos
                     gameMode = 'game';
-                    gamePaused = false; // Começar sem pause
                     mainMenu.style.display = 'none';
-                    hud.style.display = 'none'; // HUD oculto por padrão
-                var infoOverlay = document.getElementById('infoOverlay');
-                if (infoOverlay) infoOverlay.style.display = 'none';
+                    hud.style.display = 'block';
                     document.getElementById('missionsSection').style.display = 'block';
                     document.getElementById('missionBottomDisplay').style.display = 'block';
                     document.getElementById('exploreModeIndicator').style.display = 'none';
@@ -1172,47 +997,6 @@ html, body {
         // --- Sistema de Modos de Jogo ---
         let gameMode = null; // 'game' ou 'explore'
         let gameEnded = false; // Controla se o jogo terminou (vitória ou derrota)
-        let gamePaused = false; // Controla se o jogo está pausado
-
-        // --- Relógio do jogo (pausa congela o tempo) ---
-        let pausedTimeTotal = 0;      // ms acumulados em pausa
-        let pauseStartedAt = null;    // getGameTime() real quando entrou em pausa
-
-        function getGameTime() {
-            // Tempo “do jogo” (não avança enquanto pausado)
-            return Date.now() - pausedTimeTotal;
-        }
-
-        function togglePause() {
-            if (!gameMode || gameEnded) return;
-
-            const hudEl = document.querySelector('.hud');
-            const pauseEl = document.getElementById('pauseIndicator');
-
-            if (!gamePaused) {
-                gamePaused = true;
-                pauseStartedAt = Date.now(); // real
-                document.body.classList.add('paused');
-
-                // Exibir HUD completo durante o pause
-                if (hudEl) hudEl.style.display = 'block';
-                if (pauseEl) pauseEl.style.display = 'block';
-            } else {
-                gamePaused = false;
-
-                if (pauseStartedAt !== null) {
-                    pausedTimeTotal += (Date.now() - pauseStartedAt);
-                    pauseStartedAt = null;
-                }
-
-                document.body.classList.remove('paused');
-
-                // Voltar ao padrão (HUD escondido) quando retomar
-                if (hudEl) hudEl.style.display = 'none';
-                if (pauseEl) pauseEl.style.display = 'none';
-            }
-        }
-
 
         // --- Sistema de Controle de Loop (Token System) ---
         let loopToken = 0;
@@ -1236,7 +1020,7 @@ html, body {
             isJumping: false,
             // Sistema de replay cinemático
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
-            delayTime: 3000    // 1 segundo de atraso
+            delayTime: 1000    // 1 segundo de atraso
         };
 
         let purpleEnemy = {
@@ -1247,7 +1031,7 @@ html, body {
             isJumping: false,
             // Sistema de replay cinemático
             history: [],        // Buffer de snapshots {x, y, floor, state, timestamp}
-            delayTime: 2000    // 1 segundo de atraso
+            delayTime: 1000    // 1 segundo de atraso
         };
         
         // Variáveis para rastrear interações específicas com o inimigo
@@ -1264,7 +1048,7 @@ html, body {
             getOrGenerateFloor(0);
 
             // Definir tempo de início do jogo
-            gameStartTime = getGameTime();
+            gameStartTime = Date.now();
 
             // Inicializar barra de vida
             updateHealthBar();
@@ -1429,7 +1213,7 @@ html, body {
         }
 
         function attemptDash() {
-            const now = getGameTime();
+            const now = Date.now();
             if (!player.isDashing && now > player.dashCooldown) {
                 player.isDashing = true;
                 player.dashTime = now + 200; // Dash dura 200ms
@@ -1968,7 +1752,7 @@ html, body {
             gameEnded = true; // Parar toda a lógica do jogo
 
             // Calcular estatísticas finais
-            const totalTime = (getGameTime() - gameStartTime) / 1000;
+            const totalTime = (Date.now() - gameStartTime) / 1000;
             const minutes = Math.floor(totalTime / 60);
             const seconds = Math.floor(totalTime % 60);
             const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -2130,15 +1914,6 @@ html, body {
                     return;
                 }
 
-                // Enquanto pausado, não roda update() (congela inimigos, contagens e física),
-                // mas ainda checa START para retomar.
-                if (gamePaused) {
-                    pollGamepad(); // permite despausar no controle
-                    draw();        // redesenha o estado congelado
-                    rafId = requestAnimationFrame(frame);
-                    return;
-                }
-
                 update();
                 draw();
                 rafId = requestAnimationFrame(frame);
@@ -2184,7 +1959,6 @@ html, body {
             // Resetar todas as variáveis globais
             gameMode = null;
             gameEnded = false;
-            gamePaused = false;
             hasMadeFirstMove = false;
             gameStartTime = 0;
 
@@ -2271,9 +2045,7 @@ html, body {
             if (mainMenu && hud) {
                 mainMenu.style.display = 'flex';
                 hud.style.display = 'none';
-                var infoOverlay = document.getElementById('infoOverlay');
-                if (infoOverlay) infoOverlay.style.display = 'none';
-                document.getElementById('missionBottomDisplay').style.display = 'block';
+                document.getElementById('missionBottomDisplay').style.display = 'none';
                 document.getElementById('exploreModeIndicator').style.display = 'none';
             }
 
@@ -2490,7 +2262,7 @@ html, body {
         // --- NOVO SISTEMA DE REPLAY CINEMÁTICO ---
 
         function recordPlayerState() {
-            const now = getGameTime();
+            const now = Date.now();
 
             // Grava o estado exato (Posição absoluta)
             enemy.history.push({
@@ -2526,10 +2298,10 @@ html, body {
             // Se o jogo terminou, não atualizar inimigo
             if (gameEnded) return;
 
-            const now = getGameTime();
+            const now = Date.now();
 
             // Calcular delay dinâmico (diminui 2% por segundo, aumenta 5% por item coletado)
-            const elapsedSeconds = (now - gameStartTime) / 3000;
+            const elapsedSeconds = (now - gameStartTime) / 1000;
             const dynamicDelayTime = enemy.delayTime * Math.pow(0.95, elapsedSeconds) * Math.pow(1.15, collectedItemsCount);
 
             const targetTime = now - dynamicDelayTime;
@@ -2641,10 +2413,10 @@ html, body {
             // Se o jogo terminou, não atualizar inimigo
             if (gameEnded) return;
 
-            const now = getGameTime();
+            const now = Date.now();
 
             // Delay fixo de 1 segundo para o inimigo roxo
-            const dynamicDelayTime = 2000;
+            const dynamicDelayTime = 1000;
 
             const targetTime = now - dynamicDelayTime;
 
@@ -2701,7 +2473,7 @@ html, body {
 
             // Ativar invencibilidade
             playerInvincible = true;
-            playerInvincibilityStart = getGameTime();
+            playerInvincibilityStart = Date.now();
 
             // Atualizar barra de vida visual
             updateHealthBar();
@@ -2729,7 +2501,7 @@ html, body {
                 if (gameMode === 'explore') {
                     delayElement.style.display = 'none';
                 } else {
-                    const elapsedSeconds = (getGameTime() - gameStartTime) / 1000;
+                    const elapsedSeconds = (Date.now() - gameStartTime) / 1000;
                     const currentDelay = enemy.delayTime * Math.pow(0.95, elapsedSeconds) * Math.pow(1.15, collectedItemsCount);
                     const delayInSeconds = currentDelay / 1000;
                     delayElement.innerHTML = `Delay: ${delayInSeconds.toFixed(4).replace('.', ',')}s`;
@@ -2740,7 +2512,7 @@ html, body {
 
         function updateInvincibility() {
             if (playerInvincible) {
-                const currentTime = getGameTime();
+                const currentTime = Date.now();
                 const elapsedTime = currentTime - playerInvincibilityStart;
 
                 if (elapsedTime >= playerInvincibilityDuration) {
@@ -2851,7 +2623,7 @@ html, body {
             hasMadeFirstMove = false;
 
             // Reset do tempo de jogo
-            gameStartTime = getGameTime();
+            gameStartTime = Date.now();
 
             // Reset dos inimigos
             enemy.x = 0;
@@ -2975,15 +2747,9 @@ html, body {
         }
 
         function onKeyDown(e) {
-            const currentTime = getGameTime();
+            const currentTime = Date.now();
 
-            // Controle de pause (tecla Enter)
-            if (e.code === 'Enter') {
-                togglePause();
-                e.preventDefault();
-                return;
-            }
-if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 keys.left = true;
                 detectDoubleClick('left', currentTime);
                 // Primeiro movimento lateral - iniciar invencibilidade
@@ -3105,7 +2871,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 if (dist < 20) {
                     // Só aplica se for o projétil do floco de neve
                     if (p.type === 'snowflake') {
-                        const now = getGameTime();
+                        const now = Date.now();
                         const elapsedSeconds = (now - gameStartTime) / 1000;
 
                         const scale =
@@ -3141,8 +2907,8 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         }
 
         function update() {
-            // Se o jogo terminou ou está pausado, não atualizar
-            if (gameEnded || gamePaused) return;
+            // Se o jogo terminou, não atualizar
+            if (gameEnded) return;
 
             // Poll do gamepad (a cada frame)
             pollGamepad();
@@ -3157,7 +2923,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             }
 
             // Atualizar estado de Dash
-            const now = getGameTime();
+            const now = Date.now();
             if (player.isDashing) {
                 if (now > player.dashTime) {
                     player.isDashing = false;
@@ -3249,7 +3015,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 }
             }
             camera.y += (player.y - camera.y) * 0.1;
-            camera.x += (player.x - camera.x) * 0.12; // camera segue o player no eixo X
+            camera.x = 0;
 
             // Atualizar sistema de partículas
             updateParticles();
@@ -3679,27 +3445,6 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             ctx.fill();
         }
 
-        function drawHeart(x, y, size, col, alpha = 1) {
-            const screenX = (CW() / 2) + x - camera.x;
-            const screenY = (CH() / 2) + y - camera.y;
-
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = col;
-
-            const s = size;
-            // Coração simples por curvas (baseado em bezier), centrado em (screenX, screenY)
-            ctx.beginPath();
-            ctx.moveTo(screenX, screenY + s * 0.3);
-            ctx.bezierCurveTo(screenX - s, screenY - s * 0.5, screenX - s * 0.8, screenY - s * 1.2, screenX, screenY - s * 0.55);
-            ctx.bezierCurveTo(screenX + s * 0.8, screenY - s * 1.2, screenX + s, screenY - s * 0.5, screenX, screenY + s * 0.3);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.restore();
-        }
-
-
 
         function drawEllipse(x, y, rx, ry, col) {
             const screenX = (CW() / 2) + x - camera.x;
@@ -3766,7 +3511,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             const cx = item.x;
             const left = cx - s.w/2;
             const right = cx + s.w/2;
-            const time = getGameTime();
+            const time = Date.now();
 
             // Coordenadas de tela para formas complexas
             const sx = (CW() / 2) + left - camera.x;
@@ -3862,7 +3607,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade (piscando sutil)
-                    const blinkBook = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkBook = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 5, 0.8, `rgba(139, 69, 19, ${blinkBook})`);
                     break;
 
@@ -4130,7 +3875,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkServer = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkServer = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 8, y + s.h - 2, 0.8, `rgba(100, 255, 100, ${blinkServer})`);
                     break;
 
@@ -4215,7 +3960,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkChem = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkChem = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 10, y + 2, 0.8, `rgba(255, 100, 255, ${blinkChem})`);
                     break;
 
@@ -4398,7 +4143,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkDumb = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkDumb = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y, 0.8, `rgba(150, 75, 0, ${blinkDumb})`);
                     break;
 
@@ -4558,7 +4303,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkBall = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkBall = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y - 1, 0.8, `rgba(255, 100, 100, ${blinkBall})`);
                     break;
 
@@ -4630,7 +4375,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx - 6, y + s.h - 6, cx - 8, y + 14, 1, '#666');
                     drawLine(cx + 6, y + s.h - 6, cx + 8, y + 14, 1, '#666');
                     // Movimento sutil animado
-                    const swingOffset = Math.sin(getGameTime() / 1000) * 3;
+                    const swingOffset = Math.sin(Date.now() / 1000) * 3;
                     drawRect(cx - 6 + swingOffset, y + s.h - 6, 12, 3, s.col);
                     // Sombras no chão
                     drawEllipse(cx + swingOffset, y + s.h + 2, 8, 2, 'rgba(0, 0, 0, 0.2)');
@@ -4736,7 +4481,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx + 2, y + 9, 1, 1, '#c0c0c0');
 
                     // Movimento animado mais suave
-                    const seesawAngle = Math.sin(getGameTime() / 1200) * 0.12; // Ângulo menor
+                    const seesawAngle = Math.sin(Date.now() / 1200) * 0.12; // Ângulo menor
                     ctx.save();
                     ctx.translate(scx, sy + 11);
                     ctx.rotate(seesawAngle);
@@ -4798,7 +4543,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx + 6, y + s.h - 1, 1, '#ff69b4');
 
                     // Indicador visual de interatividade
-                    const blinkHouse = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkHouse = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 6, 0.8, `rgba(255, 192, 203, ${blinkHouse})`);
                     break;
 
@@ -4896,7 +4641,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     // Rabo
                     drawRect(cx + 6, y + 2, 1, 6, '#ffeb3b');
                     // Movimento bouncing
-                    const bounceOffset = Math.sin(getGameTime() / 800) * 2;
+                    const bounceOffset = Math.sin(Date.now() / 800) * 2;
                     drawRect(cx - 6, y + bounceOffset, 12, 10, s.col);
                     drawCircle(cx, y - 3 + bounceOffset, 4, s.col);
                     // Sombra dinâmica
@@ -4988,7 +4733,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
                     // Indicador visual de interatividade (piscando suavemente quando não está acenando)
                     if (!teddyBearWaving) {
-                        const blinkTeddy = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                        const blinkTeddy = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                         drawCircle(cx + 6, y + 8, 0.8, `rgba(255, 69, 184, ${blinkTeddy})`);
                     }
                     break;
@@ -5014,7 +4759,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx - 4, y + 5, 1, '#654321');
                     drawCircle(cx + 4, y + 5, 1, '#654321');
                     // Movimento pendular
-                    const tireOffset = Math.sin(getGameTime() / 1000) * 4;
+                    const tireOffset = Math.sin(Date.now() / 1000) * 4;
                     ctx.strokeStyle = '#424242';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
@@ -5087,7 +4832,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkWater = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkWater = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 12, 0.8, `rgba(100, 150, 255, ${blinkWater})`);
                     break;
 
@@ -5280,7 +5025,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx, y, cx + 6, y - 8, 1, '#999');
 
                     // Indicador visual de interatividade
-                    const blinkTV = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkTV = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 8, y + 2, 0.8, `rgba(255, 255, 0, ${blinkTV})`);
                     break;
 
@@ -5430,7 +5175,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx + 4, y + s.h/2 + 2, 1, 'yellow');
 
                     // Indicador visual de interatividade
-                    const blinkArcade = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkArcade = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 8, 0.8, `rgba(0, 255, 0, ${blinkArcade})`);
                     break;
 
@@ -5614,7 +5359,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkRobo = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkRobo = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 8, y + s.h - 2, 0.8, `rgba(255, 100, 100, ${blinkRobo})`);
                     break;
 
@@ -5661,7 +5406,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkShower = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkShower = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx - 2, y + 5, 0.8, `rgba(100, 150, 255, ${blinkShower})`);
                     break;
 
@@ -5709,7 +5454,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx + 2, y + 25, 2, 10, '#eee');
 
                     // Indicador visual de interatividade
-                    const blinkFridge = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkFridge = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 6, y + 2, 0.8, `rgba(100, 200, 255, ${blinkFridge})`);
                     break;
 
@@ -5756,7 +5501,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx - 4, y + 28, 8, 2, '#cfd8dc'); 
 
                     // Indicador visual de interatividade
-                    const blinkStove = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkStove = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 5, 0.8, `rgba(255, 100, 100, ${blinkStove})`);
                     break;
 
@@ -5823,7 +5568,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkSink = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkSink = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx - 6, y + 2, 0.8, `rgba(100, 150, 255, ${blinkSink})`);
                     break;
 
@@ -5998,7 +5743,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('STEINWAY', cx - 2.5, y + 2, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkPiano = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkPiano = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y - 2, 0.8, `rgba(139, 69, 19, ${blinkPiano})`);
                     break;
 
@@ -6234,54 +5979,30 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
 
                 case 'beer_taps':
-                    // Torneiras de chope (maiores e mais realistas)
-                    // Base/placa inox
-                    drawRect(cx - s.w/2, y, s.w, s.h, '#bdbdbd');
-                    // Brilho lateral
-                    drawRect(cx - s.w/2 + 1, y + 1, 2, s.h - 2, 'rgba(255,255,255,0.25)');
-                    drawRect(cx + s.w/2 - 3, y + 2, 2, s.h - 4, 'rgba(0,0,0,0.15)');
-
-                    // Bandeja coletora
-                    drawRect(cx - s.w/2 - 1, y + s.h - 5, s.w + 2, 4, '#424242');
-                    // Grelha da bandeja
-                    for (let gx = -Math.floor(s.w/2); gx <= Math.floor(s.w/2); gx += 2) {
-                        drawLine(cx + gx, y + s.h - 5, cx + gx, y + s.h - 1, 0.5, 'rgba(255,255,255,0.25)');
-                    }
-
-                    // Coluna central (torre)
-                    drawRect(cx - 2.5, y + 2, 5, s.h - 10, '#9e9e9e');
-                    drawRect(cx - 2.2, y + 3, 1, s.h - 12, 'rgba(255,255,255,0.25)');
-
-                    // 3 torneiras
-                    const tapCount = 3;
-                    for (let i = 0; i < tapCount; i++) {
-                        const t = (tapCount === 1) ? 0 : (i / (tapCount - 1));
-                        const tapX = cx - (s.w * 0.28) + t * (s.w * 0.56);
-
+                    // Estrutura metálica
+                    drawRect(cx - 3, y, 6, s.h, '#c0c0c0');
+                    // Base
+                    drawRect(cx - 4, y + 14, 8, 2, '#424242');
+                    // Torneiras (3 unidades)
+                    for(let i = 0; i < 3; i++) {
+                        const tapX = cx - 2 + i * 2;
                         // Corpo da torneira
-                        drawRect(tapX - 0.8, y + 7, 1.6, 10, '#757575');
-                        drawRect(tapX - 0.6, y + 8, 0.6, 8, 'rgba(255,255,255,0.25)');
-
-                        // Bico
-                        drawRect(tapX - 1.2, y + 16, 2.4, 1.2, '#616161');
-                        drawRect(tapX - 0.7, y + 17.2, 1.4, 1.2, '#424242');
-
-                        // Alavanca (vermelha)
-                        drawRect(tapX - 2.2, y + 10, 4.4, 1.4, '#c62828');
-                        drawRect(tapX - 2.2, y + 9.6, 1.0, 0.8, '#7f1d1d');
-
-                        // Plaquinha de sabor
-                        drawRect(tapX - 2.0, y + 5, 4.0, 1.8, '#eeeeee');
-                        drawRect(tapX - 1.8, y + 5.3, 3.6, 0.4, '#b0bec5');
+                        drawRect(tapX - 0.5, y + 2, 1, 10, '#silver');
+                        // Alavanca
+                        drawRect(tapX - 1, y + 4, 2, 1, '#c62828');
+                        // Saída
+                        drawRect(tapX - 0.3, y + 12, 0.6, 2, '#silver');
+                        // Gotas
+                        if(i === 1) { // Uma torneira pingando
+                            drawCircle(tapX, y + 14, 0.3, '#4fc3f7');
+                            drawCircle(tapX, y + 15, 0.2, '#4fc3f7');
+                        }
                     }
-
-                    // Mangueiras laterais
-                    drawLine(cx - s.w/2, y + s.h*0.55, cx - s.w/2 - 6, y + s.h*0.55 + 4, 1.2, '#616161');
-                    drawLine(cx + s.w/2, y + s.h*0.55, cx + s.w/2 + 6, y + s.h*0.55 + 4, 1.2, '#616161');
-
-                    // Pingos discretos (uma torneira)
-                    drawCircle(cx, y + s.h - 3.2, 0.35, 'rgba(79,195,247,0.9)');
-                    drawCircle(cx, y + s.h - 2.0, 0.25, 'rgba(79,195,247,0.8)');
+                    // Tanque superior
+                    drawRect(cx - 3, y, 6, 2, '#e0e0e0');
+                    // Tubulações
+                    drawLine(cx - 3, y + 8, cx - 6, y + 8, 1, '#666');
+                    drawLine(cx + 3, y + 8, cx + 6, y + 8, 1, '#666');
                     break;
 
                 case 'bottles_rack':
@@ -6454,7 +6175,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade (magenta pulsante)
-                    const blinkJukebox = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkJukebox = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 9, y + 12, 1, `rgba(255, 0, 255, ${blinkJukebox})`);
                     break;
 
@@ -6531,184 +6252,72 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx - 2, y + s.h + 3 + footOffset, 4, footHeight, '#654321'); // Pé central
 
                     // Indicador visual de interatividade
-                    const blinkPool = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkPool = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 100, 0, ${blinkPool})`);
                     break;
 
                 case 'dart_board':
-                    // Alvo de dardos (maior e mais realista)
-                    const r = Math.min(s.w, s.h) * 0.48;
-                    const cy = y + s.h/2;
-
-                    // Moldura
-                    drawCircle(cx, cy, r + 1.8, '#3e2723');
-                    drawCircle(cx, cy, r + 1.2, '#5d4037');
-
-                    // Fundo preto
-                    drawCircle(cx, cy, r, '#1b1b1b');
-
-                    // Anéis (cores tradicionais simplificadas)
-                    const ring1 = r * 0.86;   // duplo
-                    const ring2 = r * 0.62;   // triplo
-                    const ring3 = r * 0.38;   // interno
-                    const bull  = r * 0.14;   // bull
-                    const bull2 = r * 0.06;   // bullseye
-
-                    // Segmentos (20) com alternância
-                    const segs = 20;
-                    ctx.save();
-                    ctx.translate(cx, cy);
-                    for (let i = 0; i < segs; i++) {
-                        const a0 = (i / segs) * Math.PI * 2;
-                        const a1 = ((i + 1) / segs) * Math.PI * 2;
-
-                        // setor base
-                        ctx.beginPath();
-                        ctx.moveTo(0,0);
-                        ctx.arc(0,0, r, a0, a1);
-                        ctx.closePath();
-                        ctx.fillStyle = (i % 2 === 0) ? '#f5f5f5' : '#212121';
-                        ctx.fill();
-
-                        // recorte para manter só a área do setor (sem cobrir o centro demais)
-                        ctx.globalCompositeOperation = 'source-atop';
-
-                        // faixa dupla (verde/vermelha)
-                        ctx.beginPath();
-                        ctx.arc(0,0, ring1, a0, a1);
-                        ctx.arc(0,0, ring1 - r*0.06, a1, a0, true);
-                        ctx.closePath();
-                        ctx.fillStyle = (i % 2 === 0) ? '#2e7d32' : '#c62828';
-                        ctx.fill();
-
-                        // faixa tripla (verde/vermelha invertido)
-                        ctx.beginPath();
-                        ctx.arc(0,0, ring2, a0, a1);
-                        ctx.arc(0,0, ring2 - r*0.06, a1, a0, true);
-                        ctx.closePath();
-                        ctx.fillStyle = (i % 2 === 0) ? '#c62828' : '#2e7d32';
-                        ctx.fill();
-
-                        ctx.globalCompositeOperation = 'source-over';
+                    // Quadro de dardos
+                    drawCircle(cx, y + 4, 4, '#212121');
+                    // Alvo segmentado
+                    drawCircle(cx, y + 4, 3.5, '#fff');
+                    drawCircle(cx, y + 4, 3, '#000');
+                    drawCircle(cx, y + 4, 2.5, '#fff');
+                    drawCircle(cx, y + 4, 2, '#ff0000');
+                    drawCircle(cx, y + 4, 1.5, '#fff');
+                    drawCircle(cx, y + 4, 1, '#ff0000');
+                    drawCircle(cx, y + 4, 0.5, '#fff');
+                    // Linhas radiais
+                    for(let i = 0; i < 20; i++) {
+                        const angle = (i * Math.PI * 2) / 20;
+                        const x1 = cx + Math.cos(angle) * 0.5;
+                        const y1 = y + 4 + Math.sin(angle) * 0.5;
+                        const x2 = cx + Math.cos(angle) * 3.5;
+                        const y2 = y + 4 + Math.sin(angle) * 3.5;
+                        drawLine(x1, y1, x2, y2, 0.5, '#000');
                     }
-                    ctx.restore();
-
-                    // Anel interno claro/escuro
-                    drawCircle(cx, cy, ring3, 'rgba(255,255,255,0.06)');
-
-                    // Bull e bullseye
-                    drawCircle(cx, cy, bull, '#2e7d32');
-                    drawCircle(cx, cy, bull2, '#c62828');
-
-                    // Divisórias radiais
-                    ctx.save();
-                    ctx.translate(cx, cy);
-                    for (let i = 0; i < segs; i++) {
-                        const a = (i / segs) * Math.PI * 2;
-                        ctx.beginPath();
-                        ctx.moveTo(Math.cos(a) * (r*0.22), Math.sin(a) * (r*0.22));
-                        ctx.lineTo(Math.cos(a) * (r*0.98), Math.sin(a) * (r*0.98));
-                        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-                        ctx.lineWidth = 0.8;
-                        ctx.stroke();
-                    }
-                    ctx.restore();
-
+                    // Dardos cravados
+                    drawLine(cx - 1, y + 2, cx - 0.5, y + 3, 1, '#silver'); // Ponta
+                    drawRect(cx - 1.5, y + 3, 1, 3, '#ff5722'); // Corpo
+                    drawRect(cx - 2, y + 2, 2, 1, '#212121'); // Aletas
                     // Suporte na parede
-                    drawRect(cx - (r + 3), y + s.h - 4, (r + 3) * 2, 3.5, '#8d6e63');
-                    drawRect(cx - (r + 3), y + s.h - 4, (r + 3) * 2, 0.8, 'rgba(0,0,0,0.2)');
-
-                    // 2 dardos cravados (simples)
-                    function drawDart(dx, dy, ang) {
-                        ctx.save();
-                        ctx.translate(cx + dx, cy + dy);
-                        ctx.rotate(ang);
-                        // haste
-                        drawLine(-6, 0, 4, 0, 1.2, '#b0bec5');
-                        // ponta
-                        drawLine(4, 0, 6, 0, 1.2, '#757575');
-                        // penas
-                        drawRect(-9, -2, 3, 4, '#1565c0');
-                        drawRect(-12, -1.5, 3, 3, '#42a5f5');
-                        ctx.restore();
-                    }
-                    drawDart(-r*0.15, -r*0.08, -0.2);
-                    drawDart(r*0.10, r*0.12, 0.5);
+                    drawRect(cx - 3, y + 8, 6, 2, '#8d6e63');
                     break;
 
                 case 'neon_signs':
-                    // Letreiro neon (maior e mais realista)
-                    const pad = 2;
-                    // Placa de fundo
-                    drawRect(left, y, s.w, s.h, 'rgba(0,0,0,0.55)');
-                    drawRect(left + 1, y + 1, s.w - 2, s.h - 2, 'rgba(255,255,255,0.05)');
+                    // Tubos de neon formando letras
+                    ctx.strokeStyle = s.col;
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = s.col;
+                    ctx.shadowBlur = 10;
 
-                    // Caixa do transformador
-                    drawRect(left + s.w - 6, y + s.h - 5, 5, 4, '#263238');
-                    drawRect(left + s.w - 5.6, y + s.h - 4.6, 4.2, 0.6, 'rgba(255,255,255,0.15)');
+                    // Letra "B"
+                    drawLine(cx - 6, y + 1, cx - 6, y + 5, 2, s.col);
+                    drawLine(cx - 6, y + 1, cx - 4, y + 1, 2, s.col);
+                    drawLine(cx - 6, y + 3, cx - 4, y + 3, 2, s.col);
+                    drawLine(cx - 6, y + 5, cx - 4, y + 5, 2, s.col);
+                    drawLine(cx - 4, y + 1, cx - 4, y + 3, 2, s.col);
+                    drawLine(cx - 4, y + 3, cx - 4, y + 5, 2, s.col);
 
-                    // Texto em neon: "BAR"
-                    ctx.save();
-                    ctx.translate(left + pad, y + pad);
-                    const textW = s.w - pad*2 - 6;
-                    const textH = s.h - pad*2;
+                    // Letra "A"
+                    drawLine(cx - 2, y + 5, cx - 1, y + 1, 2, s.col);
+                    drawLine(cx - 1, y + 1, cx, y + 5, 2, s.col);
+                    drawLine(cx - 1.5, y + 3, cx - 0.5, y + 3, 2, s.col);
 
-                    // glow forte + tubo
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
+                    // Letra "R"
+                    drawLine(cx + 1, y + 1, cx + 1, y + 5, 2, s.col);
+                    drawLine(cx + 1, y + 1, cx + 3, y + 1, 2, s.col);
+                    drawLine(cx + 1, y + 3, cx + 3, y + 3, 2, s.col);
+                    drawLine(cx + 3, y + 1, cx + 3, y + 3, 2, s.col);
+                    drawLine(cx + 1, y + 3, cx + 3, y + 5, 2, s.col);
 
-                    function neonStroke(strokeW, glowW, alpha) {
-                        ctx.strokeStyle = `rgba(255, 87, 34, ${alpha})`;
-                        ctx.shadowColor = `rgba(255, 87, 34, ${alpha})`;
-                        ctx.shadowBlur = glowW;
-                        ctx.lineWidth = strokeW;
-                        ctx.stroke();
+                    // Brilho do neon
+                    ctx.shadowBlur = 0;
+                    for(let i = 0; i < 10; i++) {
+                        const x = cx - 7 + Math.random() * 14;
+                        const y_pos = y + 0.5 + Math.random() * 5;
+                        drawCircle(x, y_pos, 0.2, 'rgba(255, 87, 34, 0.8)');
                     }
-
-                    // Desenhar letras como caminhos simples
-                    const baseX = 2;
-                    const midY = textH/2 + 1;
-
-                    // B
-                    ctx.beginPath();
-                    ctx.moveTo(baseX, 1);
-                    ctx.lineTo(baseX, textH - 1);
-                    ctx.moveTo(baseX, 1);
-                    ctx.lineTo(baseX + textW*0.18, 3);
-                    ctx.lineTo(baseX + textW*0.18, midY - 2);
-                    ctx.lineTo(baseX, midY);
-                    ctx.moveTo(baseX, midY);
-                    ctx.lineTo(baseX + textW*0.18, midY + 2);
-                    ctx.lineTo(baseX + textW*0.18, textH - 3);
-                    ctx.lineTo(baseX, textH - 1);
-
-                    // A
-                    const ax = baseX + textW*0.32;
-                    ctx.moveTo(ax, textH - 1);
-                    ctx.lineTo(ax + textW*0.08, 1);
-                    ctx.lineTo(ax + textW*0.16, textH - 1);
-                    ctx.moveTo(ax + textW*0.04, midY);
-                    ctx.lineTo(ax + textW*0.12, midY);
-
-                    // R
-                    const rx = baseX + textW*0.62;
-                    ctx.moveTo(rx, textH - 1);
-                    ctx.lineTo(rx, 1);
-                    ctx.lineTo(rx + textW*0.18, 3);
-                    ctx.lineTo(rx + textW*0.18, midY - 2);
-                    ctx.lineTo(rx, midY);
-                    ctx.moveTo(rx, midY);
-                    ctx.lineTo(rx + textW*0.18, textH - 1);
-
-                    // Glow + tubo
-                    neonStroke(6, 14, 0.35);
-                    neonStroke(3.5, 10, 0.55);
-                    neonStroke(2.2, 6, 0.9);
-
-                    ctx.restore();
-
-                    // Cabinho do transformador
-                    drawLine(left + s.w - 6, y + s.h - 3, left + s.w - 12, y + s.h - 2, 1, '#616161');
                     break;
 
                 case 'clothing_rack': // Cabideiro de Roupas Detalhado
@@ -6785,7 +6394,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$49', cx - 4.5, y + 5.8, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkRack = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkRack = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 193, 7, ${blinkRack})`);
                     break;
 
@@ -6844,7 +6453,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx + 3.2, y + 9.2, 2.6, 0.5, '#000'); // Tela pequena
 
                     // Luz de status (LED)
-                    const statusLed = Math.sin(getGameTime() / 1000) > 0 ? '#00ff00' : '#004400';
+                    const statusLed = Math.sin(Date.now() / 1000) > 0 ? '#00ff00' : '#004400';
                     drawCircle(cx + 5, y + 1, 0.5, statusLed);
 
                     // Cabo de energia
@@ -6856,7 +6465,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$', left - 0.8, y + 7, 0.8, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkRegister = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkRegister = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 255, 0, ${blinkRegister})`);
                     break;
 
@@ -6916,7 +6525,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$89', cx - 0.8, y + 6.8, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkMannequin = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkMannequin = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y, 0.8, `rgba(255, 105, 180, ${blinkMannequin})`);
                     break;
 
@@ -6998,7 +6607,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('FITTING ROOMS', cx - 5.5, y - 1.5, 1, '#fff');
 
                     // Indicador visual de interatividade
-                    const blinkFitting = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkFitting = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 0, 255, ${blinkFitting})`);
                     // Cabides internos
                     drawRect(cx - 7, y + 8, 1, 4, '#c0c0c0');
@@ -7088,7 +6697,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('FROM $39', cx - 1.5, y + s.h + 1.8, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkShoe = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkShoe = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(160, 82, 45, ${blinkShoe})`);
                     break;
 
@@ -7156,7 +6765,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('Fashion', cx - 3.5, y + 5, 0.8, 'rgba(255, 0, 255, 0.5)');
 
                     // Indicador visual de interatividade
-                    const blinkMirror = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkMirror = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 215, 0, ${blinkMirror})`);
                     break;
 
@@ -7235,7 +6844,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$299', cx - 1.5, y + 13.8, 0.7, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkWindow = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkWindow = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 0, 255, ${blinkWindow})`);
                     break;
 
@@ -7324,7 +6933,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('S | M | L', cx - 2.5, y - 0.8, 0.8, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkHangers = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkHangers = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(192, 192, 192, ${blinkHangers})`);
                     break;
 
@@ -7397,7 +7006,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx + 4, y + 16, cx + 8, y + 20, 0.5, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkInfo = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkInfo = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(25, 118, 210, ${blinkInfo})`);
                     break;
 
@@ -7544,7 +7153,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkSculpture = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkSculpture = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y - 2, 0.8, `rgba(255, 0, 255, ${blinkSculpture})`);
                     break;
                     break;
@@ -7603,7 +7212,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     // Feixe de luz direcionado (só aparece quando ligado)
                     if (exhibitLightOn) {
                         // Animação suave da intensidade da luz
-                        const intensity = Math.sin(getGameTime() * 0.008) * 0.1 + 0.9; // Pulsação suave
+                        const intensity = Math.sin(Date.now() * 0.008) * 0.1 + 0.9; // Pulsação suave
                         const alpha = 0.4 * intensity;
                         ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
                         ctx.beginPath();
@@ -7615,8 +7224,8 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
                         // Raios de luz adicionais quando ligada
                         for (let i = 0; i < 3; i++) {
-                            const rayAngle = (i * Math.PI / 8) + Math.sin(getGameTime() * 0.005 + i) * 0.1;
-                            const rayLength = 15 + Math.sin(getGameTime() * 0.01 + i * 2) * 3;
+                            const rayAngle = (i * Math.PI / 8) + Math.sin(Date.now() * 0.005 + i) * 0.1;
+                            const rayLength = 15 + Math.sin(Date.now() * 0.01 + i * 2) * 3;
                             const rayX = cx + Math.cos(rayAngle) * rayLength;
                             const rayY = y + 2 + Math.sin(rayAngle) * rayLength;
                             drawLine(cx, y + 2, rayX, rayY, 1, `rgba(255, 255, 255, ${alpha * 0.5})`);
@@ -7627,7 +7236,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx, y + 1, 0.8, '#silver');
 
                     // Indicador visual de interatividade (piscando suavemente)
-                    const blinkLight = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkLight = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 3, y + 3, 0.5, `rgba(0, 255, 0, ${blinkLight})`);
                     break;
 
@@ -7779,7 +7388,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkMicro = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkMicro = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 6, y + 4, 0.8, `rgba(150, 255, 150, ${blinkMicro})`);
                     break;
 
@@ -7834,7 +7443,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(left + 4, y + s.h - 12, s.w - 8, 8, '#333'); 
 
                     // Indicador visual de interatividade
-                    const blinkVending = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkVending = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 6, 0.8, `rgba(255, 165, 0, ${blinkVending})`);
                     break;
 
@@ -7908,7 +7517,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkTread = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkTread = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 4, 0.8, `rgba(255, 100, 100, ${blinkTread})`);
                     break;
 
@@ -8041,7 +7650,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx - 4, keyboardY + 3, cx - 4, keyboardY + 6, 1, '#000');
 
                     // Indicador visual de interatividade (LED pulsante)
-                    const blinkComputer = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkComputer = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 255, 0, ${blinkComputer})`);
                     break;
 
@@ -8111,7 +7720,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('ESPRESSO', left + 7, y + 12, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkCoffee = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkCoffee = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 193, 7, ${blinkCoffee})`);
                     break;
 
@@ -8169,7 +7778,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx, y + 14.5, 0.3, deskSwitchColor);
 
                     // Indicador visual de interatividade
-                    const blinkLamp = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkLamp = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y, 0.8, `rgba(255, 255, 0, ${blinkLamp})`);
                     break;
 
@@ -8221,7 +7830,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('LASERJET', left + 7, y + 11.8, 0.5, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkPrinter = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkPrinter = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 150, 255, ${blinkPrinter})`);
                     break;
 
@@ -8249,11 +7858,11 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 drawRect(sector.startX, floorY - (FLOOR_HEIGHT-10), w, FLOOR_HEIGHT-10, info.wall);
 
                 // Placas e Identificação
-                const signW = 125; // Aumentado 25% (100 * 1.25)
-                drawRect(sectorCenterX - signW/2, floorY - 124, signW, 25, '#111'); // Altura aumentada proporcionalmente
-                drawRect(sectorCenterX - signW/2 + 2, floorY - 122, signW - 4, 21, info.signColor); // Altura interna ajustada
-                drawRect(sectorCenterX - signW/2 + 4, floorY - 120, signW - 8, 17, '#000'); // Altura do fundo ajustada
-                drawText(info.label, sectorCenterX, floorY - 107, 18, '#fff');
+                const signW = 100;
+                drawRect(sectorCenterX - signW/2, floorY - 90, signW, 20, '#111');
+                drawRect(sectorCenterX - signW/2 + 2, floorY - 88, signW - 4, 16, info.signColor);
+                drawRect(sectorCenterX - signW/2 + 4, floorY - 86, signW - 8, 12, '#000');
+                drawText(info.label, sectorCenterX, floorY - 77, 9, '#fff');
 
                 // Divisórias entre setores
                 if (i > 0) drawRect(sector.startX - 4, floorY - (FLOOR_HEIGHT-10), 8, FLOOR_HEIGHT-10, '#111');
@@ -8289,7 +7898,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             // Renderizar itens coletáveis do andar atual (Mantido aqui para z-index correto sobre paredes)
             collectibles.forEach(collectible => {
                 if (!collectible.collected && Math.abs(collectible.y - floorY) < FLOOR_HEIGHT) {
-                    const floatY = collectible.y + Math.sin(getGameTime() / 500 + collectible.floatOffset) * 5;
+                    const floatY = collectible.y + Math.sin(Date.now() / 500 + collectible.floatOffset) * 5;
                     const screenX = (CW() / 2) + collectible.x - camera.x;
                     const screenY = (CH() / 2) + floatY - camera.y;
 
@@ -8427,7 +8036,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             // Efeito de invencibilidade (piscar)
             if (playerInvincible) {
                 const blinkRate = 150; // ms por blink
-                const blinkPhase = Math.floor(getGameTime() / blinkRate) % 2;
+                const blinkPhase = Math.floor(Date.now() / blinkRate) % 2;
                 if (blinkPhase === 0) {
                     bodyColor = 'rgba(255, 255, 255, 0.3)';
                     headColor = 'rgba(255, 255, 255, 0.3)';
@@ -8450,26 +8059,6 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             } else {
             drawRect(pX, pY, PLAYER.w, PLAYER.h, PLAYER.col);
             drawRect(pX, pY, PLAYER.w, 10, PLAYER.head);
-            }
-
-            // --- Vidas como 3 corações no corpo do player (tipo botões da camisa) ---
-            // some sempre o coração mais abaixo (bottom-first)
-            const heartsTotal = 3;
-            const heartsVisible = Math.max(0, Math.min(heartsTotal, playerLives));
-            const heartX = pX + PLAYER.w * 0.5;
-            const heartTopY = pY + 18;
-            const heartGap = 6;       // distância vertical entre corações
-            const heartSize = 4;      // tamanho do coração
-
-            for (let i = 0; i < heartsTotal; i++) {
-                // i=0 topo, i=2 baixo. Se playerLives=2 -> mostra topo+meio, some o de baixo.
-                const y = heartTopY + i * heartGap;
-                if (i < heartsVisible) {
-                    drawHeart(heartX, y, heartSize, '#ff2d55', 0.95);
-                } else {
-                    // opcional: coração vazio discreto (quase invisível)
-                    drawHeart(heartX, y, heartSize, '#44000f', 0.35);
-                }
             }
 
                 // Efeitos visuais para pulo
@@ -8536,8 +8125,9 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                                 if (item.yOff && dist > 10) continue;
                                 hoveredLabel = ITEM_NAMES[item.type] || item.type;
                                 hoveredX = item.x;
-                                // Altura fixa do tooltip acima do jogador
-                                hoveredY = player.y - 80;
+                                let realY = player.y - spec.h - (item.yOff || 0) - 10;
+                                if(spec.wall) realY -= 30;
+                                hoveredY = realY;
                                 minDist = dist;
                             }
                         }
@@ -8547,8 +8137,8 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
             if (hoveredLabel) {
                 const textWidth = hoveredLabel.length * 9; 
-                drawRoundRect(hoveredX - textWidth/2 - 11, hoveredY - 16, textWidth + 22, 22, 15, 'rgba(120,120,80,0.85)');
-                drawText(hoveredLabel, hoveredX, hoveredY - 0, 18, '#fff');
+                drawRoundRect(hoveredX - textWidth/2 - 6, hoveredY - 16, textWidth + 12, 22, 4, 'rgba(0,0,0,0.85)');
+                drawText(hoveredLabel, hoveredX, hoveredY, 12, '#fff');
                 ctx.fillStyle = 'rgba(0,0,0,0.85)';
                 const sx = (CW() / 2) + hoveredX - camera.x;
                 const sy = (CH() / 2) + hoveredY - camera.y + 6;
@@ -8593,182 +8183,6 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         }
 
 
-    
-canvas.addEventListener("touchmove", (e) => {
-    touchMoved = true;
-}, { passive: true });
-
-canvas.addEventListener("touchend", (e) => {
-    if (gamePaused || gameEnded) return;
-
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
-
-    const dx = endX - touchStartX;
-    const dy = endY - touchStartY;
-
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    const screenW = window.innerWidth;
-
-    /* ---------- SWIPE VERTICAL ---------- */
-    if (absY > absX && absY > SWIPE_THRESHOLD) {
-        if (dy < 0) {
-            // deslizar para cima
-            attemptVerticalMove(1);
-        } else {
-            // deslizar para baixo
-            attemptVerticalMove(-1);
-        }
-        return;
-    }
-
-    /* ---------- TOQUE (sem swipe) ---------- */
-    const touchXRatio = endX / screenW;
-
-    // borda esquerda
-    if (touchXRatio < EDGE_ZONE) {
-        keys.left = true;
-        setTimeout(() => keys.left = false, 120);
-        return;
-    }
-
-    // borda direita
-    if (touchXRatio > 1 - EDGE_ZONE) {
-        keys.right = true;
-        setTimeout(() => keys.right = false, 120);
-        return;
-    }
-
-    // centro da tela → pulo
-    const centerMin = 0.5 - CENTER_ZONE / 2;
-    const centerMax = 0.5 + CENTER_ZONE / 2;
-
-    if (touchXRatio > centerMin && touchXRatio < centerMax) {
-        attemptJump();
-    }
-
-}, { passive: true });
-
-
-/* ===============================
-   TOUCH CONTROLS (Mobile Buttons + Swipe Andares)
-   - Swipe vertical no canvas: sobe/desce andar
-   - Botões: esquerda/direita (hold), Carregar/soltar, Ação, Pular
-   =============================== */
-
-(function initTouchControls(){
-    // falha segura
-    if (!window.canvas) return;
-
-    // ----- Swipe vertical (apenas para mudar andares) -----
-    let sX = 0, sY = 0;
-    const SWIPE_THRESHOLD = 40;
-
-    canvas.addEventListener("touchstart", (e) => {
-        if (gamePaused || gameEnded) return;
-        const t = e.touches[0];
-        sX = t.clientX;
-        sY = t.clientY;
-    }, { passive: true });
-
-    canvas.addEventListener("touchend", (e) => {
-        if (gamePaused || gameEnded) return;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - sX;
-        const dy = t.clientY - sY;
-
-        const absX = Math.abs(dx);
-        const absY = Math.abs(dy);
-
-        if (absY > absX && absY > SWIPE_THRESHOLD) {
-            if (dy < 0) attemptVerticalMove(1);   // up
-            else        attemptVerticalMove(-1);  // down
-        }
-    }, { passive: true });
-
-    // ----- Helpers para botões -----
-    function bindHold(btn, keyName){
-        if (!btn) return;
-
-        const down = (ev) => {
-            if (gamePaused || gameEnded) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            keys[keyName] = true;
-
-            // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
-            if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
-                const now = getGameTime();
-                hasMadeFirstMove = true;
-                playerInvincible = true;
-                playerInvincibilityStart = now;
-                updateProtectionIndicator();
-            }
-        };
-
-        const up = (ev) => {
-            ev.preventDefault?.();
-            ev.stopPropagation?.();
-            keys[keyName] = false;
-        };
-
-        btn.addEventListener("touchstart", down, { passive: false });
-        btn.addEventListener("touchend", up, { passive: false });
-        btn.addEventListener("touchcancel", up, { passive: false });
-
-        // Desktop fallback
-        btn.addEventListener("mousedown", down);
-        window.addEventListener("mouseup", up);
-        btn.addEventListener("mouseleave", up);
-    }
-
-    function bindTap(btn, fn){
-        if (!btn) return;
-
-        const act = (ev) => {
-            if (gamePaused || gameEnded) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            fn();
-        };
-
-        btn.addEventListener("touchstart", act, { passive: false });
-        btn.addEventListener("click", act);
-    }
-
-    // ----- Mapear botões -----
-    const btnLeft  = document.getElementById("btnLeft");
-    const btnRight = document.getElementById("btnRight");
-    const btnCarry = document.getElementById("btnCarry");
-    const btnAction= document.getElementById("btnAction");
-    const btnJump  = document.getElementById("btnJump");
-
-    bindHold(btnLeft, "left");
-    bindHold(btnRight, "right");
-
-    bindTap(btnCarry, () => attemptPickupOrDrop());
-    bindTap(btnAction, () => attemptInteract());
-    bindTap(btnJump, () => attemptJump());
-})();
-
-</script>
-
-<!-- ===============================
-     TOUCH UI (Botões Mobile)
-     =============================== -->
-<div id="touchUI" aria-hidden="true">
-    <div class="touchPadLeft">
-        <div class="touchBtn" id="btnLeft">◀</div>
-        <div class="touchBtn" id="btnRight">▶</div>
-    </div>
-    <div class="touchPadRight">
-        <div class="touchBtn smallText" id="btnCarry">Carregar/<br>soltar</div>
-        <div class="touchBtn" id="btnAction">Ação</div>
-        <div class="touchBtn" id="btnJump">Pular</div>
-    </div>
-</div>
-
+    </script>
 </body>
 </html>
