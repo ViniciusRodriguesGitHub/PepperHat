@@ -20,6 +20,12 @@
         }
 
 
+        body.paused * {
+            animation-play-state: paused !important;
+        }
+        body.paused #currentMission:hover {
+            transform: none !important;
+        }
 
         .hud {
             position: absolute;
@@ -162,29 +168,72 @@ html, body {
    MISSION UI (compact + always visible)
    =============================== */
 #missionBottomDisplay {
-    top: 18px !important;
-    right: 18px !important;
-    left: auto !important;
-    bottom: auto !important;
-    transform: none !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
     width: auto !important;
-    max-width: min(45vw, 400px) !important;
+    max-width: min(94vw, 560px) !important;
     padding: 0 !important;
 }
 #currentMission {
-    font-size: clamp(0.8rem, 2.2vw, 0.95rem) !important;
-    padding: 8px 12px !important;
-    border-radius: 12px !important;
+    font-size: clamp(0.9rem, 2.6vw, 1.05rem) !important;
+    padding: 10px 14px !important;
+    border-radius: 14px !important;
     border-width: 2px !important;
-    max-width: min(45vw, 400px) !important;
+    max-width: min(94vw, 560px) !important;
     white-space: normal !important;
-    line-height: 1.1 !important;
+    line-height: 1.15 !important;
     word-break: break-word !important;
-    text-align: right !important;
     animation: none !important;
 }
 
 
+/* ===============================
+   MISSION UI (mobile: above touch buttons)
+   =============================== */
+#missionBottomDisplay {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 230px) !important; /* acima do touchUI */
+    z-index: 16001 !important; /* acima do touchUI */
+}
+#currentMission {
+    animation: none !important;
+}
+
+
+/* ===============================
+   MISSION HUD (sempre visível no jogo)
+   =============================== */
+#missionHUD {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    right: calc(env(safe-area-inset-right, 0px) + 12px);
+    z-index: 20000;
+    max-width: min(46vw, 520px);
+    pointer-events: none;
+    display: none; /* aparece só durante o jogo */
+}
+#missionHUDBox {
+    background: rgba(0,0,0,0.55);
+    border: 2px solid rgba(255,255,255,0.18);
+    border-radius: 16px;
+    padding: 10px 12px;
+    color: rgba(255,255,255,0.95);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    font-weight: 800;
+    font-size: clamp(0.85rem, 2.1vw, 1.0rem);
+    line-height: 1.15;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    backdrop-filter: blur(6px);
+    word-break: break-word;
+}
+#missionHUDLabel {
+    display: block;
+    opacity: 0.75;
+    font-weight: 900;
+    font-size: 0.75em;
+    margin-bottom: 4px;
+    letter-spacing: 0.4px;
+}
 
 </style>
 </head>
@@ -249,9 +298,44 @@ html, body {
                 <div id="exploreModeIndicator" style="display: none; color: #4ecdc4; font-weight: bold;">
                     🗺️ MODO EXPLORATÓRIO - Explore livremente!
                 </div>
+                <div id="pauseIndicator" style="display: none; color: #ffcc00; font-weight: bold; font-size: 1.1rem;">
+                    ⏸️ JOGO PAUSADO - Pressione ENTER ou START para continuar
+                </div>
             </div>
 
-                        <style>
+            <!-- Missão atual na parte inferior central -->
+            <div id="missionBottomDisplay" style="
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: block;
+                z-index: 1000;
+                pointer-events: none;
+                text-align: center;
+            ">
+                <div id="currentMission" style="
+                    font-family: 'Comic Sans MS', 'Chalkduster', cursive;
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: #ff6b6b;
+                    text-shadow:
+                        -2px -2px 0px #04413d,
+                        2px -2px 0px #817331,
+                        -2px 2px 0px #169e6c,
+                        2px 2px 0px #65540f;
+                    background: rgba(0, 0, 0, 0.8);
+                    padding: 15px 25px;
+                    border-radius: 20px;
+                    border: 3px solid #4e4202;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                    animation: missionPulse 2s ease-in-out infinite;
+                ">
+                    🎯 Carregando missão...
+                </div>
+            </div>
+
+            <style>
                 @keyframes missionPulse {
                     0%, 100% { transform: scale(1); }
                     50% { transform: scale(1.05); }
@@ -308,42 +392,7 @@ html, body {
     </div>
 
 
-    
-
-    <!-- Missão sempre visível -->
-<!-- Missão atual na parte inferior central -->
-            <div id="missionBottomDisplay" style="
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                display: block;
-                z-index: 1000;
-                pointer-events: none;
-                text-align: center;
-            ">
-                <div id="currentMission" style="
-                    font-family: 'Comic Sans MS', 'Chalkduster', cursive;
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    color: #ff6b6b;
-                    text-shadow:
-                        -2px -2px 0px #04413d,
-                        2px -2px 0px #817331,
-                        -2px 2px 0px #169e6c,
-                        2px 2px 0px #65540f;
-                    background: rgba(0, 0, 0, 0.8);
-                    padding: 15px 25px;
-                    border-radius: 20px;
-                    border: 3px solid #4e4202;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-                    animation: missionPulse 2s ease-in-out infinite;
-                ">
-                    🎯 Carregando missão...
-                </div>
-            </div>
-
-<!-- Overlay minimal (Setor e Objetos) -->
+    <!-- Overlay minimal (Setor e Objetos) -->
     <div id="infoOverlay">
         <div id="sectorBox">...</div>
         <div id="objectBox" style="display:none;">...</div>
@@ -767,6 +816,12 @@ html, body {
             const BTN_A = 0;
             const BTN_B = 1;
             const BTN_X = 2;
+            const BTN_START = 9; // Botão Start (normalmente pausa)
+
+            // Start => pause/unpause
+            if (buttonPressedNow(pad, BTN_START)) {
+                togglePause();
+            }
 // X => interagir
             if (buttonPressedNow(pad, BTN_X)) {
                 attemptInteract();
@@ -807,7 +862,7 @@ html, body {
                 console.log("Gamepad mapping:", pad.mapping, "axes:", pad.axes?.length || 0);
             }
 
-            const now = Date.now();
+            const now = getGameTime();
 
             // Direções: dpad (botões + axes[6]/axes[7]) + analógico esquerdo
             const axX = pad.axes?.[0] ?? 0;
@@ -1126,8 +1181,9 @@ html, body {
             gameModeBtn.addEventListener('click', () => {
                 stopGameLoop(); // Garantir que não há loops antigos
                 gameMode = 'game';
+                gamePaused = false; // Começar sem pause
                 mainMenu.style.display = 'none';
-                hud.style.display = 'none'; // HUD só aparece no pause
+                hud.style.display = 'none'; // HUD oculto por padrão
                 var infoOverlay = document.getElementById('infoOverlay');
                 if (infoOverlay) infoOverlay.style.display = 'none';
                 document.getElementById('missionsSection').style.display = 'block';
@@ -1140,8 +1196,9 @@ html, body {
             exploreModeBtn.addEventListener('click', () => {
                 stopGameLoop(); // Garantir que não há loops antigos
                 gameMode = 'explore';
+                gamePaused = false; // Começar sem pause
                 mainMenu.style.display = 'none';
-                hud.style.display = 'none'; // HUD só aparece no pause
+                hud.style.display = 'none'; // HUD oculto por padrão
                 var infoOverlay = document.getElementById('infoOverlay');
                 if (infoOverlay) infoOverlay.style.display = 'none';
                 // Modo exploratório agora também usa o sistema de missões
@@ -1171,8 +1228,9 @@ html, body {
 
                     stopGameLoop(); // Garantir que não há loops antigos
                     gameMode = 'game';
+                    gamePaused = false; // Começar sem pause
                     mainMenu.style.display = 'none';
-                    hud.style.display = 'none'; // HUD só aparece no pause
+                    hud.style.display = 'none'; // HUD oculto por padrão
                 var infoOverlay = document.getElementById('infoOverlay');
                 if (infoOverlay) infoOverlay.style.display = 'none';
                     document.getElementById('missionsSection').style.display = 'block';
@@ -1189,25 +1247,46 @@ html, body {
         // --- Sistema de Modos de Jogo ---
         let gameMode = null; // 'game' ou 'explore'
         let gameEnded = false; // Controla se o jogo terminou (vitória ou derrota)
+        let gamePaused = false; // Controla se o jogo está pausado
 
-        // --- Pause (HUD completo só aparece no pause) ---
-        let isPaused = false;
+        // --- Relógio do jogo (pausa congela o tempo) ---
+        let pausedTimeTotal = 0;      // ms acumulados em pausa
+        let pauseStartedAt = null;    // getGameTime() real quando entrou em pausa
 
-        function togglePause() {
-            // só permite pausar após escolher modo e sair do menu
-            const mainMenuEl = document.getElementById('mainMenu');
-            if (!gameMode || !mainMenuEl || mainMenuEl.style.display !== 'none') return;
-
-            isPaused = !isPaused;
-
-            const hudEl = document.querySelector('.hud');
-            if (hudEl) {
-                hudEl.style.display = isPaused ? 'block' : 'none';
-            }
+        function getGameTime() {
+            // Tempo “do jogo” (não avança enquanto pausado)
+            return Date.now() - pausedTimeTotal;
         }
 
+        function togglePause() {
+            if (!gameMode || gameEnded) return;
 
+            const hudEl = document.querySelector('.hud');
+            const pauseEl = document.getElementById('pauseIndicator');
 
+            if (!gamePaused) {
+                gamePaused = true;
+                pauseStartedAt = Date.now(); // real
+                document.body.classList.add('paused');
+
+                // Exibir HUD completo durante o pause
+                if (hudEl) hudEl.style.display = 'block';
+                if (pauseEl) pauseEl.style.display = 'block';
+            } else {
+                gamePaused = false;
+
+                if (pauseStartedAt !== null) {
+                    pausedTimeTotal += (Date.now() - pauseStartedAt);
+                    pauseStartedAt = null;
+                }
+
+                document.body.classList.remove('paused');
+
+                // Voltar ao padrão (HUD escondido) quando retomar
+                if (hudEl) hudEl.style.display = 'none';
+                if (pauseEl) pauseEl.style.display = 'none';
+            }
+        }
 
 
         // --- Sistema de Controle de Loop (Token System) ---
@@ -1260,7 +1339,7 @@ html, body {
             getOrGenerateFloor(0);
 
             // Definir tempo de início do jogo
-            gameStartTime = Date.now();
+            gameStartTime = getGameTime();
 
             // Inicializar barra de vida
             updateHealthBar();
@@ -1425,7 +1504,7 @@ html, body {
         }
 
         function attemptDash() {
-            const now = Date.now();
+            const now = getGameTime();
             if (!player.isDashing && now > player.dashCooldown) {
                 player.isDashing = true;
                 player.dashTime = now + 200; // Dash dura 200ms
@@ -1927,55 +2006,28 @@ html, body {
 
         function updateMissionsDisplay() {
             const missionDisplay = document.getElementById('currentMission');
-            const missionsSection = document.getElementById('missionsSection');
 
             if (missionDisplay) {
                 if (currentMission) {
                     const mission = missions[currentMission];
                     const status = mission.completed ? '✅' : '🎯';
                     let description = mission.description;
-
+                    
                     // Mostrar progresso para missão de pular sobre o inimigo
                     if (currentMission === 'jumpOverEnemy' && !mission.completed) {
                         description = `${mission.description} (${interactionCounts.jumpOverEnemy}/3)`;
                     }
-
+                    
                     // Mostrar progresso para missão de passar por baixo do inimigo
                     if (currentMission === 'underEnemyJump' && !mission.completed) {
                         description = `${mission.description} (${interactionCounts.underEnemyJump}/2)`;
                     }
-
+                    
                     missionDisplay.innerHTML = `${status} ${description}`;
                     missionDisplay.style.color = mission.completed ? '#4CAF50' : '#ffd700';
                 } else {
                     missionDisplay.innerHTML = '🎉 Todas as missões completadas!';
                     missionDisplay.style.color = '#4CAF50';
-                }
-            }
-
-            // Atualizar missionsSection com nome da missão atual
-            if (missionsSection) {
-                if (currentMission) {
-                    const mission = missions[currentMission];
-                    const status = mission.completed ? '✅' : '🎯';
-                    let shortDescription = mission.description;
-
-                    // Versão curta para o display lateral (remover contadores se necessário)
-                    if (currentMission === 'jumpOverEnemy' && !mission.completed) {
-                        shortDescription = `Pular sobre inimigo (${interactionCounts.jumpOverEnemy}/3)`;
-                    } else if (currentMission === 'underEnemyJump' && !mission.completed) {
-                        shortDescription = `Passar baixo do inimigo (${interactionCounts.underEnemyJump}/2)`;
-                    }
-
-                    missionsSection.innerHTML = `
-                        MISSÃO ATUAL: <span id="missionProgress" style="color: #fff;">${completedMissionsCount}/${TOTAL_MISSIONS}</span><br>
-                        <span style="color: #ffd700; font-size: 0.8rem; font-weight: normal;">${shortDescription}</span>
-                    `;
-                } else {
-                    missionsSection.innerHTML = `
-                        MISSÃO ATUAL: <span id="missionProgress" style="color: #fff;">${completedMissionsCount}/${TOTAL_MISSIONS}</span><br>
-                        <span style="color: #4CAF50; font-size: 0.8rem; font-weight: normal;">Todas as missões completadas!</span>
-                    `;
                 }
             }
 
@@ -1991,7 +2043,7 @@ html, body {
             gameEnded = true; // Parar toda a lógica do jogo
 
             // Calcular estatísticas finais
-            const totalTime = (Date.now() - gameStartTime) / 1000;
+            const totalTime = (getGameTime() - gameStartTime) / 1000;
             const minutes = Math.floor(totalTime / 60);
             const seconds = Math.floor(totalTime % 60);
             const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -2153,6 +2205,14 @@ html, body {
                     return;
                 }
 
+                // Enquanto pausado, não roda update() (congela inimigos, contagens e física),
+                // mas ainda checa START para retomar.
+                if (gamePaused) {
+                    pollGamepad(); // permite despausar no controle
+                    draw();        // redesenha o estado congelado
+                    rafId = requestAnimationFrame(frame);
+                    return;
+                }
 
                 update();
                 draw();
@@ -2199,6 +2259,7 @@ html, body {
             // Resetar todas as variáveis globais
             gameMode = null;
             gameEnded = false;
+            gamePaused = false;
             hasMadeFirstMove = false;
             gameStartTime = 0;
 
@@ -2504,7 +2565,7 @@ html, body {
         // --- NOVO SISTEMA DE REPLAY CINEMÁTICO ---
 
         function recordPlayerState() {
-            const now = Date.now();
+            const now = getGameTime();
 
             // Grava o estado exato (Posição absoluta)
             enemy.history.push({
@@ -2540,7 +2601,7 @@ html, body {
             // Se o jogo terminou, não atualizar inimigo
             if (gameEnded) return;
 
-            const now = Date.now();
+            const now = getGameTime();
 
             // Calcular delay dinâmico (diminui 2% por segundo, aumenta 5% por item coletado)
             const elapsedSeconds = (now - gameStartTime) / 3000;
@@ -2655,7 +2716,7 @@ html, body {
             // Se o jogo terminou, não atualizar inimigo
             if (gameEnded) return;
 
-            const now = Date.now();
+            const now = getGameTime();
 
             // Delay fixo de 1 segundo para o inimigo roxo
             const dynamicDelayTime = 2000;
@@ -2715,7 +2776,7 @@ html, body {
 
             // Ativar invencibilidade
             playerInvincible = true;
-            playerInvincibilityStart = Date.now();
+            playerInvincibilityStart = getGameTime();
 
             // Atualizar barra de vida visual
             updateHealthBar();
@@ -2743,7 +2804,7 @@ html, body {
                 if (gameMode === 'explore') {
                     delayElement.style.display = 'none';
                 } else {
-                    const elapsedSeconds = (Date.now() - gameStartTime) / 1000;
+                    const elapsedSeconds = (getGameTime() - gameStartTime) / 1000;
                     const currentDelay = enemy.delayTime * Math.pow(0.95, elapsedSeconds) * Math.pow(1.15, collectedItemsCount);
                     const delayInSeconds = currentDelay / 1000;
                     delayElement.innerHTML = `Delay: ${delayInSeconds.toFixed(4).replace('.', ',')}s`;
@@ -2754,7 +2815,7 @@ html, body {
 
         function updateInvincibility() {
             if (playerInvincible) {
-                const currentTime = Date.now();
+                const currentTime = getGameTime();
                 const elapsedTime = currentTime - playerInvincibilityStart;
 
                 if (elapsedTime >= playerInvincibilityDuration) {
@@ -2865,7 +2926,7 @@ html, body {
             hasMadeFirstMove = false;
 
             // Reset do tempo de jogo
-            gameStartTime = Date.now();
+            gameStartTime = getGameTime();
 
             // Reset dos inimigos
             enemy.x = 0;
@@ -2891,9 +2952,10 @@ html, body {
             // Atualizar display das missões
             updateMissionsDisplay();
 
-            // Garantir que missionBottomDisplay sempre fique visível
-            const missionBottomEl = document.getElementById('missionBottomDisplay');
-            if (missionBottomEl) missionBottomEl.style.display = 'block';
+            // Resetar exibição da missão na parte inferior
+            if (gameMode === 'game') {
+                document.getElementById('missionBottomDisplay').style.display = 'block';
+            }
 
             // Remover tela de game over
             const gameOverScreen = document.getElementById('gameOverScreen');
@@ -2988,16 +3050,14 @@ html, body {
         }
 
         function onKeyDown(e) {
-            // Pause: mostrar HUD completo apenas quando pausado
-            if ((e.key === 'p' || e.key === 'P') ) {
+            const currentTime = getGameTime();
+
+            // Controle de pause (tecla Enter)
+            if (e.code === 'Enter') {
                 togglePause();
                 e.preventDefault();
                 return;
             }
-
-
-            const currentTime = Date.now();
-
 if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 keys.left = true;
                 detectDoubleClick('left', currentTime);
@@ -3120,7 +3180,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                 if (dist < 20) {
                     // Só aplica se for o projétil do floco de neve
                     if (p.type === 'snowflake') {
-                        const now = Date.now();
+                        const now = getGameTime();
                         const elapsedSeconds = (now - gameStartTime) / 1000;
 
                         const scale =
@@ -3156,20 +3216,8 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         }
 
         function update() {
-            // Garantir que missionBottomDisplay sempre fique visível durante o jogo
-            const missionBottomEl = document.getElementById('missionBottomDisplay');
-            if (missionBottomEl && gameMode && !gameEnded) {
-                missionBottomEl.style.display = 'block';
-                // Forçar posição mesmo em mobile
-                missionBottomEl.style.position = 'fixed';
-                missionBottomEl.style.top = '18px';
-                missionBottomEl.style.right = '18px';
-                missionBottomEl.style.left = 'auto';
-                missionBottomEl.style.bottom = 'auto';
-            }
-
-            // Se o jogo terminou, não atualizar
-            if (gameEnded) return;
+            // Se o jogo terminou ou está pausado, não atualizar
+            if (gameEnded || gamePaused) return;
 
             // Poll do gamepad (a cada frame)
             pollGamepad();
@@ -3184,7 +3232,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             }
 
             // Atualizar estado de Dash
-            const now = Date.now();
+            const now = getGameTime();
             if (player.isDashing) {
                 if (now > player.dashTime) {
                     player.isDashing = false;
@@ -3793,7 +3841,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             const cx = item.x;
             const left = cx - s.w/2;
             const right = cx + s.w/2;
-            const time = Date.now();
+            const time = getGameTime();
 
             // Coordenadas de tela para formas complexas
             const sx = (CW() / 2) + left - camera.x;
@@ -3889,7 +3937,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade (piscando sutil)
-                    const blinkBook = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkBook = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 5, 0.8, `rgba(139, 69, 19, ${blinkBook})`);
                     break;
 
@@ -4157,7 +4205,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkServer = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkServer = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 8, y + s.h - 2, 0.8, `rgba(100, 255, 100, ${blinkServer})`);
                     break;
 
@@ -4242,7 +4290,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkChem = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkChem = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 10, y + 2, 0.8, `rgba(255, 100, 255, ${blinkChem})`);
                     break;
 
@@ -4425,7 +4473,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkDumb = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkDumb = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y, 0.8, `rgba(150, 75, 0, ${blinkDumb})`);
                     break;
 
@@ -4585,7 +4633,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkBall = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkBall = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y - 1, 0.8, `rgba(255, 100, 100, ${blinkBall})`);
                     break;
 
@@ -4657,7 +4705,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx - 6, y + s.h - 6, cx - 8, y + 14, 1, '#666');
                     drawLine(cx + 6, y + s.h - 6, cx + 8, y + 14, 1, '#666');
                     // Movimento sutil animado
-                    const swingOffset = Math.sin(Date.now() / 1000) * 3;
+                    const swingOffset = Math.sin(getGameTime() / 1000) * 3;
                     drawRect(cx - 6 + swingOffset, y + s.h - 6, 12, 3, s.col);
                     // Sombras no chão
                     drawEllipse(cx + swingOffset, y + s.h + 2, 8, 2, 'rgba(0, 0, 0, 0.2)');
@@ -4763,7 +4811,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx + 2, y + 9, 1, 1, '#c0c0c0');
 
                     // Movimento animado mais suave
-                    const seesawAngle = Math.sin(Date.now() / 1200) * 0.12; // Ângulo menor
+                    const seesawAngle = Math.sin(getGameTime() / 1200) * 0.12; // Ângulo menor
                     ctx.save();
                     ctx.translate(scx, sy + 11);
                     ctx.rotate(seesawAngle);
@@ -4825,7 +4873,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx + 6, y + s.h - 1, 1, '#ff69b4');
 
                     // Indicador visual de interatividade
-                    const blinkHouse = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkHouse = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 6, 0.8, `rgba(255, 192, 203, ${blinkHouse})`);
                     break;
 
@@ -4923,7 +4971,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     // Rabo
                     drawRect(cx + 6, y + 2, 1, 6, '#ffeb3b');
                     // Movimento bouncing
-                    const bounceOffset = Math.sin(Date.now() / 800) * 2;
+                    const bounceOffset = Math.sin(getGameTime() / 800) * 2;
                     drawRect(cx - 6, y + bounceOffset, 12, 10, s.col);
                     drawCircle(cx, y - 3 + bounceOffset, 4, s.col);
                     // Sombra dinâmica
@@ -5015,7 +5063,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
                     // Indicador visual de interatividade (piscando suavemente quando não está acenando)
                     if (!teddyBearWaving) {
-                        const blinkTeddy = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                        const blinkTeddy = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                         drawCircle(cx + 6, y + 8, 0.8, `rgba(255, 69, 184, ${blinkTeddy})`);
                     }
                     break;
@@ -5041,7 +5089,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx - 4, y + 5, 1, '#654321');
                     drawCircle(cx + 4, y + 5, 1, '#654321');
                     // Movimento pendular
-                    const tireOffset = Math.sin(Date.now() / 1000) * 4;
+                    const tireOffset = Math.sin(getGameTime() / 1000) * 4;
                     ctx.strokeStyle = '#424242';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
@@ -5114,7 +5162,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkWater = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkWater = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 12, 0.8, `rgba(100, 150, 255, ${blinkWater})`);
                     break;
 
@@ -5307,7 +5355,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx, y, cx + 6, y - 8, 1, '#999');
 
                     // Indicador visual de interatividade
-                    const blinkTV = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkTV = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 8, y + 2, 0.8, `rgba(255, 255, 0, ${blinkTV})`);
                     break;
 
@@ -5457,7 +5505,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx + 4, y + s.h/2 + 2, 1, 'yellow');
 
                     // Indicador visual de interatividade
-                    const blinkArcade = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkArcade = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 8, 0.8, `rgba(0, 255, 0, ${blinkArcade})`);
                     break;
 
@@ -5641,7 +5689,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkRobo = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkRobo = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 8, y + s.h - 2, 0.8, `rgba(255, 100, 100, ${blinkRobo})`);
                     break;
 
@@ -5688,7 +5736,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkShower = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkShower = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx - 2, y + 5, 0.8, `rgba(100, 150, 255, ${blinkShower})`);
                     break;
 
@@ -5736,7 +5784,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx + 2, y + 25, 2, 10, '#eee');
 
                     // Indicador visual de interatividade
-                    const blinkFridge = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkFridge = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 6, y + 2, 0.8, `rgba(100, 200, 255, ${blinkFridge})`);
                     break;
 
@@ -5783,7 +5831,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx - 4, y + 28, 8, 2, '#cfd8dc'); 
 
                     // Indicador visual de interatividade
-                    const blinkStove = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkStove = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 5, 0.8, `rgba(255, 100, 100, ${blinkStove})`);
                     break;
 
@@ -5850,7 +5898,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkSink = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkSink = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx - 6, y + 2, 0.8, `rgba(100, 150, 255, ${blinkSink})`);
                     break;
 
@@ -6025,7 +6073,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('STEINWAY', cx - 2.5, y + 2, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkPiano = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkPiano = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y - 2, 0.8, `rgba(139, 69, 19, ${blinkPiano})`);
                     break;
 
@@ -6481,7 +6529,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade (magenta pulsante)
-                    const blinkJukebox = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkJukebox = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 9, y + 12, 1, `rgba(255, 0, 255, ${blinkJukebox})`);
                     break;
 
@@ -6558,7 +6606,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx - 2, y + s.h + 3 + footOffset, 4, footHeight, '#654321'); // Pé central
 
                     // Indicador visual de interatividade
-                    const blinkPool = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkPool = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 100, 0, ${blinkPool})`);
                     break;
 
@@ -6812,7 +6860,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$49', cx - 4.5, y + 5.8, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkRack = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkRack = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 193, 7, ${blinkRack})`);
                     break;
 
@@ -6871,7 +6919,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(cx + 3.2, y + 9.2, 2.6, 0.5, '#000'); // Tela pequena
 
                     // Luz de status (LED)
-                    const statusLed = Math.sin(Date.now() / 1000) > 0 ? '#00ff00' : '#004400';
+                    const statusLed = Math.sin(getGameTime() / 1000) > 0 ? '#00ff00' : '#004400';
                     drawCircle(cx + 5, y + 1, 0.5, statusLed);
 
                     // Cabo de energia
@@ -6883,7 +6931,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$', left - 0.8, y + 7, 0.8, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkRegister = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkRegister = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 255, 0, ${blinkRegister})`);
                     break;
 
@@ -6943,7 +6991,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$89', cx - 0.8, y + 6.8, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkMannequin = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkMannequin = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y, 0.8, `rgba(255, 105, 180, ${blinkMannequin})`);
                     break;
 
@@ -7025,7 +7073,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('FITTING ROOMS', cx - 5.5, y - 1.5, 1, '#fff');
 
                     // Indicador visual de interatividade
-                    const blinkFitting = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkFitting = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 0, 255, ${blinkFitting})`);
                     // Cabides internos
                     drawRect(cx - 7, y + 8, 1, 4, '#c0c0c0');
@@ -7115,7 +7163,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('FROM $39', cx - 1.5, y + s.h + 1.8, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkShoe = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkShoe = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(160, 82, 45, ${blinkShoe})`);
                     break;
 
@@ -7183,7 +7231,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('Fashion', cx - 3.5, y + 5, 0.8, 'rgba(255, 0, 255, 0.5)');
 
                     // Indicador visual de interatividade
-                    const blinkMirror = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkMirror = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 215, 0, ${blinkMirror})`);
                     break;
 
@@ -7262,7 +7310,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('$299', cx - 1.5, y + 13.8, 0.7, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkWindow = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkWindow = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 0, 255, ${blinkWindow})`);
                     break;
 
@@ -7351,7 +7399,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('S | M | L', cx - 2.5, y - 0.8, 0.8, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkHangers = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkHangers = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(192, 192, 192, ${blinkHangers})`);
                     break;
 
@@ -7424,7 +7472,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx + 4, y + 16, cx + 8, y + 20, 0.5, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkInfo = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkInfo = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(25, 118, 210, ${blinkInfo})`);
                     break;
 
@@ -7571,7 +7619,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkSculpture = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkSculpture = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y - 2, 0.8, `rgba(255, 0, 255, ${blinkSculpture})`);
                     break;
                     break;
@@ -7630,7 +7678,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     // Feixe de luz direcionado (só aparece quando ligado)
                     if (exhibitLightOn) {
                         // Animação suave da intensidade da luz
-                        const intensity = Math.sin(Date.now() * 0.008) * 0.1 + 0.9; // Pulsação suave
+                        const intensity = Math.sin(getGameTime() * 0.008) * 0.1 + 0.9; // Pulsação suave
                         const alpha = 0.4 * intensity;
                         ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
                         ctx.beginPath();
@@ -7642,8 +7690,8 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
 
                         // Raios de luz adicionais quando ligada
                         for (let i = 0; i < 3; i++) {
-                            const rayAngle = (i * Math.PI / 8) + Math.sin(Date.now() * 0.005 + i) * 0.1;
-                            const rayLength = 15 + Math.sin(Date.now() * 0.01 + i * 2) * 3;
+                            const rayAngle = (i * Math.PI / 8) + Math.sin(getGameTime() * 0.005 + i) * 0.1;
+                            const rayLength = 15 + Math.sin(getGameTime() * 0.01 + i * 2) * 3;
                             const rayX = cx + Math.cos(rayAngle) * rayLength;
                             const rayY = y + 2 + Math.sin(rayAngle) * rayLength;
                             drawLine(cx, y + 2, rayX, rayY, 1, `rgba(255, 255, 255, ${alpha * 0.5})`);
@@ -7654,7 +7702,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx, y + 1, 0.8, '#silver');
 
                     // Indicador visual de interatividade (piscando suavemente)
-                    const blinkLight = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkLight = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 3, y + 3, 0.5, `rgba(0, 255, 0, ${blinkLight})`);
                     break;
 
@@ -7806,7 +7854,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkMicro = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkMicro = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx + 6, y + 4, 0.8, `rgba(150, 255, 150, ${blinkMicro})`);
                     break;
 
@@ -7861,7 +7909,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawRect(left + 4, y + s.h - 12, s.w - 8, 8, '#333'); 
 
                     // Indicador visual de interatividade
-                    const blinkVending = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkVending = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 6, 0.8, `rgba(255, 165, 0, ${blinkVending})`);
                     break;
 
@@ -7935,7 +7983,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     }
 
                     // Indicador visual de interatividade
-                    const blinkTread = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkTread = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 4, 0.8, `rgba(255, 100, 100, ${blinkTread})`);
                     break;
 
@@ -8068,7 +8116,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawLine(cx - 4, keyboardY + 3, cx - 4, keyboardY + 6, 1, '#000');
 
                     // Indicador visual de interatividade (LED pulsante)
-                    const blinkComputer = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkComputer = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 255, 0, ${blinkComputer})`);
                     break;
 
@@ -8138,7 +8186,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('ESPRESSO', left + 7, y + 12, 0.6, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkCoffee = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkCoffee = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(255, 193, 7, ${blinkCoffee})`);
                     break;
 
@@ -8196,7 +8244,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawCircle(cx, y + 14.5, 0.3, deskSwitchColor);
 
                     // Indicador visual de interatividade
-                    const blinkLamp = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkLamp = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y, 0.8, `rgba(255, 255, 0, ${blinkLamp})`);
                     break;
 
@@ -8248,7 +8296,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
                     drawText('LASERJET', left + 7, y + 11.8, 0.5, '#000');
 
                     // Indicador visual de interatividade
-                    const blinkPrinter = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0.3;
+                    const blinkPrinter = Math.sin(getGameTime() * 0.01) > 0 ? 1 : 0.3;
                     drawCircle(cx, y + 2, 0.8, `rgba(0, 150, 255, ${blinkPrinter})`);
                     break;
 
@@ -8316,7 +8364,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             // Renderizar itens coletáveis do andar atual (Mantido aqui para z-index correto sobre paredes)
             collectibles.forEach(collectible => {
                 if (!collectible.collected && Math.abs(collectible.y - floorY) < FLOOR_HEIGHT) {
-                    const floatY = collectible.y + Math.sin(Date.now() / 500 + collectible.floatOffset) * 5;
+                    const floatY = collectible.y + Math.sin(getGameTime() / 500 + collectible.floatOffset) * 5;
                     const screenX = (CW() / 2) + collectible.x - camera.x;
                     const screenY = (CH() / 2) + floatY - camera.y;
 
@@ -8454,7 +8502,7 @@ if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             // Efeito de invencibilidade (piscar)
             if (playerInvincible) {
                 const blinkRate = 150; // ms por blink
-                const blinkPhase = Math.floor(Date.now() / blinkRate) % 2;
+                const blinkPhase = Math.floor(getGameTime() / blinkRate) % 2;
                 if (blinkPhase === 0) {
                     bodyColor = 'rgba(255, 255, 255, 0.3)';
                     headColor = 'rgba(255, 255, 255, 0.3)';
@@ -8626,7 +8674,7 @@ canvas.addEventListener("touchmove", (e) => {
 }, { passive: true });
 
 canvas.addEventListener("touchend", (e) => {
-    if (gameEnded) return;
+    if (gamePaused || gameEnded) return;
 
     const endX = e.changedTouches[0].clientX;
     const endY = e.changedTouches[0].clientY;
@@ -8697,14 +8745,14 @@ canvas.addEventListener("touchend", (e) => {
         canvas.addEventListener("pointerdown", (e) => {
             // só para toque/caneta (mouse não deve disparar swipe)
             if (e.pointerType === 'mouse') return;
-            if (gameEnded) return;
+            if (gamePaused || gameEnded) return;
             sX = e.clientX;
             sY = e.clientY;
         });
 
         canvas.addEventListener("pointerup", (e) => {
             if (e.pointerType === 'mouse') return;
-            if (gameEnded) return;
+            if (gamePaused || gameEnded) return;
 
             const dx = e.clientX - sX;
             const dy = e.clientY - sY;
@@ -8723,7 +8771,7 @@ canvas.addEventListener("touchend", (e) => {
             if (!btn) return;
 
             const down = (ev) => {
-                if (gameEnded) return;
+                if (gamePaused || gameEnded) return;
                 ev.preventDefault();
                 ev.stopPropagation();
                 keys[keyName] = true;
@@ -8731,12 +8779,12 @@ canvas.addEventListener("touchend", (e) => {
 
             // Double-tap para correr (igual teclado/gamepad)
             if ((keyName === 'left' || keyName === 'right') && typeof detectDoubleClick === 'function') {
-                const now = (typeof getGameTime === 'function') ? Date.now() : performance.now();
+                const now = (typeof getGameTime === 'function') ? getGameTime() : performance.now();
                 detectDoubleClick(keyName, now);
             }
                 // Primeiro movimento lateral (invencibilidade inicial no modo jogo)
                 if (!hasMadeFirstMove && gameMode === 'game' && (keyName === 'left' || keyName === 'right')) {
-                    const now = Date.now();
+                    const now = getGameTime();
                     hasMadeFirstMove = true;
                     playerInvincible = true;
                     playerInvincibilityStart = now;
@@ -8765,7 +8813,7 @@ canvas.addEventListener("touchend", (e) => {
         function bindTap(btn, fn){
             if (!btn) return;
             const act = (ev) => {
-                if (gameEnded) return;
+                if (gamePaused || gameEnded) return;
                 ev.preventDefault();
                 ev.stopPropagation();
                 fn();
@@ -8822,6 +8870,66 @@ canvas.addEventListener("touchend", (e) => {
     });
 })();
 
+
+/* ===============================
+   MISSION HUD SYNC (sempre no canto superior direito)
+   =============================== */
+(function initMissionHUD(){
+    const hud = document.getElementById('missionHUD');
+    const hudText = document.getElementById('missionHUDText');
+    const missionEl = document.getElementById('currentMission');
+    const menu = document.getElementById('mainMenu');
+
+    if (!hud || !hudText) return;
+
+    const setText = (txt) => {
+        const clean = (txt || '').trim();
+        hudText.textContent = clean.length ? clean : '—';
+    };
+
+    // Sincroniza com o display original de missão, se existir
+    if (missionEl) {
+        setText(missionEl.textContent);
+
+        const obs = new MutationObserver(() => setText(missionEl.textContent));
+        obs.observe(missionEl, { childList: true, subtree: true, characterData: true });
+    }
+
+    // Mostra durante o jogo (quando menu some). Se não existir menu, sempre mostra.
+    const syncVisibility = () => {
+        if (!menu) {
+            hud.style.display = 'block';
+            return;
+        }
+        const menuVisible = (menu.style.display !== 'none');
+        hud.style.display = menuVisible ? 'none' : 'block';
+    };
+
+    syncVisibility();
+
+    if (menu) {
+        const obsMenu = new MutationObserver(syncVisibility);
+        obsMenu.observe(menu, { attributes: true, attributeFilter: ['style'] });
+        ['gameModeBtn','exploreModeBtn','missionTestStartBtn'].forEach(id => {
+            const b = document.getElementById(id);
+            if (b) b.addEventListener('click', () => setTimeout(syncVisibility, 0));
+        });
+    }
+
+    // Gancho extra: se existir função de atualizar missão, sincroniza também
+    try {
+        if (typeof window.updateMissionDisplay === 'function' && !window.__missionHUDHooked) {
+            const original = window.updateMissionDisplay;
+            window.updateMissionDisplay = function(...args){
+                const r = original.apply(this, args);
+                if (missionEl) setText(missionEl.textContent);
+                return r;
+            };
+            window.__missionHUDHooked = true;
+        }
+    } catch (e) {}
+})();
+
 </script>
 
 <!-- ===============================
@@ -8837,6 +8945,17 @@ canvas.addEventListener("touchend", (e) => {
         <div class="touchBtn" id="btnAction">Ação</div>
         <div class="touchBtn" id="btnJump">Pular</div>
     </div>
+</div>
+
+
+<!-- ===============================
+     MISSION HUD (Top-Right)
+     =============================== -->
+<div id="missionHUD" aria-hidden="true">
+  <div id="missionHUDBox">
+    <span id="missionHUDLabel">MISSÃO</span>
+    <span id="missionHUDText">—</span>
+  </div>
 </div>
 
 </body>
