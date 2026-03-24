@@ -1090,6 +1090,155 @@
             }
         };
 
+        /** Extrai campos do texto de descrição (mesmo padrão usado na sincronização Kanban → Calendar). */
+        const parseGoogleEventDescription = (raw) => {
+            const text = (raw || '').trim();
+            const lineValue = (label) => {
+                const re = new RegExp(`^${label}\\s*:\\s*(.+)$`, 'im');
+                const m = text.match(re);
+                return m ? m[1].trim() : '';
+            };
+            const phoneFallback = text.match(/\(?\d{2}\)?\s*\d{4,5}[-.\s]?\d{4}/);
+            const emailFallback = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            return {
+                category: lineValue('Categoria'),
+                assignedTo: lineValue('Responsável'),
+                address: lineValue('Endereço'),
+                phone: lineValue('Telefone') || (phoneFallback ? phoneFallback[0].trim() : ''),
+                email: lineValue('Email') || (emailFallback ? emailFallback[0].trim() : ''),
+                link: lineValue('Link'),
+            };
+        };
+
+        const importFromGoogleCalendar = async () => {
+            if (typeof gapi === 'undefined') {
+                notify('Google API não carregada. Recarregue a página.', 'error');
+                return;
+            }
+
+            const defaultColId = getDefaultColumnId();
+            if (!defaultColId) {
+                notify('É necessário ter pelo menos uma coluna para importar.', 'error');
+                return;
+            }
+
+            if (!googleCalendarAuth || !gapi.client.getToken()?.access_token) {
+                const token = await handleGoogleCalendarAuth();
+                if (!token && !gapi.client.getToken()?.access_token) return;
+            }
+
+            setIsSyncingCalendar(true);
+            try {
+                await initGoogleCalendar();
+
+                const now = new Date();
+                const timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+                const timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
+                const response = await gapi.client.calendar.events.list({
+                    calendarId: 'primary',
+                    timeMin,
+                    timeMax,
+                    singleEvents: true,
+                    orderBy: 'startTime',
+                    maxResults: 250,
+                });
+
+                const events = response.result?.items || [];
+                if (events.length === 0) {
+                    notify('Nenhum evento encontrado no intervalo (últimos 30 dias + próximos 90).', 'error');
+                    return;
+                }
+
+                const baseOrder = clients.reduce((m, c) => Math.max(m, c.order || 0), 0);
+                const existingEventIds = new Set(
+                    clients.map((c) => c.googleCalendarEventId).filter(Boolean)
+                );
+
+                const newCards = [];
+                let idx = 0;
+                for (const event of events) {
+                    if (event.status === 'cancelled') continue;
+                    if (!event.id) continue;
+                    const start = event.start?.dateTime || event.start?.date;
+                    if (!start) continue;
+
+                    let deadlineDate;
+                    let deadlineTime = '';
+                    if (event.start.dateTime) {
+                        const d = new Date(event.start.dateTime);
+                        const y = d.getFullYear();
+                        const mo = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        deadlineDate = `${y}-${mo}-${day}`;
+                        deadlineTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    } else {
+                        deadlineDate = event.start.date;
+                        deadlineTime = '09:00';
+                    }
+
+                    const parsed = parseGoogleEventDescription(event.description);
+                    const address = parsed.address || (event.location || '').trim();
+                    const link = parsed.link || event.htmlLink || '';
+
+                    newCards.push({
+                        id: uid(),
+                        googleCalendarEventId: event.id,
+                        name: (event.summary || '').trim() || 'Sem nome',
+                        email: parsed.email,
+                        phone: parsed.phone,
+                        category: parsed.category || 'Importado',
+                        assignedTo: parsed.assignedTo,
+                        rating: 3,
+                        columnId: defaultColId,
+                        notes: [
+                            {
+                                text: `Importado do Google Calendar${event.description ? `\n${event.description}` : ''}`,
+                                timestamp: new Date().toISOString(),
+                            },
+                        ],
+                        createdAt: new Date().toISOString(),
+                        lastUpdated: new Date().toISOString(),
+                        address,
+                        activity: 'Interna',
+                        deadlineDate,
+                        deadlineTime,
+                        duration: 'Horas',
+                        link,
+                        value: 0,
+                        isPulsing: true,
+                        order: baseOrder + (++idx),
+                    });
+                }
+
+                if (newCards.length === 0) {
+                    notify('Há eventos na agenda, mas nenhum pôde virar card (ex.: cancelados ou sem data de início).', 'error');
+                    return;
+                }
+
+                const uniqueNew = newCards.filter((c) => !existingEventIds.has(c.googleCalendarEventId));
+
+                if (uniqueNew.length === 0) {
+                    notify('Nenhum evento novo para importar (todos já estão no quadro ou foram filtrados).', 'success');
+                    return;
+                }
+
+                requestConfirmation(
+                    'Importar do Google Calendar',
+                    `Encontramos ${uniqueNew.length} evento(s) novo(s). Criar cards na primeira coluna?`,
+                    () => {
+                        triggerSave({ clients: [...clients, ...uniqueNew] });
+                        notify(`${uniqueNew.length} card(s) importado(s)!`, 'success');
+                    }
+                );
+            } catch (err) {
+                console.error('Erro ao importar do Calendar:', err);
+                notify('Erro ao importar: ' + (err.message || err.result?.error?.message || 'Erro desconhecido'), 'error');
+            } finally {
+                setIsSyncingCalendar(false);
+            }
+        };
+
         const getColumns = () => boardState.columnOrder.map(id => boardState.columns[id]).filter(Boolean);
 
         return (
@@ -1144,6 +1293,14 @@
                                     <button onClick={()=>{ resetGoogleCalendarAuth(); setShowAdminMenu(false); }} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-orange-600">🔁 Alterar Client ID</button>
                                     <button onClick={googleCalendarAuth ? syncToGoogleCalendar : handleGoogleCalendarAuth} className="block w-full text-left px-4 py-2 hover:bg-gray-100" disabled={isSyncingCalendar}>
                                         {isSyncingCalendar ? '🔄 Sincronizando...' : (googleCalendarAuth ? '📅 Sincronizar Google Calendar' : '📅 Conectar Google Calendar')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void importFromGoogleCalendar(); setShowAdminMenu(false); }}
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-green-700 font-semibold"
+                                        disabled={isSyncingCalendar}
+                                    >
+                                        📥 Importar do Google Calendar
                                     </button>
                                     <hr className="my-1"/>
                                     <button 
