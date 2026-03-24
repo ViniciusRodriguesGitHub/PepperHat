@@ -485,7 +485,6 @@
                 if(c.id === id && c.columnId !== targetCol) {
                     const oldCol = boardState.columns[c.columnId]?.title || c.columnId;
                     const newCol = boardState.columns[targetCol]?.title || targetCol;
-                    const notes = [...(c.notes||[]), { text: `Movido: ${oldCol} -> ${newCol}`, timestamp: new Date().toISOString() }];
                     addLogEntry({
                         kind: 'card',
                         action: 'move',
@@ -495,7 +494,7 @@
                             { field: 'coluna', before: oldCol, after: newCol }
                         ]
                     });
-                    return { ...c, columnId: targetCol, lastUpdated: new Date().toISOString(), notes, pulsingDisabled: false };
+                    return { ...c, columnId: targetCol, lastUpdated: new Date().toISOString(), pulsingDisabled: false };
                 }
                 return c;
             });
