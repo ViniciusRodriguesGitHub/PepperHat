@@ -3,12 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6d28d9" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Pepper Hat" />
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <!-- iOS prefers PNG for apple-touch-icon; add one when available -->
     <title>Pepper Hat - Kanban Colaborativo</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -2302,16 +2296,6 @@
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<App />);
-    </script>
-
-    <script>
-      // Basic PWA: register service worker (requires HTTPS or localhost)
-      (function registerSW() {
-        if (!('serviceWorker' in navigator)) return;
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(() => {});
-        });
-      })();
     </script>
   </body>
 </html>
