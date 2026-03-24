@@ -4,7 +4,9 @@ const CACHE_VERSION = 'pepperhat-shell-v1';
 const SHELL_ASSETS = [
   './',
   './index.html',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
