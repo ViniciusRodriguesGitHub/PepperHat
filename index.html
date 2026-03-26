@@ -1131,7 +1131,10 @@
                 await initGoogleCalendar();
 
                 const now = new Date();
-                const timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+                const startOfToday = new Date(now);
+                startOfToday.setHours(0, 0, 0, 0);
+                // Importar apenas a partir da data atual (hoje 00:00) e após.
+                const timeMin = startOfToday.toISOString();
                 const timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
                 const response = await gapi.client.calendar.events.list({
@@ -1145,7 +1148,7 @@
 
                 const events = response.result?.items || [];
                 if (events.length === 0) {
-                    notify('Nenhum evento encontrado no intervalo (últimos 30 dias + próximos 90).', 'error');
+                    notify('Nenhum evento encontrado no intervalo (hoje + próximos 90 dias).', 'error');
                     return;
                 }
 
@@ -1166,12 +1169,16 @@
                     let deadlineTime = '';
                     if (event.start.dateTime) {
                         const d = new Date(event.start.dateTime);
+                        if (d < startOfToday) continue; // segurança extra, evita qualquer coisa anterior a hoje
                         const y = d.getFullYear();
                         const mo = String(d.getMonth() + 1).padStart(2, '0');
                         const day = String(d.getDate()).padStart(2, '0');
                         deadlineDate = `${y}-${mo}-${day}`;
                         deadlineTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
                     } else {
+                        // All-day: tratar como meia-noite local para comparação com "hoje"
+                        const d = new Date(`${event.start.date}T00:00:00`);
+                        if (d < startOfToday) continue;
                         deadlineDate = event.start.date;
                         deadlineTime = '09:00';
                     }
@@ -1428,7 +1435,7 @@
                             const col = boardState.columns[colId];
                             if(!col) return null;
                             
-                            // Filter AND Sort cards (by 'order')
+                            // Filter AND Sort cards (sem prazo no topo, depois por prazo mais próximo)
                             const colCards = clients
                                 .filter(c => c.columnId === colId)
                                 .filter(c => !filterCategory || c.category === filterCategory)
@@ -1436,7 +1443,18 @@
                                 .filter(c => !filterActivity || c.activity === filterActivity)
                                 .filter(c => !filterDuration || c.duration === filterDuration)
                                 .filter(c => !searchTerm || (c.name||'').toLowerCase().includes(searchTerm.toLowerCase()) || (c.address||'').toLowerCase().includes(searchTerm.toLowerCase()) || (c.notes||[]).some(n => n.text.toLowerCase().includes(searchTerm.toLowerCase())))
-                                .sort((a, b) => (a.order || 0) - (b.order || 0));
+                                .sort((a, b) => {
+                                    const aHas = !!a.deadlineDate;
+                                    const bHas = !!b.deadlineDate;
+                                    if (!aHas && !bHas) return (a.order || 0) - (b.order || 0);
+                                    if (!aHas) return -1;
+                                    if (!bHas) return 1;
+                                    const aDt = new Date(`${a.deadlineDate}T${a.deadlineTime || '00:00'}:00`);
+                                    const bDt = new Date(`${b.deadlineDate}T${b.deadlineTime || '00:00'}:00`);
+                                    const diff = aDt - bDt;
+                                    if (diff !== 0) return diff;
+                                    return (a.order || 0) - (b.order || 0);
+                                });
 
                             const width = boardState.columnWidths?.[colId] ?? 280;
 
