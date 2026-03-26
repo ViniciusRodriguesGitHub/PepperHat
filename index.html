@@ -38,7 +38,7 @@
             setPersistence, 
             browserLocalPersistence
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO DO FIREBASE (PEPPERHAT APPS) ---
         const firebaseConfig = {
@@ -64,6 +64,8 @@
             window.doc = doc;
             window.setDoc = setDoc;
             window.onSnapshot = onSnapshot;
+            window.collection = collection;
+            window.getDocs = getDocs;
             window.signInWithPopup = signInWithPopup;
             window.signInAnonymously = signInAnonymously;
             window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
@@ -312,12 +314,59 @@
 
       function ProjectSelection({ user, onSelectProject, onLogout }) {
           const [pid, setPid] = useState('');
+          const [projects, setProjects] = useState([]);
+          const [loadingProjects, setLoadingProjects] = useState(true);
+          const [projectsError, setProjectsError] = useState('');
+
+          useEffect(() => {
+              const loadProjects = async () => {
+                  if (!window.db || !window.collection || !window.getDocs || !user?.uid) {
+                      setLoadingProjects(false);
+                      return;
+                  }
+                  try {
+                      const colRef = window.collection(window.db, 'artifacts', 'pepperhatapps', 'users', user.uid, 'pepperhat_v3');
+                      const snap = await window.getDocs(colRef);
+                      const ids = snap.docs.map(d => d.id).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+                      setProjects(ids);
+                  } catch (e) {
+                      console.error('Erro ao listar projetos:', e);
+                      setProjectsError('Não foi possível carregar os projetos.');
+                  } finally {
+                      setLoadingProjects(false);
+                  }
+              };
+              loadProjects();
+          }, [user?.uid]);
+
           return (
               <div className="flex items-center justify-center h-screen bg-gray-50">
                   <div className="bg-white p-8 rounded shadow-lg w-96 text-center">
                       <h2 className="text-xl font-bold mb-2">Olá, {user.isAnonymous ? 'Convidado' : (user.displayName || 'Usuário')}!</h2>
                       <input className="w-full border p-2 mb-4 rounded" placeholder="ID do Projeto (ex: vendas-2025)" value={pid} onChange={e=>setPid(e.target.value)} />
                       <button onClick={()=>pid && onSelectProject(pid)} className="w-full bg-green-600 text-white p-2 rounded mb-2 hover:bg-green-700 font-bold">Acessar Projeto</button>
+                      <div className="text-left border rounded p-2 mb-2 bg-gray-50">
+                          <div className="text-xs font-bold text-gray-600 mb-2">Projetos deste usuário</div>
+                          {loadingProjects && <div className="text-xs text-gray-500">Carregando projetos...</div>}
+                          {!loadingProjects && projectsError && <div className="text-xs text-red-500">{projectsError}</div>}
+                          {!loadingProjects && !projectsError && projects.length === 0 && (
+                              <div className="text-xs text-gray-500">Nenhum projeto encontrado ainda.</div>
+                          )}
+                          {!loadingProjects && !projectsError && projects.length > 0 && (
+                              <div className="max-h-40 overflow-y-auto space-y-1">
+                                  {projects.map(id => (
+                                      <button
+                                          key={id}
+                                          type="button"
+                                          onClick={() => onSelectProject(id)}
+                                          className="w-full text-left px-2 py-1 text-sm rounded hover:bg-white border border-transparent hover:border-gray-200"
+                                      >
+                                          {id}
+                                      </button>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
                       <button onClick={()=>onSelectProject(`proj-${Math.random().toString(36).slice(2,7)}`)} className="w-full bg-blue-100 text-blue-700 p-2 rounded mb-4 hover:bg-blue-200 font-bold">Criar Novo</button>
                       <button onClick={onLogout} className="text-red-500 text-sm hover:underline">Sair</button>
                   </div>
@@ -2457,6 +2506,16 @@
       }
 
       function CalendarDisplay({ clients, view, selectedDate, setSelectedDate, setEditingCardId, filters }) {
+        const parseLocalDateParts = (ymd) => {
+            if (!ymd || typeof ymd !== 'string') return null;
+            const [y, m, d] = ymd.split('-').map(Number);
+            if (!y || !m || !d) return null;
+            return { y, m, d };
+        };
+        const toLocalDate = (ymd) => {
+            const p = parseLocalDateParts(ymd);
+            return p ? new Date(p.y, p.m - 1, p.d) : null;
+        };
         const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
         const startDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay();
         const days = Array(startDay).fill(null).concat([...Array(daysInMonth).keys()].map(i => i + 1));
@@ -2471,9 +2530,9 @@
                 <div className="flex justify-between mb-4">
                     <h2 className="text-2xl font-bold">{view === 'calendar' ? 'Calendário' : 'Lista'}</h2>
                     <div className="flex gap-2">
-                        <button onClick={()=>setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth()-1)))} className="p-2 bg-gray-100 rounded">◀</button>
+                        <button onClick={()=>setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1))} className="p-2 bg-gray-100 rounded">◀</button>
                         <span className="w-32 text-center font-bold pt-2">{selectedDate.toLocaleDateString('pt-BR', {month:'long', year:'numeric'})}</span>
-                        <button onClick={()=>setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth()+1)))} className="p-2 hover:bg-white rounded">▶</button>
+                        <button onClick={()=>setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1))} className="p-2 hover:bg-white rounded">▶</button>
                     </div>
                 </div>
                 {view === 'calendar' ? (
@@ -2485,7 +2544,10 @@
                                     <>
                                         <div className="text-right text-xs text-gray-400 font-bold mb-1">{d}</div>
                                         <div className="space-y-1 overflow-y-auto max-h-20">
-                                            {filtered.filter(c => c.deadlineDate && new Date(c.deadlineDate).getDate() === d && new Date(c.deadlineDate).getMonth() === selectedDate.getMonth()).map(c => (
+                                            {filtered.filter(c => {
+                                                const parts = parseLocalDateParts(c.deadlineDate);
+                                                return !!parts && parts.d === d && (parts.m - 1) === selectedDate.getMonth() && parts.y === selectedDate.getFullYear();
+                                            }).map(c => (
                                                 <div key={c.id} onClick={()=>setEditingCardId(c.id)} className="text-[10px] bg-blue-100 text-blue-800 p-1 rounded truncate cursor-pointer hover:bg-blue-200">
                                                     {c.deadlineTime} {c.name}
                                                 </div>
@@ -2498,13 +2560,22 @@
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {filtered.filter(c=>c.deadlineDate).sort((a,b)=>new Date(a.deadlineDate)-new Date(b.deadlineDate)).map(c => (
+                        {filtered.filter(c=>c.deadlineDate).sort((a,b)=>{
+                            const ad = toLocalDate(a.deadlineDate);
+                            const bd = toLocalDate(b.deadlineDate);
+                            if (!ad && !bd) return 0;
+                            if (!ad) return 1;
+                            if (!bd) return -1;
+                            return ad - bd;
+                        }).map(c => {
+                            const localDate = toLocalDate(c.deadlineDate);
+                            return (
                             <div key={c.id} onClick={()=>setEditingCardId(c.id)} className="flex items-center gap-4 p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                                <div className="w-20 text-center font-bold text-purple-600">{new Date(c.deadlineDate).toLocaleDateString()}</div>
+                                <div className="w-20 text-center font-bold text-purple-600">{localDate ? localDate.toLocaleDateString('pt-BR') : c.deadlineDate}</div>
                                 <div className="flex-grow font-bold">{c.name}</div>
                                 <div className="text-sm text-gray-500">{c.category}</div>
                             </div>
-                        ))}
+                        )})}
                     </div>
                 )}
             </div>
