@@ -1182,22 +1182,30 @@
                 const now = new Date();
                 const startOfToday = new Date(now);
                 startOfToday.setHours(0, 0, 0, 0);
-                // Importar apenas a partir da data atual (hoje 00:00) e após.
+                // Importar apenas a partir da data atual (hoje 00:00) até 1 ano à frente.
                 const timeMin = startOfToday.toISOString();
-                const timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
+                const MS_PER_DAY = 24 * 60 * 60 * 1000;
+                const timeMax = new Date(now.getTime() + 365 * MS_PER_DAY).toISOString();
 
-                const response = await gapi.client.calendar.events.list({
-                    calendarId: 'primary',
-                    timeMin,
-                    timeMax,
-                    singleEvents: true,
-                    orderBy: 'startTime',
-                    maxResults: 250,
-                });
+                const events = [];
+                let pageToken;
+                do {
+                    const response = await gapi.client.calendar.events.list({
+                        calendarId: 'primary',
+                        timeMin,
+                        timeMax,
+                        singleEvents: true,
+                        orderBy: 'startTime',
+                        maxResults: 2500,
+                        ...(pageToken ? { pageToken } : {}),
+                    });
+                    const batch = response.result?.items || [];
+                    events.push(...batch);
+                    pageToken = response.result?.nextPageToken;
+                } while (pageToken);
 
-                const events = response.result?.items || [];
                 if (events.length === 0) {
-                    notify('Nenhum evento encontrado no intervalo (hoje + próximos 90 dias).', 'error');
+                    notify('Nenhum evento encontrado no intervalo (hoje + próximos 365 dias).', 'error');
                     return;
                 }
 
