@@ -2478,19 +2478,24 @@
                       {card.deadlineDate && (
                           <div className="text-[10px] font-mono text-red-600 bg-transparent px-1 rounded ml-1 whitespace-nowrap">
                               {(() => {
-                                const deadline = new Date(card.deadlineDate + (card.deadlineTime ? `T${card.deadlineTime}` : 'T00:00:00'));
+                                const [y, mo, da] = (card.deadlineDate || '').split('-').map(Number);
+                                const [hh = 0, mm = 0] = (card.deadlineTime || '00:00').split(':').map((n) => parseInt(n, 10) || 0);
+                                const deadline = new Date(y, mo - 1, da, hh, mm, 0, 0);
                                 const now = new Date();
                                 const diffTime = deadline.getTime() - now.getTime();
-                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                
+                                const startOfLocalDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                                const diffCalendarDays = Math.round(
+                                    (startOfLocalDay(deadline) - startOfLocalDay(now)) / (1000 * 60 * 60 * 24)
+                                );
+
                                 if (diffTime < 0) return deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                                if (diffDays >= 7) return deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ');
-                                if (diffDays > 1) return `${diffDays}d`;
-                                if (diffDays === 1) {
-                                    const hrs = Math.floor(diffTime / 1000 / 60 / 60);
-                                    return hrs > 0 ? `${hrs}h` : "AGORA";
-                                }
-                                return null;
+                                if (diffCalendarDays >= 7) return deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' }).replace(', ', ' ');
+                                if (diffCalendarDays > 1) return `${diffCalendarDays}d`;
+                                if (diffCalendarDays === 1) return '1d';
+                                const hrs = Math.floor(diffTime / 1000 / 60 / 60);
+                                if (hrs > 0) return `${hrs}h`;
+                                const mins = Math.floor(diffTime / 1000 / 60);
+                                return mins > 0 ? `${mins}min` : 'AGORA';
                               })()}
                           </div>
                       )}
