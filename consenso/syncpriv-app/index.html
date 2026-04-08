@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="background-color" content="#f8fafc">
+  <meta name="color-scheme" content="light">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-72x72.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png">
+  <link rel="shortcut icon" href="icons/icon-192x192.png">
+  
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
+  
+  <!-- iOS Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Consenso">
+  
+  <!-- Windows Meta Tags -->
+  <meta name="msapplication-TileColor" content="#2563eb">
+  <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+  <meta name="msapplication-config" content="browserconfig.xml">
+  <meta name="application-name" content="Consenso">
+  
+  <!-- Android Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- SEO Meta Tags -->
+  <title>Consenso - Encontre o Horário Ideal em Grupo</title>
+  <meta name="description" content="Encontre o horário perfeito para seu grupo com privacidade absoluta. Seus horários são secretos - apenas o consenso final é revelado.">
+  <meta name="keywords" content="agenda, reunião, consenso, privacidade, votação, horário, grupo">
+  <meta name="author" content="Consenso">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Consenso - Encontre o Horário Ideal em Grupo">
+  <meta property="og:description" content="Encontre o horário perfeito para seu grupo com privacidade absoluta. Seus horários são secretos.">
+  <meta property="og:image" content="icons/icon-512x512.png">
+  <meta property="og:locale" content="pt_BR">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Consenso - Encontre o Horário Ideal">
+  <meta name="twitter:description" content="Encontre o horário perfeito para seu grupo com privacidade absoluta.">
+  <meta name="twitter:image" content="icons/icon-512x512.png">
+  
+  <!-- Preconnect to CDNs -->
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://unpkg.com">
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    
+    /* PWA Install Prompt */
+    .pwa-install-prompt {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 9999;
+      max-width: 90vw;
+      width: 400px;
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+    
+    .pwa-install-prompt.hide {
+      animation: slideDown 0.3s ease-out forwards;
+    }
+    
+    @keyframes slideDown {
+      to { transform: translateX(-50%) translateY(100px); opacity: 0; }
+    }
+    
+    /* iOS Install Instructions */
+    .ios-install-guide {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .ios-install-content {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    /* Spinner */
+    .spinner { 
+      border: 3px solid #e2e8f0; 
+      border-top-color: #2563eb; 
+      border-radius: 50%; 
+      animation: spin 1s linear infinite; 
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* Animations */
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* Privacy Shield Gradient */
+    .privacy-shield { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
+    
+    /* Safe area for notched devices */
+    .safe-area-top { padding-top: env(safe-area-inset-top); }
+    .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    
+    /* Touch action for better mobile experience */
+    button, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    
+    /* Prevent text selection on UI elements */
+    .no-select { user-select: none; -webkit-user-select: none; }
+  </style>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' },
+            blue: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Scripts -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 safe-area-top safe-area-bottom">
+  <!-- PWA Install Prompt Container -->
+  <div id="pwa-prompt-container"></div>
+  
+  <!-- iOS Install Guide Container -->
+  <div id="ios-guide-container"></div>
+  
+  <!-- Opcional: defina o Client ID OAuth do Google (Google Cloud Console) para o botão "Entrar com Google". -->
+  <script>
+    // window.CONSENSO_GOOGLE_CLIENT_ID = 'SEU_ID.apps.googleusercontent.com';
+  </script>
+
+  <!-- Root -->
+  <div id="root"></div>
+  
+  <!-- PWA Registration Script -->
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('[PWA] Service Worker registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.log('[PWA] Service Worker registration failed:', error);
+          });
+      });
+    }
+    
+    // PWA Install Prompt
+    let deferredPrompt;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('[PWA] Install prompt available');
+      e.preventDefault();
+      deferredPrompt = e;
+      showInstallPrompt();
+    });
+    
+    function showInstallPrompt() {
+      if (isStandalone) return;
+      
+      const container = document.getElementById('pwa-prompt-container');
+      if (!container) return;
+      
+      // iOS uses a different install method
+      if (isIOS) {
+        showIOSInstallGuide();
+        return;
+      }
+      
+      const prompt = document.createElement('div');
+      prompt.className = 'pwa-install-prompt';
+      prompt.innerHTML = `
+        <img src="icons/icon-72x72.png" alt="Consenso" class="w-12 h-12 rounded-xl">
+        <div class="flex-1">
+          <p class="font-semibold text-slate-900">Instalar Consenso</p>
+          <p class="text-sm text-slate-500">Acesse rapidamente do seu dispositivo</p>
+        </div>
+        <button id="install-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+          Instalar
+        </button>
+        <button id="dismiss-btn" class="p-2 text-slate-400 hover:text-slate-600">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      `;
+      
+      container.appendChild(prompt);
+      
+      document.getElementById('install-btn').addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log('[PWA] User choice:', outcome);
+          deferredPrompt = null;
+        }
+        prompt.classList.add('hide');
+        setTimeout(() => prompt.remove(), 300);
+      });
+      
+      document.getElementById('dismiss-btn').addEventListener('click', () => {
+        prompt.classList.add('hide');
+        setTimeout(() => prompt.remove(), 300);
+        localStorage.setItem('pwa-prompt-dismissed', Date.now().toString());
+      });
+    }
+    
+    function showIOSInstallGuide() {
+      const container = document.getElementById('ios-guide-container');
+      if (!container || localStorage.getItem('ios-guide-shown')) return;
+      
+      const guide = document.createElement('div');
+      guide.className = 'ios-install-guide';
+      guide.innerHTML = `
+        <div class="ios-install-content">
+          <img src="icons/icon-152x152.png" alt="Consenso" class="w-20 h-20 mx-auto mb-4 rounded-2xl">
+          <h2 class="text-xl font-bold text-slate-900 mb-2">Adicione à Tela Inicial</h2>
+          <p class="text-slate-600 mb-6">Instale o Consenso para acesso rápido:</p>
+          <div class="space-y-4 text-left bg-slate-50 p-4 rounded-xl mb-6">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">1</div>
+              <span class="text-slate-700">Toque no botão <strong>Compartilhar</strong></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">2</div>
+              <span class="text-slate-700">Role e toque em <strong>Adicionar à Tela de Início</strong></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">3</div>
+              <span class="text-slate-700">Toque em <strong>Adicionar</strong></span>
+            </div>
+          </div>
+          <button id="ios-close-btn" class="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
+            Entendi
+          </button>
+        </div>
+      `;
+      
+      container.appendChild(guide);
+      
+      document.getElementById('ios-close-btn').addEventListener('click', () => {
+        guide.remove();
+        localStorage.setItem('ios-guide-shown', 'true');
+      });
+    }
+    
+    // Show prompt after 3 seconds if not dismissed recently
+    setTimeout(() => {
+      if (isStandalone) return;
+      
+      const dismissed = localStorage.getItem('pwa-prompt-dismissed');
+      if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
+      
+      if (deferredPrompt || isIOS) {
+        showInstallPrompt();
+      }
+    }, 3000);
+    
+    // Listen for app installed event
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] App installed');
+      deferredPrompt = null;
+      const prompt = document.querySelector('.pwa-install-prompt');
+      if (prompt) prompt.remove();
+    });
+  </script>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    
+    // Logo SVG Component
+    const Logo = ({ className = "w-8 h-8" }) => (
+      <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="20" r="12" fill="#2563eb"/>
+        <circle cx="80" cy="50" r="12" fill="#475569"/>
+        <circle cx="50" cy="80" r="12" fill="#2563eb"/>
+        <circle cx="20" cy="50" r="12" fill="#475569"/>
+        <path d="M50 32 L50 68" stroke="#2563eb" strokeWidth="6" strokeLinecap="round"/>
+        <path d="M32 50 L68 50" stroke="#475569" strokeWidth="6" strokeLinecap="round"/>
+        <circle cx="50" cy="50" r="8" fill="#1e40af"/>
+      </svg>
+    );
+
+    const Icon = ({ name, className = "w-5 h-5" }) => {
+      const iconRef = useRef(null);
+      useEffect(() => {
+        if (iconRef.current && lucide[name]) {
+          iconRef.current.innerHTML = '';
+          const svg = lucide.createElement(lucide[name]);
+          svg.setAttribute('class', className);
+          iconRef.current.appendChild(svg);
+        }
+      }, [name, className]);
+      return <span ref={iconRef} className="inline-flex items-center justify-center" />;
+    };
+
+    const Toast = ({ message, type, onClose }) => {
+      useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
+      const bgColors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
+      return (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 ${bgColors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 fade-in flex items-center gap-2`}>
+          <Icon name={type === 'success' ? 'CheckCircle' : type === 'error' ? 'XCircle' : 'Info'} className="w-5 h-5" />
+          {message}
+        </div>
+      );
+    };
+
+    const Toaster = ({ toasts, removeToast }) => (
+      <>{toasts.map(t => <Toast key={t.id} message={t.message} type={t.type} onClose={() => removeToast(t.id)} />)}</>
+    );
+
+    const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const formatDate = (date) => date.toISOString().split('T')[0];
+    const formatDisplayDate = (date) => new Date(date).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+    const formatDisplayDateFull = (date) => new Date(date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    
+    const getDatesInRange = (start, end) => {
+      const dates = [];
+      let current = new Date(start);
+      const endDate = new Date(end);
+      while (current <= endDate) { dates.push(new Date(current)); current.setDate(current.getDate() + 1); }
+      return dates;
+    };
+    
+    const getDayName = (date) => date.toLocaleDateString('pt-BR', { weekday: 'short' });
+    const getDayNumber = (date) => date.getDate();
+    const getMonthName = (date) => date.toLocaleDateString('pt-BR', { month: 'short' });
+    const getTimezoneDisplay = () => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const offset = new Date().getTimezoneOffset();
+      const sign = offset <= 0 ? '+' : '-';
+      const hours = Math.floor(Math.abs(offset) / 60);
+      return `GMT${sign}${hours} ${tz.split('/').pop().replace(/_/g, ' ')}`;
+    };
+
+    const HOUR_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
+    const SHIFT_TIMES = { morning: 'Manhã (6h-12h)', afternoon: 'Tarde (12h-18h)', evening: 'Noite (18h-22h)' };
+    const SEPARATOR_HOURS = ['12:00', '18:00'];
+
+    const STORAGE_KEY = 'consenso_events';
+    const USER_KEY = 'consenso_user';
+    const ADMIN_SESSION_KEY = 'consenso_admin_session';
+
+    const GOOGLE_CLIENT_ID = (typeof window !== 'undefined' && window.CONSENSO_GOOGLE_CLIENT_ID) ? String(window.CONSENSO_GOOGLE_CLIENT_ID).trim() : '';
+
+    const parseJwtPayload = (token) => {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const json = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        return JSON.parse(json);
+      } catch { return null; }
+    };
+
+    const getAdminSession = () => {
+      try {
+        const s = localStorage.getItem(ADMIN_SESSION_KEY);
+        return s ? JSON.parse(s) : null;
+      } catch { return null; }
+    };
+
+    const setAdminSession = (session) => {
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+    };
+
+    const clearAdminSession = () => {
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+    };
+
+    const adminKey = (session) => {
+      if (!session) return null;
+      if (session.provider === 'google' && session.sub) return `google:${session.sub}`;
+      if (session.provider === 'email' && session.email) return `email:${session.email.trim().toLowerCase()}`;
+      return null;
+    };
+
+    const canManageEventId = (eventId) => {
+      const event = getEvent(eventId);
+      if (!event) return false;
+      const session = getAdminSession();
+      const key = adminKey(session);
+      if (key && event.config.creatorAdminKey === key) return true;
+      if (!event.config.creatorAdminKey) {
+        const u = getCurrentUser();
+        return event.config.creatorId === u.id;
+      }
+      return false;
+    };
+
+    const getEventsForAdmin = () => {
+      const session = getAdminSession();
+      const key = adminKey(session);
+      if (!key) return [];
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      return Object.keys(events)
+        .filter((id) => events[id].config.creatorAdminKey === key)
+        .map((id) => ({ id, ...events[id] }))
+        .sort((a, b) => new Date(b.config.createdAt) - new Date(a.config.createdAt));
+    };
+    
+    const getCurrentUser = () => {
+      const stored = localStorage.getItem(USER_KEY);
+      if (stored) return JSON.parse(stored);
+      const newUser = { id: generateId(), name: '', isAnonymous: true };
+      localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+      return newUser;
+    };
+    
+    const setUserName = (name) => {
+      const user = getCurrentUser();
+      user.name = name;
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    };
+    
+    const createEvent = (config) => {
+      const admin = getAdminSession();
+      const ak = adminKey(admin);
+      if (!ak) throw new Error('Organizador não autenticado');
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const newConfig = {
+        ...config,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+        resultsUnlocked: false,
+        creatorAdminKey: ak || undefined,
+        creatorAdminEmail: admin?.email || undefined
+      };
+      events[newConfig.id] = { config: newConfig, votes: [] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      return newConfig;
+    };
+    
+    const getEvent = (eventId) => {
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const event = events[eventId];
+      if (!event) return null;
+      return {
+        config: { ...event.config, startDate: new Date(event.config.startDate), endDate: new Date(event.config.endDate), createdAt: new Date(event.config.createdAt) },
+        votes: event.votes.map(v => ({ ...v, votedAt: new Date(v.votedAt) }))
+      };
+    };
+    
+    const submitVote = (eventId, vote) => {
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const event = events[eventId];
+      if (!event) throw new Error('Event not found');
+      event.votes = event.votes.filter(v => v.userId !== vote.userId);
+      event.votes.push({ ...vote, votedAt: new Date().toISOString() });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    };
+    
+    const hasUserVoted = (eventId, userId) => {
+      const event = getEvent(eventId);
+      return event ? event.votes.some(v => v.userId === userId) : false;
+    };
+    
+    const getUserVote = (eventId, userId) => {
+      const event = getEvent(eventId);
+      return event ? event.votes.find(v => v.userId === userId) || null : null;
+    };
+    
+    const unlockResults = (eventId) => {
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (events[eventId]) {
+        events[eventId].config.resultsUnlocked = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      }
+    };
+    
+    const getVotedUserNames = (eventId) => {
+      const event = getEvent(eventId);
+      return event ? event.votes.map(v => v.userName).filter(Boolean) : [];
+    };
+    
+    const generateShortLink = (eventId) => `${window.location.origin}${window.location.pathname}#event/${eventId}`;
+
+    const calculateConsensus = (eventData) => {
+      const { config, votes } = eventData;
+      if (votes.length === 0) return { type: 'none', slots: [], totalVotes: 0, quorum: config.quorum };
+      
+      const slotMap = new Map();
+      votes.forEach(vote => {
+        vote.timeSlots.forEach(slotKey => {
+          if (!slotMap.has(slotKey)) {
+            const [dateStr, time] = slotKey.split('|');
+            slotMap.set(slotKey, { date: new Date(dateStr), time, votes: 0, voterIds: [] });
+          }
+          const slot = slotMap.get(slotKey);
+          slot.votes++;
+          slot.voterIds.push(vote.userId);
+        });
+      });
+      
+      const slots = Array.from(slotMap.values());
+      const unanimousSlots = slots.filter(s => s.votes === votes.length).sort((a, b) => a.date - b.date || a.time.localeCompare(b.time));
+      
+      if (unanimousSlots.length > 0) return { type: 'unanimous', slots: unanimousSlots.slice(0, 2), totalVotes: votes.length, quorum: config.quorum };
+      
+      const maxVotes = Math.max(...slots.map(s => s.votes));
+      const majoritySlots = slots.filter(s => s.votes === maxVotes).sort((a, b) => a.date - b.date || a.time.localeCompare(b.time)).slice(0, 2);
+      
+      return { type: 'majority', slots: majoritySlots, totalVotes: votes.length, quorum: config.quorum };
+    };
+    
+    const hasReachedQuorum = (eventData) => eventData.votes.length >= eventData.config.quorum;
+    const hasReachedEarlyRevelationThreshold = (eventData) => eventData.config.earlyRevelation && eventData.votes.length >= Math.ceil(eventData.config.quorum * 0.5);
+    const canViewResults = (eventData, isManager) => eventData.config.resultsUnlocked || hasReachedQuorum(eventData);
+    const getMissingVotesCount = (eventData) => Math.max(0, eventData.config.quorum - eventData.votes.length);
+    const getVoteProgressPercentage = (eventData) => Math.min(100, Math.round((eventData.votes.length / eventData.config.quorum) * 100));
+
+    const generateICalContent = (event) => {
+      const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Consenso//EN\nBEGIN:VEVENT\nUID:${Date.now()}@consenso.app\nDTSTAMP:${formatDate(new Date())}\nDTSTART:${formatDate(event.startDate)}\nDTEND:${formatDate(event.endDate)}\nSUMMARY:${event.title}\nDESCRIPTION:${event.description || 'Reunião via Consenso'}\nEND:VEVENT\nEND:VCALENDAR`;
+    };
+    
+    const downloadICal = (event) => {
+      const content = generateICalContent(event);
+      const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `consenso-${event.title.toLowerCase().replace(/\s+/g, '-')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+    
+    const openGoogleCalendar = (event) => {
+      const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0];
+      const params = new URLSearchParams({ action: 'TEMPLATE', text: event.title, dates: `${formatDate(event.startDate)}/${formatDate(event.endDate)}`, details: event.description || 'Reunião via Consenso' });
+      window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
+    };
+    
+    const parseTimeSlot = (slotKey, title) => {
+      const [dateStr, timeStr] = slotKey.split('|');
+      const date = new Date(dateStr);
+      
+      if (timeStr === 'morning') {
+        const start = new Date(date); start.setHours(6, 0, 0, 0);
+        const end = new Date(date); end.setHours(12, 0, 0, 0);
+        return { title, startDate: start, endDate: end };
+      } else if (timeStr === 'afternoon') {
+        const start = new Date(date); start.setHours(12, 0, 0, 0);
+        const end = new Date(date); end.setHours(18, 0, 0, 0);
+        return { title, startDate: start, endDate: end };
+      } else if (timeStr === 'evening') {
+        const start = new Date(date); start.setHours(18, 0, 0, 0);
+        const end = new Date(date); end.setHours(22, 0, 0, 0);
+        return { title, startDate: start, endDate: end };
+      } else if (timeStr.includes(':')) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const start = new Date(date); start.setHours(hours, minutes, 0, 0);
+        const end = new Date(date); end.setHours(hours + 1, minutes, 0, 0);
+        return { title, startDate: start, endDate: end };
+      }
+      return null;
+    };
+
+    const generateReminderMessage = (eventTitle, missingCount, eventLink, totalQuorum) => {
+      const votedCount = totalQuorum - missingCount;
+      const progressPercent = Math.round((votedCount / totalQuorum) * 100);
+      return `Oi! 👋\n\nFaltam apenas ${missingCount} pessoa${missingCount > 1 ? 's' : ''} para fecharmos o horário da reunião "${eventTitle}".\n\nProgresso: ${votedCount}/${totalQuorum} (${progressPercent}%)\n\nSeus horários são 100% privados no Consenso!\n\nVote aqui: ${eventLink}\n\nObrigado! 🗓️`;
+    };
+
+    const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled, className = '', type = 'button' }) => {
+      const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2';
+      const variants = {
+        primary: 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-300',
+        outline: 'border-2 border-slate-300 hover:border-slate-400 text-slate-700 hover:bg-slate-50',
+        ghost: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+      };
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2', lg: 'px-6 py-3 text-lg' };
+      
+      return (
+        <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}>
+          {children}
+        </button>
+      );
+    };
+
+    const Input = ({ value, onChange, placeholder, type = 'text', className = '', min, max, id }) => (
+      <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} min={min} max={max} 
+        className={`w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${className}`} />
+    );
+
+    const Label = ({ children, htmlFor, className = '' }) => (
+      <label htmlFor={htmlFor} className={`block text-sm font-medium text-slate-700 mb-1 ${className}`}>{children}</label>
+    );
+
+    const Card = ({ children, className = '' }) => (
+      <div className={`bg-white rounded-xl border border-slate-200 shadow-sm ${className}`}>{children}</div>
+    );
+
+    const CardHeader = ({ children, className = '' }) => (
+      <div className={`p-4 border-b border-slate-200 ${className}`}>{children}</div>
+    );
+
+    const CardContent = ({ children, className = '' }) => (
+      <div className={`p-4 ${className}`}>{children}</div>
+    );
+
+    const CardTitle = ({ children, className = '' }) => (
+      <h3 className={`font-semibold text-slate-900 ${className}`}>{children}</h3>
+    );
+
+    const Slider = ({ value, onValueChange, min, max, step }) => (
+      <input type="range" min={min} max={max} step={step} value={value[0]} 
+        onChange={(e) => onValueChange([parseInt(e.target.value)])}
+        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+    );
+
+    const Switch = ({ checked, onCheckedChange, id }) => (
+      <button id={id} onClick={() => onCheckedChange(!checked)} 
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-slate-300'}`}>
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+      </button>
+    );
+
+    const AdminLoginScreen = ({ onSuccess, onCancel }) => {
+      const [email, setEmail] = useState('');
+      const googleBtnRef = useRef(null);
+      const onSuccessRef = useRef(onSuccess);
+      useEffect(() => { onSuccessRef.current = onSuccess; }, [onSuccess]);
+
+      useEffect(() => {
+        if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
+        const finish = () => {
+          if (!window.google?.accounts?.id || !googleBtnRef.current) return;
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: (response) => {
+              const payload = parseJwtPayload(response.credential);
+              if (!payload?.email || !payload?.sub) return;
+              setAdminSession({
+                provider: 'google',
+                email: payload.email,
+                name: payload.name || '',
+                picture: payload.picture || '',
+                sub: payload.sub
+              });
+              onSuccessRef.current();
+            }
+          });
+          googleBtnRef.current.innerHTML = '';
+          window.google.accounts.id.renderButton(googleBtnRef.current, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            width: 320,
+            locale: 'pt-BR'
+          });
+        };
+        if (window.google?.accounts?.id) finish();
+        else {
+          const existing = document.querySelector('script[data-consenso-gis]');
+          if (existing) {
+            existing.addEventListener('load', finish);
+            return () => existing.removeEventListener('load', finish);
+          }
+          const s = document.createElement('script');
+          s.src = 'https://accounts.google.com/gsi/client';
+          s.async = true;
+          s.defer = true;
+          s.setAttribute('data-consenso-gis', '1');
+          s.onload = finish;
+          document.head.appendChild(s);
+        }
+      }, []);
+
+      const handleEmailLogin = (e) => {
+        e.preventDefault();
+        const trimmed = email.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
+        setAdminSession({ provider: 'email', email: trimmed, name: '' });
+        onSuccess();
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <header className="bg-white border-b border-slate-200">
+            <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Logo className="w-8 h-8" />
+                <span className="text-xl font-bold text-slate-900">Consenso</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onCancel}>
+                <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />
+                Voltar
+              </Button>
+            </div>
+          </header>
+          <main className="flex-1 flex items-center justify-center px-4 py-10">
+            <Card className="w-full max-w-md p-8">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">Acesso do organizador</h1>
+              <p className="text-sm text-slate-600 mb-6">
+                Quem cria reuniões precisa identificar-se para listar eventos e gerir resultados. Quem recebe o link continua sem cadastro.
+              </p>
+
+              {GOOGLE_CLIENT_ID ? (
+                <div className="mb-6">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Continuar com Google</p>
+                  <div ref={googleBtnRef} className="flex justify-center min-h-[44px]" />
+                </div>
+              ) : (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+                  <strong>Google:</strong> defina <code className="text-xs bg-amber-100 px-1 rounded">window.CONSENSO_GOOGLE_CLIENT_ID</code> no HTML com o ID do cliente OAuth (Google Cloud Console) para ativar o botão de login.
+                </div>
+              )}
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500">ou e-mail</span></div>
+              </div>
+
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div>
+                  <Label htmlFor="admin-email">E-mail do organizador</Label>
+                  <Input id="admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@empresa.com" autoComplete="email" />
+                </div>
+                <Button type="submit" className="w-full" disabled={!email.trim()}>
+                  <Icon name="LogIn" className="w-4 h-4 mr-2" />
+                  Entrar com este e-mail
+                </Button>
+              </form>
+              <p className="text-xs text-slate-500 mt-4 text-center">
+                O login por e-mail nesta versão é local ao navegador (sem senha por e-mail). Use Google para identificação mais forte.
+              </p>
+            </Card>
+          </main>
+        </div>
+      );
+    };
+
+    const AdminEventsScreen = ({ onOpenEvent, onBack, onCreate }) => {
+      const list = getEventsForAdmin();
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <header className="bg-white border-b border-slate-200">
+            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+              <Button variant="ghost" size="sm" onClick={onBack}>
+                <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />
+                Início
+              </Button>
+              <span className="text-lg font-semibold text-slate-900">Minhas reuniões</span>
+              <Button size="sm" onClick={onCreate}>Nova</Button>
+            </div>
+          </header>
+          <main className="max-w-3xl mx-auto px-4 py-8 w-full">
+            {list.length === 0 ? (
+              <Card className="p-10 text-center">
+                <Icon name="Calendar" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-600 mb-4">Nenhuma reunião criada com esta conta ainda.</p>
+                <Button onClick={onCreate}>Criar primeira reunião</Button>
+              </Card>
+            ) : (
+              <ul className="space-y-3">
+                {list.map((row) => (
+                  <li key={row.id}>
+                    <button type="button" onClick={() => onOpenEvent(row.id)} className="w-full text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow transition-all">
+                      <div className="font-semibold text-slate-900">{row.config.title}</div>
+                      <div className="text-sm text-slate-500 mt-1">
+                        {formatDisplayDateFull(new Date(row.config.startDate))} — {row.votes.length}/{row.config.quorum} votos
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </main>
+        </div>
+      );
+    };
+
+    const HomeScreen = ({ onCreate, adminSession, onLogout, onMyEvents, onOrganizerLogin }) => {
+      const [timezone, setTimezone] = useState('');
+      useEffect(() => setTimezone(getTimezoneDisplay()), []);
+      
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <header className="bg-white border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Logo className="w-8 h-8" />
+                <span className="text-xl font-bold text-slate-900">Consenso</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-600">
+                {adminSession ? (
+                  <div className="flex items-center gap-2 mr-2">
+                    <span className="hidden sm:inline max-w-[180px] truncate text-slate-700" title={adminSession.email}>{adminSession.email}</span>
+                    <Button variant="ghost" size="sm" onClick={onMyEvents} className="!px-2">Minhas reuniões</Button>
+                    <Button variant="outline" size="sm" onClick={onLogout} className="!px-2">Sair</Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={onOrganizerLogin} className="text-slate-700">
+                    <Icon name="LogIn" className="w-4 h-4 mr-1" />
+                    Organizador
+                  </Button>
+                )}
+                <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
+                  <Icon name="Clock" className="w-4 h-4" />
+                  <span className="hidden sm:inline">{timezone}</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+            <div className="max-w-3xl mx-auto text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-6">
+                <Icon name="ShieldCheck" className="w-4 h-4" />
+                <span>Privacidade 100% Garantida</span>
+              </div>
+              
+              <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+                Encontre o <span className="text-blue-600">consenso</span> perfeito para seu grupo
+              </h1>
+              
+              <p className="text-lg text-slate-600 mb-4 max-w-2xl mx-auto">
+                Ninguém verá seus horários escolhidos. Nem o organizador. Nem outros participantes.
+              </p>
+              
+              <p className="text-base text-slate-500 mb-8 max-w-xl mx-auto">
+                Vote com tranquilidade em TODOS os horários disponíveis. 
+                O resultado só é revelado quando todos concordam.
+              </p>
+
+              <Button size="lg" onClick={onCreate} className="px-8 mb-12">
+                <Icon name="Calendar" className="w-5 h-5 mr-2" />
+                Criar Nova Reunião
+              </Button>
+
+              <div className="grid md:grid-cols-3 gap-6 text-left">
+                <Card className="p-6">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                    <Icon name="EyeOff" className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">Seus Horários São Secretos</h3>
+                  <p className="text-sm text-slate-600">Ninguém vê quais horários você marcou. Apenas você tem acesso aos seus votos.</p>
+                </Card>
+                
+                <Card className="p-6">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                    <Icon name="CheckCircle" className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">Vote Sem Julgamentos</h3>
+                  <p className="text-sm text-slate-600">Marque todos os horários disponíveis livremente. Sua privacidade é garantida.</p>
+                </Card>
+                
+                <Card className="p-6">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                    <Icon name="Lock" className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">Resultados no Final</h3>
+                  <p className="text-sm text-slate-600">O horário vencedor só é revelado após o consenso do grupo.</p>
+                </Card>
+              </div>
+            </div>
+          </main>
+
+          <footer className="bg-white border-t border-slate-200 py-6">
+            <div className="max-w-7xl mx-auto px-4 text-center text-sm text-slate-500">
+              Consenso - Encontre o horário ideal em grupo
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    const EventCreation = ({ onCreate, onCancel, addToast }) => {
+      const [title, setTitle] = useState('');
+      const [startDate, setStartDate] = useState(formatDate(new Date()));
+      const [endDate, setEndDate] = useState(formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
+      const [granularity, setGranularity] = useState('hour');
+      const [quorum, setQuorum] = useState(5);
+      const [quorumInput, setQuorumInput] = useState('5');
+      const [managerMode, setManagerMode] = useState('participant');
+      const [earlyRevelation, setEarlyRevelation] = useState(false);
+      const [isSubmitting, setIsSubmitting] = useState(false);
+
+      const handleQuorumSliderChange = (value) => { setQuorum(value[0]); setQuorumInput(value[0].toString()); };
+      const handleQuorumInputChange = (e) => { const value = e.target.value; setQuorumInput(value); const num = parseInt(value, 10); if (!isNaN(num) && num > 0) setQuorum(num); };
+
+      const handleSubmit = () => {
+        if (!getAdminSession()) { addToast('Faça login como organizador para criar uma reunião', 'error'); return; }
+        if (!title.trim()) { addToast('Por favor, informe o nome do evento', 'error'); return; }
+        const start = new Date(startDate), end = new Date(endDate);
+        if (start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
+        if (quorum < 2) { addToast('Quórum mínimo de 2 participantes', 'error'); return; }
+
+        setIsSubmitting(true);
+        try {
+          const user = getCurrentUser();
+          const config = createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, earlyRevelation, creatorId: user.id });
+          addToast('Reunião criada com sucesso!', 'success');
+          onCreate(config);
+        } catch (error) { addToast('Erro ao criar reunião', 'error'); }
+        finally { setIsSubmitting(false); }
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          <header className="bg-white border-b border-slate-200">
+            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Logo className="w-8 h-8" />
+                <span className="text-xl font-bold text-slate-900">Consenso</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onCancel}>
+                <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />
+                Voltar
+              </Button>
+            </div>
+          </header>
+
+          <main className="max-w-3xl mx-auto px-4 py-8">
+            <Card>
+              <CardHeader className="border-b">
+                <h1 className="text-2xl font-bold text-slate-900">Criar Nova Reunião</h1>
+                <p className="text-slate-600">Configure os detalhes para encontrar o consenso</p>
+              </CardHeader>
+
+              <div className="p-6 space-y-8">
+                <div>
+                  <Label>Nome da Reunião</Label>
+                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Reunião de Planejamento Q1" />
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-2">
+                    <Icon name="Calendar" className="w-4 h-4" />
+                    Período de Datas
+                  </Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm text-slate-500">Data de Início</Label>
+                      <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-sm text-slate-500">Data de Fim</Label>
+                      <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-2">
+                    <Icon name="Clock" className="w-4 h-4" />
+                    Granularidade de Tempo
+                  </Label>
+                  <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-lg">
+                    {['day', 'shift', 'hour'].map(g => (
+                      <button key={g} onClick={() => setGranularity(g)} 
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${granularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                        {g === 'day' ? 'Dia Inteiro' : g === 'shift' ? 'Turnos' : 'Hora em Hora'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-500 mt-2">
+                    {granularity === 'day' && 'Os participantes votarão em dias inteiros'}
+                    {granularity === 'shift' && 'Manhã (6h-12h), Tarde (12h-18h), Noite (18h-22h)'}
+                    {granularity === 'hour' && 'Grade completa das 06:00 às 22:00'}
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-2">
+                    <Icon name="Users" className="w-4 h-4" />
+                    Quórum Necessário
+                  </Label>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm text-slate-500">
+                      <span>2</span><span>25</span><span>50</span>
+                    </div>
+                    <Slider value={[Math.min(quorum, 50)]} onValueChange={handleQuorumSliderChange} min={2} max={50} step={1} />
+                  </div>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div>
+                      <Label className="text-sm text-slate-500">Ou digite:</Label>
+                      <Input type="number" min={2} value={quorumInput} onChange={handleQuorumInputChange} className="w-32" />
+                    </div>
+                    <div className="pt-6">
+                      <p className="text-sm text-slate-600"><span className="font-semibold text-blue-600">{quorum}</span> participantes</p>
+                      <p className="text-xs text-slate-500">Resultados só no fim</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-2">
+                    <Icon name="Settings" className="w-4 h-4" />
+                    Modo de Organizador
+                  </Label>
+                  <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg">
+                    {['participant', 'administrative'].map(m => (
+                      <button key={m} onClick={() => setManagerMode(m)} 
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${managerMode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                        {m === 'participant' ? 'Participa e Organiza' : 'Apenas Organiza'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-500 mt-2">
+                    {managerMode === 'participant' ? 'Você também poderá votar' : 'Você apenas organiza, sem votar'}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="flex items-start gap-3">
+                    <Icon name="Unlock" className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <Label className="text-slate-700 font-medium">Revelação Antecipada</Label>
+                      <p className="text-sm text-slate-500">Permitir ver resultados com 50% dos votos + sua autorização</p>
+                    </div>
+                  </div>
+                  <Switch checked={earlyRevelation} onCheckedChange={setEarlyRevelation} />
+                </div>
+              </div>
+
+              <div className="p-6 border-t bg-slate-50 flex justify-between">
+                <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+                <Button onClick={handleSubmit} disabled={isSubmitting || !title.trim()}>
+                  {isSubmitting ? 'Criando...' : 'Criar Reunião'}
+                </Button>
+              </div>
+            </Card>
+          </main>
+        </div>
+      );
+    };
+
+    const ShareScreen = ({ event, onComplete, onBack, addToast }) => {
+      const [copied, setCopied] = useState(false);
+      const eventLink = generateShortLink(event.id);
+
+      const handleCopyLink = async () => {
+        try { await navigator.clipboard.writeText(eventLink); setCopied(true); addToast('Link copiado!', 'success'); setTimeout(() => setCopied(false), 2000); }
+        catch { addToast('Erro ao copiar link', 'error'); }
+      };
+
+      const handleShareWhatsApp = () => {
+        const text = `Oi! 📅\n\nEstou organizando "${event.title}" no Consenso.\n\nSeus horários serão 100% privados - ninguém verá o que você marcou!\n\nVote aqui: ${eventLink}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          <header className="bg-white border-b border-slate-200">
+            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                <Logo className="w-8 h-8" />
+                <span className="text-xl font-bold text-slate-900">Consenso</span>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-2xl mx-auto px-4 py-12">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon name="Check" className="w-8 h-8 text-green-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900 mb-2">Reunião Criada!</h1>
+              <p className="text-slate-600">Compartilhe o link para encontrar o consenso</p>
+            </div>
+
+            <Card className="mb-6 border-green-200">
+              <CardContent className="p-4 bg-green-50">
+                <div className="flex items-start gap-3">
+                  <Icon name="ShieldCheck" className="w-5 h-5 text-green-600 mt-0.5" />
+                  <div className="text-sm text-green-800">
+                    <strong>Garantia de Privacidade:</strong> Os participantes verão apenas que votaram, 
+                    mas <strong>nunca</strong> quais horários foram marcados. Nem você como organizador terá acesso.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-6">
+              <div className="p-6">
+                <Label className="mb-2 block">Link da Reunião</Label>
+                <div className="flex gap-2">
+                  <Input value={eventLink} readOnly className="bg-slate-50 font-mono text-sm" />
+                  <Button onClick={handleCopyLink} variant={copied ? 'primary' : 'outline'} className={copied ? 'bg-green-600' : ''}>
+                    <Icon name={copied ? 'Check' : 'Copy'} className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <Button variant="outline" onClick={handleShareWhatsApp} className="h-14 border-green-200 hover:bg-green-50">
+                <Icon name="MessageCircle" className="w-5 h-5 text-green-600 mr-2" />
+                WhatsApp
+              </Button>
+              <Button variant="outline" onClick={() => { navigator.clipboard.writeText(`Vote em "${event.title}" - seus horários são 100% privados no Consenso: ${eventLink}`); addToast('Mensagem copiada!', 'success'); }} className="h-14 border-blue-200 hover:bg-blue-50">
+                <Icon name="Copy" className="w-5 h-5 text-blue-600 mr-2" />
+                Copiar Texto
+              </Button>
+            </div>
+
+            <Card className="mb-8">
+              <CardHeader><h3 className="font-semibold text-slate-900">Resumo da Reunião</h3></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between"><span className="text-slate-500">Nome:</span><span className="font-medium">{event.title}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Período:</span><span className="font-medium">{formatDisplayDateFull(new Date(event.startDate))}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Até:</span><span className="font-medium">{formatDisplayDateFull(new Date(event.endDate))}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Quórum:</span><span className="font-medium">{event.quorum} participantes</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Resultados:</span><span className="font-medium text-green-600">Só no fim</span></div>
+              </CardContent>
+            </Card>
+
+            <Button onClick={onComplete} className="w-full h-14">
+              {event.managerMode === 'participant' ? 'Ir para Votação' : 'Ir para Painel do Organizador'}
+              <Icon name="ArrowRight" className="w-5 h-5 ml-2" />
+            </Button>
+          </main>
+        </div>
+      );
+    };
+
+    const VotingInterface = ({ eventId, userName, onSetUserName, onComplete, onViewResults, addToast }) => {
+      const [eventData, setEventData] = useState(null);
+      const [localUserName, setLocalUserName] = useState(userName);
+      const [selectedSlots, setSelectedSlots] = useState(new Set());
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [hasVoted, setHasVoted] = useState(false);
+      const [showNameInput, setShowNameInput] = useState(!userName);
+      const [timezone, setTimezone] = useState('');
+      const [isDragging, setIsDragging] = useState(false);
+      const [dragValue, setDragValue] = useState(null);
+
+      useEffect(() => {
+        setTimezone(getTimezoneDisplay());
+        const event = getEvent(eventId);
+        if (event) {
+          setEventData(event);
+          const user = getCurrentUser();
+          const voted = hasUserVoted(eventId, user.id);
+          setHasVoted(voted);
+          if (voted) {
+            const existingVote = getUserVote(eventId, user.id);
+            if (existingVote) setSelectedSlots(new Set(existingVote.timeSlots));
+          }
+        }
+      }, [eventId]);
+
+      const dates = eventData ? getDatesInRange(eventData.config.startDate, eventData.config.endDate) : [];
+
+      const getTimeSlots = () => {
+        if (!eventData) return [];
+        switch (eventData.config.granularity) {
+          case 'hour': return HOUR_SLOTS;
+          case 'shift': return ['morning', 'afternoon', 'evening'];
+          case 'day': return ['day'];
+          default: return [];
+        }
+      };
+
+      const getSlotKey = (date, time) => `${formatDate(date)}|${time}`;
+
+      const handleMouseDown = (slotKey) => {
+        if (hasVoted && !showNameInput) return;
+        setIsDragging(true);
+        const isSelected = selectedSlots.has(slotKey);
+        setDragValue(!isSelected);
+        const newSlots = new Set(selectedSlots);
+        if (isSelected) newSlots.delete(slotKey); else newSlots.add(slotKey);
+        setSelectedSlots(newSlots);
+      };
+
+      const handleMouseEnter = (slotKey) => {
+        if (!isDragging || dragValue === null) return;
+        const newSlots = new Set(selectedSlots);
+        if (dragValue) newSlots.add(slotKey); else newSlots.delete(slotKey);
+        setSelectedSlots(newSlots);
+      };
+
+      useEffect(() => {
+        const handleGlobalMouseUp = () => { setIsDragging(false); setDragValue(null); };
+        document.addEventListener('mouseup', handleGlobalMouseUp);
+        return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+      }, []);
+
+      const handleSubmit = () => {
+        if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
+        if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
+
+        setIsSubmitting(true);
+        try {
+          const user = getCurrentUser();
+          onSetUserName(localUserName);
+          submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
+          addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
+          setHasVoted(true);
+          setShowNameInput(false);
+          setEventData(getEvent(eventId));
+          onComplete();
+        } catch (error) { addToast('Erro ao registrar voto', 'error'); }
+        finally { setIsSubmitting(false); }
+      };
+
+      if (!eventData) return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
+
+      const timeSlots = getTimeSlots();
+      const resultsAvailable = canViewResults(eventData, false);
+      const progress = getVoteProgressPercentage(eventData);
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          <header className="bg-white border-b sticky top-0 z-10">
+            <div className="max-w-7xl mx-auto px-4 py-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold">{eventData.config.title}</h1>
+                  <div className="flex items-center gap-4 text-sm text-slate-500 mt-1">
+                    <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{dates.length} dias</span>
+                    <span className="flex items-center gap-1"><Icon name="Globe" className="w-4 h-4" />{timezone}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div className="text-sm text-slate-500">Progresso</div>
+                    <div className="font-semibold">{eventData.votes.length}/{eventData.config.quorum}</div>
+                  </div>
+                  <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-4 py-6">
+            <div className="privacy-shield rounded-xl p-6 mb-6 text-white">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Icon name="ShieldCheck" className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold mb-2">Seus Horários São 100% Privados</h2>
+                  <ul className="space-y-1 text-sm text-blue-100">
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Ninguém verá quais horários você marcou</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Nem o organizador tem acesso aos seus votos</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Vote em TODOS os horários disponíveis</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Apenas o consenso final será revelado</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {showNameInput && (
+              <Card className="p-6 mb-6">
+                <Label className="mb-2 block"><Icon name="User" className="w-4 h-4 inline mr-2" />Seu Nome</Label>
+                <Input value={localUserName} onChange={(e) => setLocalUserName(e.target.value)} placeholder="Digite seu nome" />
+              </Card>
+            )}
+
+            <Card className="mb-6 overflow-hidden">
+              <CardHeader className="flex items-center justify-between bg-slate-50">
+                <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />Selecione seus horários disponíveis</h2>
+                <span className="text-sm text-slate-500">{selectedSlots.size} selecionado{selectedSlots.size !== 1 ? 's' : ''}</span>
+              </CardHeader>
+
+              <div className="p-4 overflow-x-auto">
+                <div className="min-w-max">
+                  <div className="flex">
+                    <div className="w-20 flex-shrink-0"></div>
+                    {dates.map(date => (
+                      <div key={date.toISOString()} className="w-24 flex-shrink-0 text-center py-2 border-b">
+                        <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
+                        <div className="text-lg font-semibold">{getDayNumber(date)}</div>
+                        <div className="text-xs text-slate-400">{getMonthName(date)}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {timeSlots.map(time => {
+                    const isSeparator = SEPARATOR_HOURS.includes(time);
+                    return (
+                      <div key={time} className="flex">
+                        <div className={`w-20 flex-shrink-0 py-3 pr-4 text-right text-sm font-medium flex items-center justify-end ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
+                          {eventData.config.granularity === 'shift' ? SHIFT_TIMES[time] : time === 'day' ? 'Dia' : time}
+                        </div>
+                        {dates.map(date => {
+                          const slotKey = getSlotKey(date, time);
+                          const isSelected = selectedSlots.has(slotKey);
+                          return (
+                            <div key={slotKey} className={`w-24 flex-shrink-0 p-1 ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
+                              <button onMouseDown={() => handleMouseDown(slotKey)} onMouseEnter={() => handleMouseEnter(slotKey)}
+                                disabled={hasVoted && !showNameInput}
+                                className={`w-full h-10 rounded-md transition-all ${isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${hasVoted && !showNameInput ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                {isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2"><div className="w-6 h-6 bg-slate-100 rounded border"></div><span className="text-slate-600">Indisponível</span></div>
+                <div className="flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center"><Icon name="Check" className="w-3 h-3 text-white" /></div><span className="text-slate-600">Disponível</span></div>
+                <div className="flex items-center gap-2 ml-auto"><div className="w-6 h-1 bg-red-400"></div><span className="text-slate-600">Divisão período</span></div>
+              </div>
+            </Card>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              {hasVoted && !showNameInput ? (
+                <>
+                  <Button variant="outline" onClick={() => setShowNameInput(true)}>Editar Meu Voto</Button>
+                  {resultsAvailable && <Button onClick={onViewResults}><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Resultados</Button>}
+                </>
+              ) : (
+                <>
+                  <div className="text-sm text-slate-500">Dica: Clique e arraste para selecionar vários horários</div>
+                  <Button onClick={handleSubmit} disabled={isSubmitting || selectedSlots.size === 0}>
+                    {isSubmitting ? 'Enviando...' : hasVoted ? 'Atualizar Voto' : 'Confirmar Voto'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    const ResultsScreen = ({ eventId, isManager, onBack, addToast }) => {
+      const [eventData, setEventData] = useState(null);
+      const [verdict, setVerdict] = useState(null);
+
+      useEffect(() => {
+        const event = getEvent(eventId);
+        if (event) { setEventData(event); setVerdict(calculateConsensus(event)); }
+      }, [eventId]);
+
+      const handleExportICal = (slot) => {
+        const slotKey = `${formatDate(slot.date)}|${slot.time}`;
+        const event = parseTimeSlot(slotKey, eventData.config.title);
+        if (event) { downloadICal(event); addToast('Arquivo .ics baixado!', 'success'); }
+      };
+
+      const handleExportGoogle = (slot) => {
+        const slotKey = `${formatDate(slot.date)}|${slot.time}`;
+        const event = parseTimeSlot(slotKey, eventData.config.title);
+        if (event) openGoogleCalendar(event);
+      };
+
+      const formatSlotDisplay = (slot) => {
+        const dateStr = formatDisplayDateFull(slot.date);
+        if (slot.time === 'day') return dateStr;
+        if (slot.time === 'morning') return `${dateStr} - Manhã`;
+        if (slot.time === 'afternoon') return `${dateStr} - Tarde`;
+        if (slot.time === 'evening') return `${dateStr} - Noite`;
+        return `${dateStr} às ${slot.time}`;
+      };
+
+      if (!eventData || !verdict) return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
+
+      const quorumReached = hasReachedQuorum(eventData);
+      const progressPercent = getVoteProgressPercentage(eventData);
+
+      if (!quorumReached && !eventData.config.resultsUnlocked) {
+        return (
+          <div className="min-h-screen bg-slate-50">
+            <header className="bg-white border-b"><div className="max-w-3xl mx-auto px-4 h-16 flex items-center"><Button variant="ghost" size="sm" onClick={onBack}><Icon name="ArrowLeft" className="w-4 h-4 mr-2" />Voltar</Button></div></header>
+            <main className="max-w-2xl mx-auto px-4 py-12 text-center">
+              <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="Lock" className="w-10 h-10 text-amber-600" /></div>
+              <h1 className="text-2xl font-bold mb-2">Consenso em Andamento</h1>
+              <p className="text-slate-600 mb-2">Os resultados serão revelados quando todos votarem.</p>
+              <p className="text-sm text-slate-500 mb-6">Quórum necessário: <strong>{eventData.config.quorum} participantes</strong></p>
+              
+              <Card className="p-6 mb-6">
+                <div className="flex justify-between mb-4"><span className="text-slate-600">Progresso</span><span className="font-semibold">{eventData.votes.length}/{eventData.config.quorum}</span></div>
+                <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-blue-600 transition-all" style={{ width: `${progressPercent}%` }} /></div>
+                <p className="text-center text-sm text-slate-500 mt-2">{progressPercent}% completo</p>
+              </Card>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <Icon name="Info" className="w-4 h-4 inline mr-1" />
+                  Sua privacidade é mantida: ninguém pode ver os resultados parciais.
+                </p>
+              </div>
+            </main>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          <header className="bg-white border-b">
+            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+              <Button variant="ghost" size="sm" onClick={onBack}><Icon name="ArrowLeft" className="w-4 h-4 mr-2" />Voltar</Button>
+              <h1 className="text-lg font-semibold">Consenso Alcançado</h1>
+              <div className="w-20"></div>
+            </div>
+          </header>
+
+          <main className="max-w-3xl mx-auto px-4 py-8">
+            <div className="text-center mb-8">
+              <Logo className="w-16 h-16 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-2">{eventData.config.title}</h1>
+              <p className="text-slate-600">{formatDisplayDateFull(eventData.config.startDate)} - {formatDisplayDateFull(eventData.config.endDate)}</p>
+            </div>
+
+            <div className="flex justify-center mb-8">
+              {verdict.type === 'unanimous' ? (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                  <Icon name="Trophy" className="w-4 h-4" />Consenso Unânime!
+                </div>
+              ) : verdict.type === 'majority' ? (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  <Icon name="Users" className="w-4 h-4" />Maioria Alcançada
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                  <Icon name="Clock" className="w-4 h-4" />Aguardando votos
+                </div>
+              )}
+            </div>
+
+            {verdict.slots.length > 0 ? (
+              <div className="space-y-4 mb-8">
+                <h2 className="text-lg font-semibold text-center">
+                  {verdict.type === 'unanimous' ? 'Horários com 100% de concordância:' : 'Melhor horário para o grupo:'}
+                </h2>
+                {verdict.slots.map((slot, index) => (
+                  <Card key={index} className={index === 0 ? 'border-green-400 ring-2 ring-green-100' : ''}>
+                    <CardHeader className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        {index === 0 && <Icon name="Trophy" className="w-5 h-5 text-amber-500" />}
+                        {formatSlotDisplay(slot)}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Icon name="Users" className="w-4 h-4" />{slot.votes}/{verdict.totalVotes} votos
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleExportGoogle(slot)} className="flex-1">
+                          <Icon name="ExternalLink" className="w-4 h-4 mr-2" />Google Calendar
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleExportICal(slot)} className="flex-1">
+                          <Icon name="Download" className="w-4 h-4 mr-2" />Download .ics
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-xl border mb-8">
+                <Icon name="Clock" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Nenhum horário selecionado</h3>
+                <p className="text-slate-600">Aguarde mais participantes votarem.</p>
+              </div>
+            )}
+
+            <Card className="p-6">
+              <h3 className="font-semibold mb-4">Estatísticas</h3>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div><div className="text-2xl font-bold text-blue-600">{eventData.votes.length}</div><div className="text-sm text-slate-500">Votos</div></div>
+                <div><div className="text-2xl font-bold">{eventData.config.quorum}</div><div className="text-sm text-slate-500">Quórum</div></div>
+                <div><div className="text-2xl font-bold text-green-600">{progressPercent}%</div><div className="text-sm text-slate-500">Progresso</div></div>
+              </div>
+            </Card>
+
+            <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800 text-center">
+                <Icon name="ShieldCheck" className="w-4 h-4 inline mr-1" />
+                O consenso foi alcançado mantendo a privacidade de todos.
+              </p>
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    const ManagerDashboard = ({ eventId, onViewResults, onBack, addToast }) => {
+      const [eventData, setEventData] = useState(null);
+      const [copied, setCopied] = useState(false);
+
+      useEffect(() => { loadEventData(); }, [eventId]);
+
+      const loadEventData = () => {
+        const event = getEvent(eventId);
+        if (event) setEventData(event);
+      };
+
+      const handleCopyLink = async () => {
+        try { await navigator.clipboard.writeText(generateShortLink(eventId)); setCopied(true); addToast('Link copiado!', 'success'); setTimeout(() => setCopied(false), 2000); }
+        catch { addToast('Erro ao copiar', 'error'); }
+      };
+
+      const handleCopyReminder = async () => {
+        if (!eventData) return;
+        const missingCount = getMissingVotesCount(eventData);
+        const message = generateReminderMessage(eventData.config.title, missingCount, generateShortLink(eventId), eventData.config.quorum);
+        try { await navigator.clipboard.writeText(message); addToast('Mensagem copiada!', 'success'); }
+        catch { addToast('Erro ao copiar', 'error'); }
+      };
+
+      const handleUnlockResults = () => {
+        unlockResults(eventId);
+        loadEventData();
+        addToast('Resultados desbloqueados!', 'success');
+      };
+
+      if (!eventData) return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
+
+      const votedNames = getVotedUserNames(eventId);
+      const missingCount = getMissingVotesCount(eventData);
+      const progressPercent = getVoteProgressPercentage(eventData);
+      const quorumReached = hasReachedQuorum(eventData);
+      const earlyThresholdReached = hasReachedEarlyRevelationThreshold(eventData);
+      const canUnlockEarly = earlyThresholdReached && !eventData.config.resultsUnlocked && !quorumReached;
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          <header className="bg-white border-b">
+            <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+              <Button variant="ghost" size="sm" onClick={onBack}><Icon name="ArrowLeft" className="w-4 h-4 mr-2" />Sair</Button>
+              <div className="flex items-center gap-3">
+                <Logo className="w-6 h-6" />
+                <h1 className="text-lg font-semibold">Painel do Organizador</h1>
+              </div>
+              <div className="w-20"></div>
+            </div>
+          </header>
+
+          <main className="max-w-4xl mx-auto px-4 py-8">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold mb-2">{eventData.config.title}</h1>
+              <p className="text-slate-600">{formatDisplayDateFull(eventData.config.startDate)} - {formatDisplayDateFull(eventData.config.endDate)}</p>
+            </div>
+
+            <Card className="mb-6 border-blue-200">
+              <CardContent className="p-4 bg-blue-50">
+                <div className="flex items-start gap-3">
+                  <Icon name="EyeOff" className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <strong>Você não vê os horários marcados.</strong> Como organizador, você só acompanha 
+                    quem votou e o progresso. Os horários individuais são secretos e só o consenso 
+                    final será calculado quando o quórum for atingido.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-6">
+              <CardHeader><CardTitle className="flex items-center gap-2"><Icon name="TrendingUp" className="w-5 h-5 text-blue-600" />Progresso da Votação</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-3xl font-bold">{eventData.votes.length} <span className="text-lg text-slate-500">/ {eventData.config.quorum}</span></div>
+                    <div className="text-sm text-slate-500">votos recebidos</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-blue-600">{progressPercent}%</div>
+                    <div className="text-sm text-slate-500">do quórum</div>
+                  </div>
+                </div>
+                <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden mb-4">
+                  <div className={`h-full transition-all ${quorumReached ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${Math.min(progressPercent, 100)}%` }} />
+                </div>
+                {quorumReached ? (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                    <Icon name="CheckCircle" className="w-5 h-5" /><span className="font-medium">Consenso alcançado! Resultados disponíveis.</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
+                    <Icon name="Lock" className="w-5 h-5" /><span className="font-medium">Aguardando consenso do grupo</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon name="CheckCircle" className="w-4 h-4 text-green-600" />Já Votaram ({votedNames.length})</CardTitle></CardHeader>
+                <CardContent>
+                  {votedNames.length > 0 ? (
+                    <ul className="space-y-2 max-h-48 overflow-y-auto">
+                      {votedNames.map((name, i) => (
+                        <li key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">{name.charAt(0).toUpperCase()}</div>
+                          <span className="text-sm text-slate-700">{name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-sm text-slate-500 text-center py-4">Ninguém votou ainda</p>}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon name="Settings" className="w-4 h-4 text-blue-600" />Ações</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" onClick={handleCopyLink} className="w-full justify-between">
+                    <span className="flex items-center gap-2"><Icon name={copied ? 'Check' : 'Copy'} className="w-4 h-4" />Copiar Link</span>
+                  </Button>
+                  {!quorumReached && (
+                    <Button variant="outline" onClick={handleCopyReminder} className="w-full justify-between">
+                      <span className="flex items-center gap-2"><Icon name="MessageCircle" className="w-4 h-4" />Copiar Lembrete</span>
+                    </Button>
+                  )}
+                  {quorumReached && (
+                    <Button onClick={onViewResults} className="w-full"><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Consenso</Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {canUnlockEarly && (
+              <Card className="mb-6 border-amber-200 bg-amber-50">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Icon name="Unlock" className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">Revelação Antecipada</h3>
+                      <p className="text-sm text-slate-600 mb-4">{progressPercent}% do quórum votou. Você pode autorizar a visualização do consenso.</p>
+                      <Button onClick={handleUnlockResults} variant="outline" className="bg-white">Autorizar Resultado Prévio</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {eventData.config.resultsUnlocked && (
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm">
+                  <Icon name="Unlock" className="w-4 h-4" />
+                  Consenso desbloqueado antecipadamente
+                </div>
+                <Button onClick={onViewResults} className="w-full mt-4"><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Consenso</Button>
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    };
+
+    const App = () => {
+      const [currentView, setCurrentView] = useState('home');
+      const [currentEvent, setCurrentEvent] = useState(null);
+      const [eventId, setEventId] = useState('');
+      const [userName, setUserNameState] = useState('');
+      const [isManager, setIsManager] = useState(false);
+      const [toasts, setToasts] = useState([]);
+      const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
+      const [pendingAfterLogin, setPendingAfterLogin] = useState(null);
+
+      const addToast = (message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+      };
+
+      const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
+      const goHome = () => {
+        setCurrentView('home');
+        window.location.hash = '';
+      };
+
+      const applyRouteFromHash = () => {
+        const raw = window.location.hash.replace(/^#/, '');
+        if (raw.startsWith('event/')) {
+          const id = raw.slice(6);
+          setEventId(id);
+          setIsManager(false);
+          setCurrentView('vote');
+          return;
+        }
+        if (raw.startsWith('manage/')) {
+          const id = raw.slice(7);
+          setEventId(id);
+          if (canManageEventId(id)) {
+            setIsManager(true);
+            setCurrentView('manage');
+          } else if (getAdminSession()) {
+            addToast('Esta reunião pertence a outra conta de organizador.', 'error');
+            goHome();
+          } else {
+            setPendingAfterLogin({ view: 'manage', eventId: id });
+            setCurrentView('admin-login');
+          }
+          return;
+        }
+      };
+
+      useEffect(() => {
+        const user = getCurrentUser();
+        if (user.name) setUserNameState(user.name);
+        applyRouteFromHash();
+        const onHash = () => applyRouteFromHash();
+        window.addEventListener('hashchange', onHash);
+        return () => window.removeEventListener('hashchange', onHash);
+      }, []);
+
+      const handleAdminLoginSuccess = () => {
+        setAdminSessionState(getAdminSession());
+        const p = pendingAfterLogin;
+        setPendingAfterLogin(null);
+        if (p?.view === 'create') setCurrentView('create');
+        else if (p?.view === 'manage' && p.eventId) {
+          if (canManageEventId(p.eventId)) {
+            setEventId(p.eventId);
+            setIsManager(true);
+            setCurrentView('manage');
+            window.location.hash = `manage/${p.eventId}`;
+          } else {
+            addToast('Sem permissão para este painel ou reunião inexistente.', 'error');
+            goHome();
+          }
+        } else if (p?.view === 'events') setCurrentView('admin-events');
+        else goHome();
+      };
+
+      const handleAdminLoginCancel = () => {
+        setPendingAfterLogin(null);
+        goHome();
+      };
+
+      const openCreateFlow = () => {
+        if (!getAdminSession()) {
+          setPendingAfterLogin({ view: 'create' });
+          setCurrentView('admin-login');
+          return;
+        }
+        window.location.hash = '';
+        setCurrentView('create');
+      };
+
+      const openMyEvents = () => {
+        if (!getAdminSession()) {
+          setPendingAfterLogin({ view: 'events' });
+          setCurrentView('admin-login');
+          return;
+        }
+        setCurrentView('admin-events');
+      };
+
+      const handleCreateEvent = (config) => {
+        setCurrentEvent(config);
+        setEventId(config.id);
+        setIsManager(true);
+        setCurrentView('share');
+        /* Hash só após a tela de compartilhar, para o listener #manage/ não trocar a view. */
+      };
+
+      const handleShareComplete = () => {
+        if (currentEvent?.managerMode === 'participant') {
+          setCurrentView('vote');
+          window.location.hash = `event/${currentEvent.id}`;
+        } else {
+          setCurrentView('manage');
+          window.location.hash = `manage/${currentEvent.id}`;
+        }
+      };
+
+      const handleVoteComplete = () => setCurrentView('results');
+      const handleViewResults = () => setCurrentView('results');
+      const handleBackToManage = () => {
+        setCurrentView('manage');
+        if (eventId) window.location.hash = `manage/${eventId}`;
+      };
+      const handleBackFromResults = () => {
+        if (isManager) handleBackToManage();
+        else {
+          setCurrentView('vote');
+          if (eventId) window.location.hash = `event/${eventId}`;
+        }
+      };
+      const handleSetUserName = (name) => { setUserNameState(name); setUserName(name); };
+
+      const openEventFromDashboard = (id) => {
+        setEventId(id);
+        setIsManager(true);
+        setCurrentView('manage');
+        window.location.hash = `manage/${id}`;
+      };
+
+      const renderCurrentView = () => {
+        switch (currentView) {
+          case 'admin-login':
+            return <AdminLoginScreen onSuccess={handleAdminLoginSuccess} onCancel={handleAdminLoginCancel} />;
+          case 'admin-events':
+            return (
+              <AdminEventsScreen
+                onOpenEvent={openEventFromDashboard}
+                onBack={goHome}
+                onCreate={openCreateFlow}
+              />
+            );
+          case 'home':
+            return (
+              <HomeScreen
+                adminSession={adminSession}
+                onCreate={openCreateFlow}
+                onMyEvents={openMyEvents}
+                onOrganizerLogin={() => { setPendingAfterLogin({ view: 'events' }); setCurrentView('admin-login'); }}
+                onLogout={() => { clearAdminSession(); setAdminSessionState(null); addToast('Sessão encerrada', 'info'); }}
+              />
+            );
+          case 'create':
+            return <EventCreation onCreate={handleCreateEvent} onCancel={goHome} addToast={addToast} />;
+          case 'share':
+            return currentEvent && <ShareScreen event={currentEvent} onComplete={handleShareComplete} onBack={() => { window.location.hash = ''; setCurrentView('create'); }} addToast={addToast} />;
+          case 'vote':
+            return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} />;
+          case 'results':
+            return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} />;
+          case 'manage':
+            return <ManagerDashboard eventId={eventId} onViewResults={handleViewResults} onBack={goHome} addToast={addToast} />;
+          default:
+            return (
+              <HomeScreen
+                adminSession={adminSession}
+                onCreate={openCreateFlow}
+                onMyEvents={openMyEvents}
+                onOrganizerLogin={() => { setPendingAfterLogin({ view: 'events' }); setCurrentView('admin-login'); }}
+                onLogout={() => { clearAdminSession(); setAdminSessionState(null); addToast('Sessão encerrada', 'info'); }}
+              />
+            );
+        }
+      };
+
+      return (<><Toaster toasts={toasts} removeToast={removeToast} />{renderCurrentView()}</>);
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
