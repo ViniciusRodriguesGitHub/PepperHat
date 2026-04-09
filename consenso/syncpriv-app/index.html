@@ -175,6 +175,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
 <body class="bg-slate-50 safe-area-top safe-area-bottom">
   <!-- PWA Install Prompt Container -->
@@ -573,8 +574,108 @@
       const event = getEvent(eventId);
       return event ? event.votes.map(v => v.userName).filter(Boolean) : [];
     };
-    
-    const generateShortLink = (eventId) => `${window.location.origin}${window.location.pathname}#event/${eventId}`;
+
+    /** Serializa evento para JSON (datas em ISO) — usado no link do convite. */
+    const eventSnapshotToJSON = (eventData) => {
+      const { config, votes } = eventData;
+      const c = { ...config };
+      c.startDate = c.startDate instanceof Date ? c.startDate.toISOString() : c.startDate;
+      c.endDate = c.endDate instanceof Date ? c.endDate.toISOString() : c.endDate;
+      c.createdAt = c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt;
+      return {
+        config: c,
+        votes: (votes || []).map((v) => ({
+          ...v,
+          votedAt: v.votedAt instanceof Date ? v.votedAt.toISOString() : v.votedAt,
+        })),
+      };
+    };
+
+    const isoVote = (d) => {
+      if (!d) return new Date().toISOString();
+      if (typeof d === 'string') return d;
+      if (d instanceof Date) return d.toISOString();
+      return new Date(d).toISOString();
+    };
+
+    /** Grava no localStorage o snapshot vindo do link (convidados em outro aparelho). Mescla votos por userId. */
+    const mergeHydratedEvent = (eventId, payload) => {
+      if (!payload?.config || String(payload.config.id) !== String(eventId)) return false;
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const cfg = {
+        ...payload.config,
+        id: eventId,
+        startDate: typeof payload.config.startDate === 'string' ? payload.config.startDate : isoVote(payload.config.startDate),
+        endDate: typeof payload.config.endDate === 'string' ? payload.config.endDate : isoVote(payload.config.endDate),
+        createdAt: typeof payload.config.createdAt === 'string' ? payload.config.createdAt : isoVote(payload.config.createdAt),
+      };
+      const incomingVotes = (payload.votes || []).map((v) => ({ ...v, votedAt: isoVote(v.votedAt) }));
+
+      if (!events[eventId]) {
+        events[eventId] = { config: cfg, votes: incomingVotes };
+      } else {
+        const byUser = new Map();
+        [...(events[eventId].votes || []), ...incomingVotes].forEach((v) => {
+          const prev = byUser.get(v.userId);
+          if (!prev || new Date(v.votedAt) > new Date(prev.votedAt)) byUser.set(v.userId, v);
+        });
+        events[eventId] = {
+          config: { ...events[eventId].config, ...cfg },
+          votes: Array.from(byUser.values()),
+        };
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      return true;
+    };
+
+    /** Lê ?d= da hash #event/ID e repõe a reunião no storage (necessário para convidados). */
+    const tryHydrateEventFromInviteHash = () => {
+      if (typeof window === 'undefined' || typeof LZString === 'undefined') return;
+      const raw = window.location.hash.replace(/^#/, '');
+      if (!raw.startsWith('event/')) return;
+      const qIdx = raw.indexOf('?');
+      const path = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+      const id = path.slice(6);
+      if (!id) return;
+      const params = new URLSearchParams(qIdx >= 0 ? raw.slice(qIdx + 1) : '');
+      const d = params.get('d');
+      if (!d) return;
+      try {
+        const json = LZString.decompressFromEncodedURIComponent(d);
+        if (!json) return;
+        const payload = JSON.parse(json);
+        mergeHydratedEvent(id, payload);
+      } catch (e) {
+        console.error('[Consenso] Link de convite inválido:', e);
+      }
+    };
+
+    /**
+     * Link para convidados: inclui dados da reunião compactados (?d=).
+     * Sem isso, só o organizador tem o evento no navegador e o convite fica em loading infinito.
+     */
+    const buildInviteLink = (eventId) => {
+      const base = `${window.location.origin}${window.location.pathname}`;
+      const ev = getEvent(eventId);
+      if (!ev || typeof LZString === 'undefined') return `${base}#event/${eventId}`;
+      try {
+        const snap = eventSnapshotToJSON(ev);
+        const json = JSON.stringify(snap);
+        const compressed = LZString.compressToEncodedURIComponent(json);
+        if (!compressed) return `${base}#event/${eventId}`;
+        return `${base}#event/${eventId}?d=${compressed}`;
+      } catch (e) {
+        console.error('[Consenso] buildInviteLink', e);
+        return `${base}#event/${eventId}`;
+      }
+    };
+
+    /** Atualiza só a parte da hash após # com o link completo do convite (inclui ?d=). */
+    const setVoteHashFromInviteLink = (eventId) => {
+      const full = buildInviteLink(eventId);
+      const i = full.indexOf('#');
+      window.location.hash = i >= 0 ? full.slice(i + 1) : `event/${eventId}`;
+    };
 
     const calculateConsensus = (eventData) => {
       const { config, votes } = eventData;
@@ -1169,7 +1270,7 @@
 
     const ShareScreen = ({ event, onComplete, onBack, addToast }) => {
       const [copied, setCopied] = useState(false);
-      const eventLink = generateShortLink(event.id);
+      const eventLink = buildInviteLink(event.id);
 
       const handleCopyLink = async () => {
         try { await navigator.clipboard.writeText(eventLink); setCopied(true); addToast('Link copiado!', 'success'); setTimeout(() => setCopied(false), 2000); }
@@ -1217,11 +1318,14 @@
               <div className="p-6">
                 <Label className="mb-2 block">Link da Reunião</Label>
                 <div className="flex gap-2">
-                  <Input value={eventLink} readOnly className="bg-slate-50 font-mono text-sm" />
+                  <Input value={eventLink} readOnly className="bg-slate-50 font-mono text-sm break-all" />
                   <Button onClick={handleCopyLink} variant={copied ? 'primary' : 'outline'} className={copied ? 'bg-green-600' : ''}>
                     <Icon name={copied ? 'Check' : 'Copy'} className="w-5 h-5" />
                   </Button>
                 </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  A URL é longa de propósito: leva os dados da reunião para o aparelho de cada convidado (sem isso o link não abre em outro telefone).
+                </p>
               </div>
             </Card>
 
@@ -1258,6 +1362,7 @@
 
     const VotingInterface = ({ eventId, userName, onSetUserName, onComplete, onViewResults, addToast }) => {
       const [eventData, setEventData] = useState(null);
+      const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
       const [selectedSlots, setSelectedSlots] = useState(new Set());
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1268,7 +1373,9 @@
       const [dragValue, setDragValue] = useState(null);
 
       useEffect(() => {
+        setLoadFailed(false);
         setTimezone(getTimezoneDisplay());
+        tryHydrateEventFromInviteHash();
         const event = getEvent(eventId);
         if (event) {
           setEventData(event);
@@ -1279,6 +1386,8 @@
             const existingVote = getUserVote(eventId, user.id);
             if (existingVote) setSelectedSlots(new Set(existingVote.timeSlots));
           }
+        } else {
+          setLoadFailed(true);
         }
       }, [eventId]);
 
@@ -1337,7 +1446,25 @@
         finally { setIsSubmitting(false); }
       };
 
-      if (!eventData) return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
+      if (!eventData) {
+        if (loadFailed) {
+          return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
+              <div className="max-w-md text-center space-y-4">
+                <Icon name="AlertCircle" className="w-14 h-14 text-amber-500 mx-auto" />
+                <h1 className="text-xl font-bold text-slate-900">Não foi possível abrir esta reunião</h1>
+                <p className="text-slate-600 text-sm">
+                  O link precisa incluir os dados da votação (URL longa com <code className="text-xs bg-slate-100 px-1 rounded">?d=</code>).
+                  Peça ao organizador para copiar o link na tela <strong>Reunião criada</strong> ou em <strong>Minhas reuniões</strong> → copiar link.
+                </p>
+                <p className="text-xs text-slate-500">Links antigos só com o código do evento não funcionam em outro aparelho.</p>
+                <Button onClick={() => { window.location.hash = ''; window.location.reload(); }}>Ir ao início</Button>
+              </div>
+            </div>
+          );
+        }
+        return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
+      }
 
       const timeSlots = getTimeSlots();
       const resultsAvailable = canViewResults(eventData, false);
@@ -1470,6 +1597,7 @@
       const [verdict, setVerdict] = useState(null);
 
       useEffect(() => {
+        tryHydrateEventFromInviteHash();
         const event = getEvent(eventId);
         if (event) { setEventData(event); setVerdict(calculateConsensus(event)); }
       }, [eventId]);
@@ -1629,14 +1757,14 @@
       };
 
       const handleCopyLink = async () => {
-        try { await navigator.clipboard.writeText(generateShortLink(eventId)); setCopied(true); addToast('Link copiado!', 'success'); setTimeout(() => setCopied(false), 2000); }
+        try { await navigator.clipboard.writeText(buildInviteLink(eventId)); setCopied(true); addToast('Link copiado!', 'success'); setTimeout(() => setCopied(false), 2000); }
         catch { addToast('Erro ao copiar', 'error'); }
       };
 
       const handleCopyReminder = async () => {
         if (!eventData) return;
         const missingCount = getMissingVotesCount(eventData);
-        const message = generateReminderMessage(eventData.config.title, missingCount, generateShortLink(eventId), eventData.config.quorum);
+        const message = generateReminderMessage(eventData.config.title, missingCount, buildInviteLink(eventId), eventData.config.quorum);
         try { await navigator.clipboard.writeText(message); addToast('Mensagem copiada!', 'success'); }
         catch { addToast('Erro ao copiar', 'error'); }
       };
@@ -1805,16 +1933,17 @@
       };
 
       const applyRouteFromHash = () => {
+        tryHydrateEventFromInviteHash();
         const raw = window.location.hash.replace(/^#/, '');
         if (raw.startsWith('event/')) {
-          const id = raw.slice(6);
+          const id = raw.slice(6).split('?')[0].split('/')[0];
           setEventId(id);
           setIsManager(false);
           setCurrentView('vote');
           return;
         }
         if (raw.startsWith('manage/')) {
-          const id = raw.slice(7);
+          const id = raw.slice(7).split('?')[0];
           setEventId(id);
           if (canManageEventId(id)) {
             setIsManager(true);
@@ -1893,7 +2022,7 @@
       const handleShareComplete = () => {
         if (currentEvent?.managerMode === 'participant') {
           setCurrentView('vote');
-          window.location.hash = `event/${currentEvent.id}`;
+          setVoteHashFromInviteLink(currentEvent.id);
         } else {
           setCurrentView('manage');
           window.location.hash = `manage/${currentEvent.id}`;
@@ -1910,7 +2039,7 @@
         if (isManager) handleBackToManage();
         else {
           setCurrentView('vote');
-          if (eventId) window.location.hash = `event/${eventId}`;
+          if (eventId) setVoteHashFromInviteLink(eventId);
         }
       };
       const handleSetUserName = (name) => { setUserNameState(name); setUserName(name); };
