@@ -221,9 +221,12 @@
     
     function showInstallPrompt() {
       if (isStandalone) return;
+      const dismissed = localStorage.getItem('pwa-prompt-dismissed');
+      if (dismissed && Date.now() - parseInt(dismissed, 10) < 7 * 24 * 60 * 60 * 1000) return;
       
       const container = document.getElementById('pwa-prompt-container');
       if (!container) return;
+      if (container.querySelector('.pwa-install-prompt')) return;
       
       // iOS uses a different install method
       if (isIOS) {
@@ -239,10 +242,10 @@
           <p class="font-semibold text-slate-900">Instalar Consenso</p>
           <p class="text-sm text-slate-500">Acesse rapidamente do seu dispositivo</p>
         </div>
-        <button id="install-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+        <button id="install-btn" type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
           Instalar
         </button>
-        <button id="dismiss-btn" class="p-2 text-slate-400 hover:text-slate-600">
+        <button id="dismiss-btn" type="button" aria-label="Fechar aviso de instalação" class="p-2 text-slate-400 hover:text-slate-600">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -250,8 +253,10 @@
       `;
       
       container.appendChild(prompt);
+      const installBtn = prompt.querySelector('#install-btn');
+      const dismissBtn = prompt.querySelector('#dismiss-btn');
       
-      document.getElementById('install-btn').addEventListener('click', async () => {
+      installBtn?.addEventListener('click', async () => {
         if (deferredPrompt) {
           deferredPrompt.prompt();
           const { outcome } = await deferredPrompt.userChoice;
@@ -262,7 +267,7 @@
         setTimeout(() => prompt.remove(), 300);
       });
       
-      document.getElementById('dismiss-btn').addEventListener('click', () => {
+      dismissBtn?.addEventListener('click', () => {
         prompt.classList.add('hide');
         setTimeout(() => prompt.remove(), 300);
         localStorage.setItem('pwa-prompt-dismissed', Date.now().toString());
@@ -628,14 +633,16 @@
       return true;
     };
 
-    /** Lê ?d= da hash #event/ID e repõe a reunião no storage (necessário para convidados). */
+    /** Lê ?d= da hash #event/ID ou #manage/ID e repõe a reunião no storage. */
     const tryHydrateEventFromInviteHash = () => {
       if (typeof window === 'undefined' || typeof LZString === 'undefined') return;
       const raw = window.location.hash.replace(/^#/, '');
-      if (!raw.startsWith('event/')) return;
+      const isEventRoute = raw.startsWith('event/');
+      const isManageRoute = raw.startsWith('manage/');
+      if (!isEventRoute && !isManageRoute) return;
       const qIdx = raw.indexOf('?');
       const path = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
-      const id = path.slice(6);
+      const id = isEventRoute ? path.slice(6) : path.slice(7);
       if (!id) return;
       const params = new URLSearchParams(qIdx >= 0 ? raw.slice(qIdx + 1) : '');
       const d = params.get('d');
@@ -1428,7 +1435,7 @@
         return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
       }, []);
 
-      const handleSubmit = () => {
+      const handleSubmit = async () => {
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
 
@@ -1441,6 +1448,13 @@
           setHasVoted(true);
           setShowNameInput(false);
           setEventData(getEvent(eventId));
+          setVoteHashFromInviteLink(eventId);
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            addToast('Voto contabilizado neste link. Link atualizado copiado para compartilhar com o organizador.', 'info');
+          } catch {
+            addToast('Voto contabilizado neste link. Compartilhe a URL atual para sincronizar com o organizador.', 'info');
+          }
           onComplete();
         } catch (error) { addToast('Erro ao registrar voto', 'error'); }
         finally { setIsSubmitting(false); }
@@ -1575,7 +1589,7 @@
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               {hasVoted && !showNameInput ? (
                 <>
-                  <Button variant="outline" onClick={() => setShowNameInput(true)}>Editar Meu Voto</Button>
+                  <Button variant="outline" onClick={() => addToast('Use "Editar meu voto" no Painel do Organizador.', 'info')}>Voto registrado</Button>
                   {resultsAvailable && <Button onClick={onViewResults}><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Resultados</Button>}
                 </>
               ) : (
@@ -1745,7 +1759,7 @@
       );
     };
 
-    const ManagerDashboard = ({ eventId, onViewResults, onBack, addToast }) => {
+    const ManagerDashboard = ({ eventId, onViewResults, onBack, onEditVote, addToast }) => {
       const [eventData, setEventData] = useState(null);
       const [copied, setCopied] = useState(false);
 
@@ -1866,6 +1880,9 @@
                 <CardContent className="space-y-3">
                   <Button variant="outline" onClick={handleCopyLink} className="w-full justify-between">
                     <span className="flex items-center gap-2"><Icon name={copied ? 'Check' : 'Copy'} className="w-4 h-4" />Copiar Link</span>
+                  </Button>
+                  <Button variant="outline" onClick={onEditVote} className="w-full justify-between">
+                    <span className="flex items-center gap-2"><Icon name="Pencil" className="w-4 h-4" />Editar meu voto</span>
                   </Button>
                   {!quorumReached && (
                     <Button variant="outline" onClick={handleCopyReminder} className="w-full justify-between">
@@ -2082,7 +2099,7 @@
           case 'results':
             return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} />;
           case 'manage':
-            return <ManagerDashboard eventId={eventId} onViewResults={handleViewResults} onBack={goHome} addToast={addToast} />;
+            return <ManagerDashboard eventId={eventId} onViewResults={handleViewResults} onBack={goHome} onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId); }} addToast={addToast} />;
           default:
             return (
               <HomeScreen
