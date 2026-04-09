@@ -183,9 +183,9 @@
   <!-- iOS Install Guide Container -->
   <div id="ios-guide-container"></div>
   
-  <!-- Opcional: defina o Client ID OAuth do Google (Google Cloud Console) para o botão "Entrar com Google". -->
+  <!-- OAuth: ID do cliente Web (público). A chave secreta NÃO entra no HTML — só servidor/backend. -->
   <script>
-    // window.CONSENSO_GOOGLE_CLIENT_ID = 'SEU_ID.apps.googleusercontent.com';
+    window.CONSENSO_GOOGLE_CLIENT_ID = '306221893302-k16jn4ok0155d7c75qellikbdru9curf.apps.googleusercontent.com';
   </script>
 
   <!-- Root -->
@@ -329,7 +329,7 @@
   </script>
   
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useLayoutEffect, useRef } = React;
     
     // Logo SVG Component
     const Logo = ({ className = "w-8 h-8" }) => (
@@ -404,12 +404,51 @@
     const USER_KEY = 'consenso_user';
     const ADMIN_SESSION_KEY = 'consenso_admin_session';
 
-    const GOOGLE_CLIENT_ID = (typeof window !== 'undefined' && window.CONSENSO_GOOGLE_CLIENT_ID) ? String(window.CONSENSO_GOOGLE_CLIENT_ID).trim() : '';
+    const getGoogleClientId = () => {
+      try {
+        const id = typeof window !== 'undefined' && window.CONSENSO_GOOGLE_CLIENT_ID;
+        return id ? String(id).trim() : '';
+      } catch { return ''; }
+    };
+
+    /** Carrega https://accounts.google.com/gsi/client uma vez; trata script já presente ou já carregado. */
+    const loadGoogleIdentityScript = () => {
+      if (typeof window === 'undefined') return Promise.reject(new Error('Sem window'));
+      if (window.google?.accounts?.id) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const sel = 'script[data-consenso-gis="1"]';
+        const existing = document.querySelector(sel);
+        const finish = () => {
+          if (window.google?.accounts?.id) resolve();
+          else reject(new Error('Google Identity Services indisponível após carregar o script.'));
+        };
+        if (existing) {
+          if (window.google?.accounts?.id) return finish();
+          existing.addEventListener('load', finish);
+          existing.addEventListener('error', () => reject(new Error('Erro ao carregar o script do Google.')));
+          queueMicrotask(() => {
+            if (window.google?.accounts?.id) finish();
+          });
+          return;
+        }
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.defer = true;
+        s.setAttribute('data-consenso-gis', '1');
+        s.onload = finish;
+        s.onerror = () => reject(new Error('Erro ao carregar o script do Google.'));
+        document.head.appendChild(s);
+      });
+    };
 
     const parseJwtPayload = (token) => {
       try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const part = token.split('.')[1];
+        if (!part) return null;
+        let base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = base64.length % 4;
+        if (pad) base64 += '='.repeat(4 - pad);
         const json = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
         return JSON.parse(json);
       } catch { return null; }
@@ -682,55 +721,88 @@
 
     const AdminLoginScreen = ({ onSuccess, onCancel }) => {
       const [email, setEmail] = useState('');
+      const [gisError, setGisError] = useState('');
       const googleBtnRef = useRef(null);
       const onSuccessRef = useRef(onSuccess);
+      const cancelledRef = useRef(false);
       useEffect(() => { onSuccessRef.current = onSuccess; }, [onSuccess]);
 
-      useEffect(() => {
-        if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
-        const finish = () => {
-          if (!window.google?.accounts?.id || !googleBtnRef.current) return;
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: (response) => {
-              const payload = parseJwtPayload(response.credential);
-              if (!payload?.email || !payload?.sub) return;
-              setAdminSession({
-                provider: 'google',
-                email: payload.email,
-                name: payload.name || '',
-                picture: payload.picture || '',
-                sub: payload.sub
-              });
-              onSuccessRef.current();
-            }
-          });
-          googleBtnRef.current.innerHTML = '';
-          window.google.accounts.id.renderButton(googleBtnRef.current, {
-            type: 'standard',
-            theme: 'outline',
-            size: 'large',
-            text: 'continue_with',
-            width: 320,
-            locale: 'pt-BR'
-          });
-        };
-        if (window.google?.accounts?.id) finish();
-        else {
-          const existing = document.querySelector('script[data-consenso-gis]');
-          if (existing) {
-            existing.addEventListener('load', finish);
-            return () => existing.removeEventListener('load', finish);
+      const googleClientId = getGoogleClientId();
+
+      useLayoutEffect(() => {
+        cancelledRef.current = false;
+        setGisError('');
+        const cid = getGoogleClientId();
+        if (!cid) return undefined;
+
+        const mountButton = (allowRetry) => {
+          const el = googleBtnRef.current;
+          if (cancelledRef.current || !window.google?.accounts?.id) return;
+          if (!el) {
+            if (allowRetry !== false) setTimeout(() => mountButton(false), 0);
+            return;
           }
-          const s = document.createElement('script');
-          s.src = 'https://accounts.google.com/gsi/client';
-          s.async = true;
-          s.defer = true;
-          s.setAttribute('data-consenso-gis', '1');
-          s.onload = finish;
-          document.head.appendChild(s);
-        }
-      }, []);
+          try {
+            window.google.accounts.id.initialize({
+              client_id: cid,
+              ux_mode: 'popup',
+              auto_select: false,
+              callback: (response) => {
+                if (cancelledRef.current) return;
+                if (!response?.credential) {
+                  setGisError('Não foi possível obter o token do Google. Tente de novo.');
+                  return;
+                }
+                const payload = parseJwtPayload(response.credential);
+                if (!payload?.email || !payload?.sub) {
+                  setGisError('Resposta do Google inválida. Verifique o Client ID e as origens autorizadas.');
+                  return;
+                }
+                setGisError('');
+                setAdminSession({
+                  provider: 'google',
+                  email: payload.email,
+                  name: payload.name || '',
+                  picture: payload.picture || '',
+                  sub: payload.sub
+                });
+                onSuccessRef.current();
+              }
+            });
+            el.innerHTML = '';
+            const w = Math.min(320, typeof window !== 'undefined' ? Math.max(260, window.innerWidth - 48) : 320);
+            window.google.accounts.id.renderButton(el, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: 'continue_with',
+              width: w,
+              locale: 'pt-BR'
+            });
+          } catch (err) {
+            console.error('[Consenso] Google Sign-In:', err);
+            setGisError(err?.message || 'Erro ao iniciar o login com Google.');
+          }
+        };
+
+        const runAfterPaint = setTimeout(() => {
+          loadGoogleIdentityScript()
+            .then(() => {
+              if (cancelledRef.current) return;
+              mountButton(true);
+            })
+            .catch((err) => {
+              console.error('[Consenso] GIS:', err);
+              if (!cancelledRef.current) setGisError(err?.message || 'Falha ao carregar o Google.');
+            });
+        }, 0);
+
+        return () => {
+          cancelledRef.current = true;
+          clearTimeout(runAfterPaint);
+          if (googleBtnRef.current) googleBtnRef.current.innerHTML = '';
+        };
+      }, [googleClientId]);
 
       const handleEmailLogin = (e) => {
         e.preventDefault();
@@ -761,14 +833,17 @@
                 Quem cria reuniões precisa identificar-se para listar eventos e gerir resultados. Quem recebe o link continua sem cadastro.
               </p>
 
-              {GOOGLE_CLIENT_ID ? (
+              {googleClientId ? (
                 <div className="mb-6">
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Continuar com Google</p>
-                  <div ref={googleBtnRef} className="flex justify-center min-h-[44px]" />
+                  {gisError && (
+                    <p className="text-xs text-red-600 mb-2 p-2 bg-red-50 rounded border border-red-100">{gisError}</p>
+                  )}
+                  <div ref={googleBtnRef} className="flex justify-center min-h-[44px] w-full" />
                 </div>
               ) : (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
-                  <strong>Google:</strong> defina <code className="text-xs bg-amber-100 px-1 rounded">window.CONSENSO_GOOGLE_CLIENT_ID</code> no HTML com o ID do cliente OAuth (Google Cloud Console) para ativar o botão de login.
+                  <strong>Google:</strong> descomente e preencha <code className="text-xs bg-amber-100 px-1 rounded break-all">window.CONSENSO_GOOGLE_CLIENT_ID</code> no <code className="text-xs bg-amber-100 px-1 rounded">index.html</code> (trecho logo acima do <code className="text-xs bg-amber-100 px-1 rounded">&lt;div id="root"&gt;</code>) com o ID do cliente OAuth da Google Cloud Console.
                 </div>
               )}
 
@@ -1898,5 +1973,23 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
+
+  <!--
+  ========== Consenso: Google Cloud OAuth (referência) ==========
+  Produção (GitHub Pages) — exemplo já usado pelo projeto:
+    Origens JavaScript autorizadas (só origem, SEM caminho, SEM barra no fim):
+      https://viniciusrodriguesgithub.github.io
+    URIs de redirecionamento autorizados (pode precisar de variantes se der erro):
+      https://viniciusrodriguesgithub.github.io/PepperHat/consenso/syncpriv-app/
+      (se necessário, adicione também sem barra final ou com .../index.html — igual à URL real da barra de endereço)
+
+  Desenvolvimento local: acrescente também em Origens JS, ex.:
+      http://localhost:5500
+      http://127.0.0.1:5500
+  (file:// não funciona com login Google.)
+
+  ID do cliente: window.CONSENSO_GOOGLE_CLIENT_ID no <script> acima do #root.
+  ================================================================
+  -->
 </body>
 </html>
