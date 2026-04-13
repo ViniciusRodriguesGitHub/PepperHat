@@ -193,7 +193,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithCredential, GoogleAuthProvider, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-    import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+    import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc, getDocs, writeBatch, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyBru9u7vjuX1Gp2WpT8bikvh580uhruXYw',
@@ -217,6 +217,7 @@
     window.consensoFsGetDoc = getDoc;
     window.consensoFsGetDocs = getDocs;
     window.consensoFsWriteBatch = writeBatch;
+    window.consensoFsDeleteDoc = deleteDoc;
     window.consensoSignInAnonymously = () => signInAnonymously(auth);
     window.linkConsensoFirebaseWithGoogleJwt = (jwt) => signInWithCredential(auth, GoogleAuthProvider.credential(jwt));
 
@@ -716,6 +717,36 @@
           );
         }
       }
+    };
+
+    /** Exclui reunião: primeiro Firestore (se houver), depois localStorage — assim não apagamos o local se a nuvem falhar. */
+    const deleteEventForOrganizer = async (eventId) => {
+      if (!canManageEventId(eventId)) {
+        throw new Error('Sem permissão para excluir esta reunião.');
+      }
+      const ev = getEvent(eventId);
+      if (!ev) return;
+      const ownerUid = ev?.config?.firebaseOwnerUid;
+      const session = getAdminSession();
+
+      if (ownerUid && session?.firebaseUid === ownerUid && consensoFirestoreReady() && window.consensoFsDeleteDoc) {
+        try {
+          const votesCol = consensoVotesColRef(ownerUid, eventId);
+          const vs = await window.consensoFsGetDocs(votesCol);
+          for (let i = 0; i < vs.docs.length; i++) {
+            await window.consensoFsDeleteDoc(vs.docs[i].ref);
+          }
+          await window.consensoFsDeleteDoc(consensoEventDocRef(ownerUid, eventId));
+          await window.consensoFsDeleteDoc(consensoLookupDocRef(eventId));
+        } catch (e) {
+          console.error('[Consenso] Firestore delete', e);
+          throw new Error('Não foi possível excluir na nuvem. Verifique a conexão e tente de novo.');
+        }
+      }
+
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      delete events[eventId];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     };
     
     const getVotedUserNames = (eventId) => {
@@ -1298,8 +1329,20 @@
       );
     };
 
-    const AdminEventsScreen = ({ onOpenEvent, onCreate, topBar }) => {
+    const AdminEventsScreen = ({ onOpenEvent, onCreate, topBar, addToast }) => {
       const [, bumpList] = useState(0);
+      const handleDeleteRow = async (e, id, title) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!window.confirm(`Excluir a reunião "${title}"? Os dados serão apagados neste aparelho e na nuvem (se a reunião estiver sincronizada).`)) return;
+        try {
+          await deleteEventForOrganizer(id);
+          addToast('Reunião excluída.', 'success');
+          bumpList((t) => t + 1);
+        } catch (err) {
+          addToast(err?.message || 'Não foi possível excluir.', 'error');
+        }
+      };
       useEffect(() => {
         let cancelled = false;
         const pull = async () => {
@@ -1336,13 +1379,22 @@
             ) : (
               <ul className="space-y-3">
                 {list.map((row) => (
-                  <li key={row.id}>
-                    <button type="button" onClick={() => onOpenEvent(row.id)} className="w-full text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow transition-all">
+                  <li key={row.id} className="flex gap-2 items-stretch">
+                    <button type="button" onClick={() => onOpenEvent(row.id)} className="flex-1 min-w-0 text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow transition-all">
                       <div className="font-semibold text-slate-900">{row.config.title}</div>
                       <div className="text-sm text-slate-500 mt-1">
                         {formatDisplayDateFull(new Date(row.config.startDate))} — {row.votes.length}/{row.config.quorum} votos
                       </div>
                     </button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      title="Excluir reunião"
+                      className="shrink-0 px-3 border-red-200 text-red-600 hover:bg-red-50 self-stretch rounded-xl"
+                      onClick={(e) => handleDeleteRow(e, row.id, row.config.title)}
+                    >
+                      <Icon name="Trash2" className="w-5 h-5" />
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -2168,7 +2220,7 @@
       );
     };
 
-    const ManagerDashboard = ({ eventId, onViewResults, onBack, onEditVote, addToast, topBar }) => {
+    const ManagerDashboard = ({ eventId, onViewResults, onBack, onEditVote, addToast, topBar, onEventDeleted }) => {
       const [eventData, setEventData] = useState(null);
       const [copied, setCopied] = useState(false);
 
@@ -2227,6 +2279,18 @@
         unlockResults(eventId);
         loadEventData();
         addToast('Resultados desbloqueados!', 'success');
+      };
+
+      const handleDeleteEvent = async () => {
+        if (!eventData) return;
+        if (!window.confirm(`Excluir a reunião "${eventData.config.title}"? Os links deixarão de funcionar e os dados serão removidos (incluindo na nuvem, se aplicável).`)) return;
+        try {
+          await deleteEventForOrganizer(eventId);
+          addToast('Reunião excluída.', 'success');
+          onEventDeleted();
+        } catch (e) {
+          addToast(e?.message || 'Não foi possível excluir.', 'error');
+        }
       };
 
       if (!eventData) return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
@@ -2336,6 +2400,16 @@
                 </CardContent>
               </Card>
             </div>
+
+            <Card className="mb-6 border-red-200 bg-red-50/40">
+              <CardHeader><CardTitle className="flex items-center gap-2 text-base text-red-900"><Icon name="Trash2" className="w-4 h-4" />Excluir reunião</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-slate-600">Remove esta votação do armazenamento e da nuvem (Firebase). Participantes não conseguirão mais abrir o link.</p>
+                <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-100" onClick={handleDeleteEvent}>
+                  <Icon name="Trash2" className="w-4 h-4 mr-2" />Excluir permanentemente
+                </Button>
+              </CardContent>
+            </Card>
 
             {canUnlockEarly && (
               <Card className="mb-6 border-amber-200 bg-amber-50">
@@ -2557,6 +2631,7 @@
                 onOpenEvent={openEventFromDashboard}
                 onCreate={openCreateFlow}
                 topBar={topBarNavigation}
+                addToast={addToast}
               />
             );
           case 'home':
@@ -2579,7 +2654,17 @@
           case 'results':
             return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} topBar={topBarNavigation} />;
           case 'manage':
-            return <ManagerDashboard eventId={eventId} onViewResults={handleViewResults} onBack={goHome} onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId); }} addToast={addToast} topBar={topBarNavigation} />;
+            return (
+              <ManagerDashboard
+                eventId={eventId}
+                onViewResults={handleViewResults}
+                onBack={goHome}
+                onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId); }}
+                addToast={addToast}
+                topBar={topBarNavigation}
+                onEventDeleted={goHome}
+              />
+            );
           default:
             return (
               <HomeScreen
