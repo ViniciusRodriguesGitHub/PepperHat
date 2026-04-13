@@ -189,6 +189,43 @@
     window.CONSENSO_GOOGLE_CLIENT_ID = '306221893302-k16jn4ok0155d7c75qellikbdru9curf.apps.googleusercontent.com';
   </script>
 
+  <!-- Firebase (mesmo projeto pepperhatapps que o Kanban Funil de vendas) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signInWithCredential, GoogleAuthProvider, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyBru9u7vjuX1Gp2WpT8bikvh580uhruXYw',
+      authDomain: 'pepperhatapps.firebaseapp.com',
+      projectId: 'pepperhatapps',
+      storageBucket: 'pepperhatapps.firebasestorage.app',
+      messagingSenderId: '306221893302',
+      appId: '1:306221893302:web:63c97387bf48950cd88817'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    window.consensoDb = db;
+    window.consensoAuth = auth;
+    window.consensoFsDoc = doc;
+    window.consensoFsCollection = collection;
+    window.consensoFsSetDoc = setDoc;
+    window.consensoFsOnSnapshot = onSnapshot;
+    window.consensoFsGetDoc = getDoc;
+    window.consensoFsGetDocs = getDocs;
+    window.consensoFsWriteBatch = writeBatch;
+    window.consensoSignInAnonymously = () => signInAnonymously(auth);
+    window.linkConsensoFirebaseWithGoogleJwt = (jwt) => signInWithCredential(auth, GoogleAuthProvider.credential(jwt));
+
+    onAuthStateChanged(auth, (user) => {
+      window.consensoFirebaseUser = user;
+      window.dispatchEvent(new CustomEvent('consenso-firebase-auth', { detail: user }));
+    });
+  </script>
+
   <!-- Root -->
   <div id="root"></div>
   
@@ -519,6 +556,97 @@
       user.name = name;
       localStorage.setItem(USER_KEY, JSON.stringify(user));
     };
+
+    /** Mesmo appId que o Kanban em index.html (Funil de vendas). */
+    const CONSENSO_FB_APP_ID = 'pepperhatapps';
+
+    const consensoFirestoreReady = () => !!(typeof window !== 'undefined' && window.consensoDb && window.consensoFsDoc);
+
+    const consensoPublicDataDocRef = () =>
+      window.consensoFsDoc(window.consensoDb, 'artifacts', CONSENSO_FB_APP_ID, 'public', 'data');
+
+    const consensoLookupDocRef = (eventId) => window.consensoFsDoc(consensoPublicDataDocRef(), 'consenso_lookup', eventId);
+
+    const consensoEventDocRef = (ownerUid, eventId) =>
+      window.consensoFsDoc(window.consensoDb, 'artifacts', CONSENSO_FB_APP_ID, 'users', ownerUid, 'consenso_v1', eventId);
+
+    const consensoVotesColRef = (ownerUid, eventId) =>
+      window.consensoFsCollection(consensoEventDocRef(ownerUid, eventId), 'votes');
+
+    const consensoConfigToPlain = (c) => ({
+      ...c,
+      startDate: c.startDate instanceof Date ? c.startDate.toISOString() : c.startDate,
+      endDate: c.endDate instanceof Date ? c.endDate.toISOString() : c.endDate,
+      createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+    });
+
+    const consensoFsScalarToIso = (v) => {
+      if (v == null) return v;
+      if (typeof v === 'string') return v;
+      if (v instanceof Date) return v.toISOString();
+      if (typeof v.toDate === 'function') return v.toDate().toISOString();
+      if (typeof v.seconds === 'number') return new Date(v.seconds * 1000).toISOString();
+      return String(v);
+    };
+
+    const consensoConfigFromFs = (c) => {
+      if (!c || typeof c !== 'object') return c;
+      return {
+        ...c,
+        startDate: consensoFsScalarToIso(c.startDate),
+        endDate: consensoFsScalarToIso(c.endDate),
+        createdAt: consensoFsScalarToIso(c.createdAt),
+      };
+    };
+
+    const consensoCloudWriteNewEvent = async (ownerUid, newConfig) => {
+      if (!consensoFirestoreReady() || !ownerUid) return;
+      const eventId = newConfig.id;
+      const batch = window.consensoFsWriteBatch(window.consensoDb);
+      const cfg = consensoConfigToPlain({ ...newConfig, firebaseOwnerUid: ownerUid });
+      batch.set(consensoLookupDocRef(eventId), { ownerUid, updatedAt: new Date().toISOString() });
+      batch.set(consensoEventDocRef(ownerUid, eventId), {
+        config: cfg,
+        updatedAt: new Date().toISOString(),
+      });
+      await batch.commit();
+    };
+
+    const consensoCloudPushVote = async (ownerUid, eventId, vote) => {
+      if (!consensoFirestoreReady() || !ownerUid) return;
+      const vref = window.consensoFsDoc(
+        window.consensoDb,
+        'artifacts',
+        CONSENSO_FB_APP_ID,
+        'users',
+        ownerUid,
+        'consenso_v1',
+        eventId,
+        'votes',
+        vote.userId
+      );
+      await window.consensoFsSetDoc(vref, {
+        userId: vote.userId,
+        userName: vote.userName,
+        timeSlots: vote.timeSlots,
+        votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
+      });
+      await window.consensoFsSetDoc(
+        consensoEventDocRef(ownerUid, eventId),
+        { updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+    };
+
+    const consensoCloudMergeConfig = async (ownerUid, eventId, partial) => {
+      if (!consensoFirestoreReady() || !ownerUid) return;
+      const ref = consensoEventDocRef(ownerUid, eventId);
+      const snap = await window.consensoFsGetDoc(ref);
+      if (!snap.exists()) return;
+      const prev = consensoConfigFromFs(snap.data().config || {});
+      const next = { ...prev, ...partial };
+      await window.consensoFsSetDoc(ref, { config: consensoConfigToPlain(next), updatedAt: new Date().toISOString() }, { merge: true });
+    };
     
     const createEvent = (config) => {
       const admin = getAdminSession();
@@ -531,10 +659,14 @@
         createdAt: new Date().toISOString(),
         resultsUnlocked: false,
         creatorAdminKey: ak || undefined,
-        creatorAdminEmail: admin?.email || undefined
+        creatorAdminEmail: admin?.email || undefined,
+        ...(admin?.firebaseUid ? { firebaseOwnerUid: admin.firebaseUid } : {}),
       };
       events[newConfig.id] = { config: newConfig, votes: [] };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      if (admin?.firebaseUid && consensoFirestoreReady()) {
+        consensoCloudWriteNewEvent(admin.firebaseUid, newConfig).catch((e) => console.error('[Consenso] Firestore create', e));
+      }
       return newConfig;
     };
     
@@ -552,9 +684,14 @@
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       const event = events[eventId];
       if (!event) throw new Error('Event not found');
+      const votedAt = new Date().toISOString();
       event.votes = event.votes.filter(v => v.userId !== vote.userId);
-      event.votes.push({ ...vote, votedAt: new Date().toISOString() });
+      event.votes.push({ ...vote, votedAt });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      const owner = event.config?.firebaseOwnerUid;
+      if (owner && consensoFirestoreReady()) {
+        consensoCloudPushVote(owner, eventId, { ...vote, votedAt }).catch((e) => console.error('[Consenso] Firestore vote', e));
+      }
     };
     
     const hasUserVoted = (eventId, userId) => {
@@ -572,6 +709,12 @@
       if (events[eventId]) {
         events[eventId].config.resultsUnlocked = true;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+        const owner = events[eventId].config?.firebaseOwnerUid;
+        if (owner && consensoFirestoreReady()) {
+          consensoCloudMergeConfig(owner, eventId, { resultsUnlocked: true }).catch((e) =>
+            console.error('[Consenso] Firestore unlock', e)
+          );
+        }
       }
     };
     
@@ -633,6 +776,105 @@
       return true;
     };
 
+    const ensureConsensoGuestFirebase = async () => {
+      if (!window.consensoSignInAnonymously) return;
+      if (window.consensoFirebaseUser) return;
+      try {
+        await window.consensoSignInAnonymously();
+      } catch (e) {
+        console.error('[Consenso] signInAnonymously', e);
+      }
+    };
+
+    const consensoFetchLookupOwnerUid = async (eventId) => {
+      if (!consensoFirestoreReady()) return null;
+      try {
+        const snap = await window.consensoFsGetDoc(consensoLookupDocRef(eventId));
+        if (!snap.exists()) return null;
+        const o = snap.data()?.ownerUid;
+        return o ? String(o) : null;
+      } catch (e) {
+        console.error('[Consenso] lookup', e);
+        return null;
+      }
+    };
+
+    const consensoSubscribeRemoteEvent = (ownerUid, eventId, onMerged) => {
+      if (!consensoFirestoreReady()) return () => {};
+      const evRef = consensoEventDocRef(ownerUid, eventId);
+      const votesRef = consensoVotesColRef(ownerUid, eventId);
+      let lastCfg = null;
+      let lastVoteDocs = [];
+      const flush = () => {
+        if (!lastCfg) return;
+        const votes = lastVoteDocs.map((d) => {
+          const v = d.data();
+          return {
+            userId: v.userId,
+            userName: v.userName,
+            timeSlots: v.timeSlots || [],
+            votedAt: isoVote(v.votedAt),
+          };
+        });
+        const hadLocal = !!getEvent(eventId);
+        mergeHydratedEvent(eventId, { config: consensoConfigFromFs(lastCfg), votes });
+        if (onMerged) onMerged();
+        if (!hadLocal && getEvent(eventId)) {
+          window.dispatchEvent(new CustomEvent('consenso-remote-hydrated', { detail: { eventId } }));
+        }
+      };
+      const u1 = window.consensoFsOnSnapshot(evRef, (snap) => {
+        if (!snap.exists()) return;
+        lastCfg = snap.data().config;
+        flush();
+      });
+      const u2 = window.consensoFsOnSnapshot(votesRef, (snap) => {
+        lastVoteDocs = snap.docs;
+        flush();
+      });
+      return () => {
+        u1();
+        u2();
+      };
+    };
+
+    const consensoSyncOrganizerEventsFromFirestore = async () => {
+      const s = getAdminSession();
+      const uid = s?.firebaseUid;
+      if (!uid || !consensoFirestoreReady()) return;
+      try {
+        const col = window.consensoFsCollection(
+          window.consensoFsDoc(window.consensoDb, 'artifacts', CONSENSO_FB_APP_ID, 'users', uid),
+          'consenso_v1'
+        );
+        const snap = await window.consensoFsGetDocs(col);
+        for (const d of snap.docs) {
+          const eventId = d.id;
+          const cfg = consensoConfigFromFs(d.data().config || {});
+          const vcol = window.consensoFsCollection(d.ref, 'votes');
+          const vs = await window.consensoFsGetDocs(vcol);
+          const votes = vs.docs.map((x) => {
+            const v = x.data();
+            return { userId: v.userId, userName: v.userName, timeSlots: v.timeSlots || [], votedAt: isoVote(v.votedAt) };
+          });
+          mergeHydratedEvent(eventId, { config: cfg, votes });
+        }
+      } catch (e) {
+        console.error('[Consenso] sync organizer', e);
+      }
+    };
+
+    /** Convidado em reunião na nuvem usa o uid do Firebase (anônimo), para bater com as regras do Firestore. */
+    const getConsensoVoterUser = (eventId) => {
+      const local = getCurrentUser();
+      const ev = getEvent(eventId);
+      const fb = window.consensoFirebaseUser;
+      if (ev?.config?.firebaseOwnerUid && fb?.uid) {
+        return { id: fb.uid, name: local.name || '', isAnonymous: !!fb.isAnonymous };
+      }
+      return local;
+    };
+
     /** Lê ?d= da hash #event/ID ou #manage/ID e repõe a reunião no storage. */
     const tryHydrateEventFromInviteHash = () => {
       if (typeof window === 'undefined' || typeof LZString === 'undefined') return;
@@ -658,12 +900,15 @@
     };
 
     /**
-     * Link para convidados: inclui dados da reunião compactados (?d=).
-     * Sem isso, só o organizador tem o evento no navegador e o convite fica em loading infinito.
+     * Link para convidados: com Firestore + login Google do organizador, link curto (#event/id).
+     * Sem nuvem, mantém ?d= compactado (LZString) para outro aparelho.
      */
     const buildInviteLink = (eventId) => {
       const base = `${window.location.origin}${window.location.pathname}`;
       const ev = getEvent(eventId);
+      if (ev?.config?.firebaseOwnerUid && consensoFirestoreReady()) {
+        return `${base}#event/${eventId}`;
+      }
       if (!ev || typeof LZString === 'undefined') return `${base}#event/${eventId}`;
       try {
         const snap = eventSnapshotToJSON(ev);
@@ -676,6 +921,10 @@
         return `${base}#event/${eventId}`;
       }
     };
+
+    /** Mesma mensagem para WhatsApp e “Copiar texto”; URL sozinha na última linha (melhor para apps não cortarem o link). */
+    const buildGuestInviteShareMessage = (eventTitle, eventLink) =>
+      `Oi! 📅\n\nEstou organizando "${eventTitle}" no Consenso.\n\nSeus horários serão 100% privados — ninguém verá o que você marcou.\n\nVote aqui:\n${eventLink}`;
 
     /** Atualiza só a parte da hash após # com o link completo do convite (inclui ?d=). */
     const setVoteHashFromInviteLink = (eventId) => {
@@ -827,6 +1076,67 @@
       </button>
     );
 
+    /**
+     * Barra global: início, minhas reuniões (organizador), entrar/sair.
+     * secondaryRow: conteúdo opcional abaixo (ex.: título da reunião + progresso na votação).
+     */
+    const ConsensoAppBar = ({
+      adminSession,
+      onGoHome,
+      onMyEvents,
+      onOrganizerLogin,
+      onLogout,
+      secondaryRow = null,
+    }) => (
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 min-h-14 flex flex-wrap items-center justify-between gap-y-2 gap-x-2 py-1.5">
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={onGoHome}
+              className="flex items-center gap-2 rounded-lg p-1 text-slate-800 hover:bg-slate-100 shrink-0"
+              title="Página inicial"
+            >
+              <Logo className="w-8 h-8" />
+              <span className="font-bold text-slate-900 hidden sm:inline">Consenso</span>
+            </button>
+            <Button variant="ghost" size="sm" onClick={onGoHome} className="!px-2 text-slate-600 shrink-0" title="Página inicial">
+              <Icon name="Home" className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Início</span>
+            </Button>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {adminSession && (
+              <Button variant="ghost" size="sm" onClick={onMyEvents} className="!px-2 text-slate-700" title="Minhas reuniões">
+                <Icon name="Calendar" className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Reuniões</span>
+              </Button>
+            )}
+            {adminSession ? (
+              <>
+                <span className="hidden lg:inline text-xs text-slate-500 max-w-[120px] xl:max-w-[200px] truncate" title={adminSession.email}>
+                  {adminSession.email}
+                </span>
+                <Button variant="outline" size="sm" onClick={onLogout} className="!px-2 text-xs">
+                  Sair
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={onOrganizerLogin} className="!px-2 text-xs sm:text-sm">
+                <Icon name="LogIn" className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Organizador</span>
+              </Button>
+            )}
+          </div>
+        </div>
+        {secondaryRow ? (
+          <div className="border-t border-slate-100 bg-slate-50/90">
+            {secondaryRow}
+          </div>
+        ) : null}
+      </header>
+    );
+
     const AdminLoginScreen = ({ onSuccess, onCancel }) => {
       const [email, setEmail] = useState('');
       const [gisError, setGisError] = useState('');
@@ -855,7 +1165,7 @@
               client_id: cid,
               ux_mode: 'popup',
               auto_select: false,
-              callback: (response) => {
+              callback: async (response) => {
                 if (cancelledRef.current) return;
                 if (!response?.credential) {
                   setGisError('Não foi possível obter o token do Google. Tente de novo.');
@@ -867,14 +1177,23 @@
                   return;
                 }
                 setGisError('');
-                setAdminSession({
+                const baseSession = {
                   provider: 'google',
                   email: payload.email,
                   name: payload.name || '',
                   picture: payload.picture || '',
-                  sub: payload.sub
-                });
-                onSuccessRef.current();
+                  sub: payload.sub,
+                };
+                setAdminSession(baseSession);
+                try {
+                  if (window.linkConsensoFirebaseWithGoogleJwt) {
+                    const cred = await window.linkConsensoFirebaseWithGoogleJwt(response.credential);
+                    setAdminSession({ ...baseSession, firebaseUid: cred.user.uid });
+                  }
+                } catch (err) {
+                  console.error('[Consenso] Firebase Auth (Google):', err);
+                }
+                if (!cancelledRef.current) onSuccessRef.current();
               }
             });
             el.innerHTML = '';
@@ -938,7 +1257,7 @@
             <Card className="w-full max-w-md p-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">Acesso do organizador</h1>
               <p className="text-sm text-slate-600 mb-6">
-                Quem cria reuniões precisa identificar-se para listar eventos e gerir resultados. Quem recebe o link continua sem cadastro.
+                Quem cria reuniões precisa identificar-se para listar eventos e gerir resultados. Com Google, a reunião pode sincronizar no Firestore (projeto pepperhatapps, como o Kanban). Quem recebe o link vota sem cadastro (login anônimo só no navegador).
               </p>
 
               {googleClientId ? (
@@ -979,18 +1298,32 @@
       );
     };
 
-    const AdminEventsScreen = ({ onOpenEvent, onBack, onCreate }) => {
+    const AdminEventsScreen = ({ onOpenEvent, onCreate, topBar }) => {
+      const [, bumpList] = useState(0);
+      useEffect(() => {
+        let cancelled = false;
+        const pull = async () => {
+          await consensoSyncOrganizerEventsFromFirestore();
+          if (!cancelled) bumpList((t) => t + 1);
+        };
+        pull();
+        const onVis = () => {
+          if (document.visibilityState === 'visible') pull();
+        };
+        document.addEventListener('visibilitychange', onVis);
+        return () => {
+          cancelled = true;
+          document.removeEventListener('visibilitychange', onVis);
+        };
+      }, []);
       const list = getEventsForAdmin();
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar {...topBar} />
           <header className="bg-white border-b border-slate-200">
-            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={onBack}>
-                <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />
-                Início
-              </Button>
+            <div className="max-w-3xl mx-auto px-4 h-12 flex items-center justify-between">
               <span className="text-lg font-semibold text-slate-900">Minhas reuniões</span>
-              <Button size="sm" onClick={onCreate}>Nova</Button>
+              <Button size="sm" onClick={onCreate}>Nova reunião</Button>
             </div>
           </header>
           <main className="max-w-3xl mx-auto px-4 py-8 w-full">
@@ -1019,40 +1352,24 @@
       );
     };
 
-    const HomeScreen = ({ onCreate, adminSession, onLogout, onMyEvents, onOrganizerLogin }) => {
+    const HomeScreen = ({ onCreate, adminSession, onLogout, onMyEvents, onOrganizerLogin, onGoHome }) => {
       const [timezone, setTimezone] = useState('');
       useEffect(() => setTimezone(getTimezoneDisplay()), []);
       
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
-          <header className="bg-white border-b border-slate-200">
-            <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Logo className="w-8 h-8" />
-                <span className="text-xl font-bold text-slate-900">Consenso</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                {adminSession ? (
-                  <div className="flex items-center gap-2 mr-2">
-                    <span className="hidden sm:inline max-w-[180px] truncate text-slate-700" title={adminSession.email}>{adminSession.email}</span>
-                    <Button variant="ghost" size="sm" onClick={onMyEvents} className="!px-2">Minhas reuniões</Button>
-                    <Button variant="outline" size="sm" onClick={onLogout} className="!px-2">Sair</Button>
-                  </div>
-                ) : (
-                  <Button variant="ghost" size="sm" onClick={onOrganizerLogin} className="text-slate-700">
-                    <Icon name="LogIn" className="w-4 h-4 mr-1" />
-                    Organizador
-                  </Button>
-                )}
-                <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-                  <Icon name="Clock" className="w-4 h-4" />
-                  <span className="hidden sm:inline">{timezone}</span>
-                </div>
-              </div>
-            </div>
-          </header>
+          <ConsensoAppBar
+            adminSession={adminSession}
+            onGoHome={onGoHome}
+            onMyEvents={onMyEvents}
+            onOrganizerLogin={onOrganizerLogin}
+            onLogout={onLogout}
+          />
 
           <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+            <p className="text-xs text-slate-400 mb-4 flex items-center gap-1">
+              <Icon name="Clock" className="w-3 h-3" />{timezone}
+            </p>
             <div className="max-w-3xl mx-auto text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-6">
                 <Icon name="ShieldCheck" className="w-4 h-4" />
@@ -1114,7 +1431,7 @@
       );
     };
 
-    const EventCreation = ({ onCreate, onCancel, addToast }) => {
+    const EventCreation = ({ onCreate, onCancel, addToast, topBar }) => {
       const [title, setTitle] = useState('');
       const [startDate, setStartDate] = useState(formatDate(new Date()));
       const [endDate, setEndDate] = useState(formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
@@ -1146,21 +1463,10 @@
       };
 
       return (
-        <div className="min-h-screen bg-slate-50">
-          <header className="bg-white border-b border-slate-200">
-            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Logo className="w-8 h-8" />
-                <span className="text-xl font-bold text-slate-900">Consenso</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={onCancel}>
-                <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />
-                Voltar
-              </Button>
-            </div>
-          </header>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar {...topBar} />
 
-          <main className="max-w-3xl mx-auto px-4 py-8">
+          <main className="max-w-3xl mx-auto px-4 py-8 flex-1 w-full">
             <Card>
               <CardHeader className="border-b">
                 <h1 className="text-2xl font-bold text-slate-900">Criar Nova Reunião</h1>
@@ -1275,7 +1581,7 @@
       );
     };
 
-    const ShareScreen = ({ event, onComplete, onBack, addToast }) => {
+    const ShareScreen = ({ event, onComplete, onBack, addToast, topBar }) => {
       const [copied, setCopied] = useState(false);
       const eventLink = buildInviteLink(event.id);
 
@@ -1285,22 +1591,19 @@
       };
 
       const handleShareWhatsApp = () => {
-        const text = `Oi! 📅\n\nEstou organizando "${event.title}" no Consenso.\n\nSeus horários serão 100% privados - ninguém verá o que você marcou!\n\nVote aqui: ${eventLink}`;
+        const text = buildGuestInviteShareMessage(event.title, eventLink);
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
       };
 
       return (
-        <div className="min-h-screen bg-slate-50">
-          <header className="bg-white border-b border-slate-200">
-            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-center">
-              <div className="flex items-center gap-3">
-                <Logo className="w-8 h-8" />
-                <span className="text-xl font-bold text-slate-900">Consenso</span>
-              </div>
-            </div>
-          </header>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar {...topBar} />
 
-          <main className="max-w-2xl mx-auto px-4 py-12">
+          <main className="max-w-2xl mx-auto px-4 py-8 flex-1 w-full">
+            <Button variant="ghost" size="sm" onClick={onBack} className="mb-6 -ml-1">
+              <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />
+              Ajustar detalhes da reunião
+            </Button>
             <div className="text-center mb-8">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Icon name="Check" className="w-8 h-8 text-green-600" />
@@ -1331,7 +1634,9 @@
                   </Button>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  A URL é longa de propósito: leva os dados da reunião para o aparelho de cada convidado (sem isso o link não abre em outro telefone).
+                  {event.firebaseOwnerUid && consensoFirestoreReady()
+                    ? 'Este link é curto: a reunião está na nuvem (mesmo projeto Firebase que o Kanban Funil). Convidados precisam de internet na primeira abertura.'
+                    : 'Se a URL for longa, ela leva os dados da reunião no próprio link (modo só navegador). No WhatsApp, use Copiar link se vier cortado.'}
                 </p>
               </div>
             </Card>
@@ -1341,7 +1646,7 @@
                 <Icon name="MessageCircle" className="w-5 h-5 text-green-600 mr-2" />
                 WhatsApp
               </Button>
-              <Button variant="outline" onClick={() => { navigator.clipboard.writeText(`Vote em "${event.title}" - seus horários são 100% privados no Consenso: ${eventLink}`); addToast('Mensagem copiada!', 'success'); }} className="h-14 border-blue-200 hover:bg-blue-50">
+              <Button variant="outline" onClick={() => { navigator.clipboard.writeText(buildGuestInviteShareMessage(event.title, eventLink)); addToast('Mensagem copiada!', 'success'); }} className="h-14 border-blue-200 hover:bg-blue-50">
                 <Icon name="Copy" className="w-5 h-5 text-blue-600 mr-2" />
                 Copiar Texto
               </Button>
@@ -1367,7 +1672,7 @@
       );
     };
 
-    const VotingInterface = ({ eventId, userName, onSetUserName, onComplete, onViewResults, addToast }) => {
+    const VotingInterface = ({ eventId, userName, onSetUserName, onComplete, onViewResults, addToast, topBar }) => {
       const [eventData, setEventData] = useState(null);
       const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
@@ -1375,27 +1680,79 @@
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [hasVoted, setHasVoted] = useState(false);
       const [showNameInput, setShowNameInput] = useState(!userName);
+      const [editingChoices, setEditingChoices] = useState(false);
+      const editingChoicesRef = useRef(false);
       const [timezone, setTimezone] = useState('');
       const [isDragging, setIsDragging] = useState(false);
       const [dragValue, setDragValue] = useState(null);
 
       useEffect(() => {
-        setLoadFailed(false);
-        setTimezone(getTimezoneDisplay());
-        tryHydrateEventFromInviteHash();
-        const event = getEvent(eventId);
-        if (event) {
+        editingChoicesRef.current = editingChoices;
+      }, [editingChoices]);
+
+      useEffect(() => {
+        let cancelled = false;
+        let unsub = null;
+
+        const applyLocalState = () => {
+          const event = getEvent(eventId);
+          if (!event) return false;
           setEventData(event);
-          const user = getCurrentUser();
-          const voted = hasUserVoted(eventId, user.id);
+          const voter = getConsensoVoterUser(eventId);
+          const voted = hasUserVoted(eventId, voter.id);
           setHasVoted(voted);
-          if (voted) {
-            const existingVote = getUserVote(eventId, user.id);
+          if (voted && !editingChoicesRef.current) {
+            const existingVote = getUserVote(eventId, voter.id);
             if (existingVote) setSelectedSlots(new Set(existingVote.timeSlots));
           }
-        } else {
-          setLoadFailed(true);
-        }
+          return true;
+        };
+
+        const boot = async () => {
+          setLoadFailed(false);
+          setTimezone(getTimezoneDisplay());
+          tryHydrateEventFromInviteHash();
+          let ev = getEvent(eventId);
+          if (!ev && consensoFirestoreReady()) {
+            try {
+              await ensureConsensoGuestFirebase();
+            } catch (e) {
+              console.error('[Consenso] auth convidado', e);
+            }
+            if (cancelled) return;
+            const owner = await consensoFetchLookupOwnerUid(eventId);
+            if (cancelled) return;
+            if (owner) {
+              unsub = consensoSubscribeRemoteEvent(owner, eventId, () => {
+                if (cancelled) return;
+                applyLocalState();
+              });
+              for (let i = 0; i < 50 && !getEvent(eventId); i++) await new Promise((r) => setTimeout(r, 80));
+            }
+            ev = getEvent(eventId);
+          }
+          if (cancelled) return;
+          if (!ev) {
+            setLoadFailed(true);
+            return;
+          }
+          applyLocalState();
+          if (ev.config?.firebaseOwnerUid) {
+            const o = ev.config.firebaseOwnerUid;
+            if (!unsub) {
+              unsub = consensoSubscribeRemoteEvent(o, eventId, () => {
+                if (cancelled) return;
+                applyLocalState();
+              });
+            }
+          }
+        };
+
+        boot();
+        return () => {
+          cancelled = true;
+          if (unsub) unsub();
+        };
       }, [eventId]);
 
       const dates = eventData ? getDatesInRange(eventData.config.startDate, eventData.config.endDate) : [];
@@ -1412,8 +1769,15 @@
 
       const getSlotKey = (date, time) => `${formatDate(date)}|${time}`;
 
+      const handleCancelEditChoices = () => {
+        const voter = getConsensoVoterUser(eventId);
+        const existing = getUserVote(eventId, voter.id);
+        if (existing) setSelectedSlots(new Set(existing.timeSlots));
+        setEditingChoices(false);
+      };
+
       const handleMouseDown = (slotKey) => {
-        if (hasVoted && !showNameInput) return;
+        if (hasVoted && !showNameInput && !editingChoices) return;
         setIsDragging(true);
         const isSelected = selectedSlots.has(slotKey);
         setDragValue(!isSelected);
@@ -1441,19 +1805,25 @@
 
         setIsSubmitting(true);
         try {
-          const user = getCurrentUser();
+          const user = getConsensoVoterUser(eventId);
           onSetUserName(localUserName);
           submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
           addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
           setHasVoted(true);
           setShowNameInput(false);
+          setEditingChoices(false);
           setEventData(getEvent(eventId));
-          setVoteHashFromInviteLink(eventId);
-          try {
-            await navigator.clipboard.writeText(window.location.href);
-            addToast('Voto contabilizado neste link. Link atualizado copiado para compartilhar com o organizador.', 'info');
-          } catch {
-            addToast('Voto contabilizado neste link. Compartilhe a URL atual para sincronizar com o organizador.', 'info');
+          const evCloud = getEvent(eventId);
+          if (evCloud?.config?.firebaseOwnerUid && consensoFirestoreReady()) {
+            addToast('Voto sincronizado na nuvem.', 'info');
+          } else {
+            setVoteHashFromInviteLink(eventId);
+            try {
+              await navigator.clipboard.writeText(window.location.href);
+              addToast('Voto contabilizado neste link. Link atualizado copiado para compartilhar com o organizador.', 'info');
+            } catch {
+              addToast('Voto contabilizado neste link. Compartilhe a URL atual para sincronizar com o organizador.', 'info');
+            }
           }
           onComplete();
         } catch (error) { addToast('Erro ao registrar voto', 'error'); }
@@ -1463,53 +1833,66 @@
       if (!eventData) {
         if (loadFailed) {
           return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
-              <div className="max-w-md text-center space-y-4">
-                <Icon name="AlertCircle" className="w-14 h-14 text-amber-500 mx-auto" />
-                <h1 className="text-xl font-bold text-slate-900">Não foi possível abrir esta reunião</h1>
-                <p className="text-slate-600 text-sm">
-                  O link precisa incluir os dados da votação (URL longa com <code className="text-xs bg-slate-100 px-1 rounded">?d=</code>).
-                  Peça ao organizador para copiar o link na tela <strong>Reunião criada</strong> ou em <strong>Minhas reuniões</strong> → copiar link.
-                </p>
-                <p className="text-xs text-slate-500">Links antigos só com o código do evento não funcionam em outro aparelho.</p>
-                <Button onClick={() => { window.location.hash = ''; window.location.reload(); }}>Ir ao início</Button>
+            <div className="min-h-screen flex flex-col bg-slate-50">
+              {topBar && <ConsensoAppBar {...topBar} />}
+              <div className="flex flex-col items-center justify-center p-6 flex-1">
+                <div className="max-w-md text-center space-y-4">
+                  <Icon name="AlertCircle" className="w-14 h-14 text-amber-500 mx-auto" />
+                  <h1 className="text-xl font-bold text-slate-900">Não foi possível abrir esta reunião</h1>
+                  <p className="text-slate-600 text-sm">
+                    O link precisa dos dados da reunião (URL com <code className="text-xs bg-slate-100 px-1 rounded">?d=</code>) ou sincronização na nuvem ativa.
+                    Peça ao organizador um link completo em <strong>Reunião criada</strong> ou <strong>Minhas reuniões</strong>.
+                  </p>
+                  <p className="text-xs text-slate-500">Sem internet, o modo só-navegador exige o link longo.</p>
+                  <Button onClick={() => { window.location.hash = ''; window.location.reload(); }}>Ir ao início</Button>
+                </div>
               </div>
             </div>
           );
         }
-        return <div className="min-h-screen flex items-center justify-center"><div className="spinner w-12 h-12"></div></div>;
+        return (
+          <div className="min-h-screen flex flex-col bg-slate-50">
+            {topBar && <ConsensoAppBar {...topBar} />}
+            <div className="flex items-center justify-center flex-1">
+              <div className="spinner w-12 h-12"></div>
+            </div>
+          </div>
+        );
       }
 
       const timeSlots = getTimeSlots();
       const resultsAvailable = canViewResults(eventData, false);
       const progress = getVoteProgressPercentage(eventData);
 
+      const slotsInteractive = !hasVoted || showNameInput || editingChoices;
+
       return (
-        <div className="min-h-screen bg-slate-50">
-          <header className="bg-white border-b sticky top-0 z-10">
-            <div className="max-w-7xl mx-auto px-4 py-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h1 className="text-xl font-bold">{eventData.config.title}</h1>
-                  <div className="flex items-center gap-4 text-sm text-slate-500 mt-1">
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar
+            {...topBar}
+            secondaryRow={
+              <div className="max-w-7xl mx-auto px-4 py-3 w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <h1 className="text-lg font-bold text-slate-900 truncate">{eventData.config.title}</h1>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 mt-1">
                     <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{dates.length} dias</span>
                     <span className="flex items-center gap-1"><Icon name="Globe" className="w-4 h-4" />{timezone}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right">
-                    <div className="text-sm text-slate-500">Progresso</div>
-                    <div className="font-semibold">{eventData.votes.length}/{eventData.config.quorum}</div>
+                    <div className="text-xs text-slate-500">Progresso</div>
+                    <div className="font-semibold text-sm">{eventData.votes.length}/{eventData.config.quorum}</div>
                   </div>
-                  <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="w-28 sm:w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-600 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
                   </div>
                 </div>
               </div>
-            </div>
-          </header>
+            }
+          />
 
-          <main className="max-w-7xl mx-auto px-4 py-6">
+          <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
             <div className="privacy-shield rounded-xl p-6 mb-6 text-white">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -1566,8 +1949,8 @@
                           return (
                             <div key={slotKey} className={`w-24 flex-shrink-0 p-1 ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
                               <button onMouseDown={() => handleMouseDown(slotKey)} onMouseEnter={() => handleMouseEnter(slotKey)}
-                                disabled={hasVoted && !showNameInput}
-                                className={`w-full h-10 rounded-md transition-all ${isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${hasVoted && !showNameInput ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                disabled={!slotsInteractive}
+                                className={`w-full h-10 rounded-md transition-all ${isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
                                 {isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
                               </button>
                             </div>
@@ -1586,18 +1969,37 @@
               </div>
             </Card>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-between">
-              {hasVoted && !showNameInput ? (
-                <>
-                  <Button variant="outline" onClick={() => addToast('Use "Editar meu voto" no Painel do Organizador.', 'info')}>Voto registrado</Button>
-                  {resultsAvailable && <Button onClick={onViewResults}><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Resultados</Button>}
-                </>
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
+              {hasVoted && !showNameInput && !editingChoices ? (
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:ml-auto">
+                  <Button variant="outline" onClick={() => setEditingChoices(true)} className="justify-center">
+                    <Icon name="Pencil" className="w-4 h-4 mr-2" />Editar minhas escolhas
+                  </Button>
+                  {resultsAvailable && (
+                    <Button onClick={onViewResults} className="justify-center">
+                      <Icon name="Eye" className="w-4 h-4 mr-2" />Ver resultados
+                    </Button>
+                  )}
+                </div>
               ) : (
                 <>
-                  <div className="text-sm text-slate-500">Dica: Clique e arraste para selecionar vários horários</div>
-                  <Button onClick={handleSubmit} disabled={isSubmitting || selectedSlots.size === 0}>
-                    {isSubmitting ? 'Enviando...' : hasVoted ? 'Atualizar Voto' : 'Confirmar Voto'}
-                  </Button>
+                  <div className="text-sm text-slate-500">
+                    {editingChoices ? 'Ajuste os horários e salve. Funciona com ou sem login de organizador.' : 'Dica: Clique e arraste para selecionar vários horários'}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    {editingChoices && (
+                      <Button variant="ghost" onClick={handleCancelEditChoices} className="order-2 sm:order-1">
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || selectedSlots.size === 0}
+                      className="order-1 sm:order-2"
+                    >
+                      {isSubmitting ? 'Enviando...' : hasVoted ? (editingChoices ? 'Salvar alterações' : 'Atualizar voto') : 'Confirmar voto'}
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -1606,7 +2008,7 @@
       );
     };
 
-    const ResultsScreen = ({ eventId, isManager, onBack, addToast }) => {
+    const ResultsScreen = ({ eventId, isManager, onBack, addToast, topBar }) => {
       const [eventData, setEventData] = useState(null);
       const [verdict, setVerdict] = useState(null);
 
@@ -1644,9 +2046,9 @@
 
       if (!quorumReached && !eventData.config.resultsUnlocked) {
         return (
-          <div className="min-h-screen bg-slate-50">
-            <header className="bg-white border-b"><div className="max-w-3xl mx-auto px-4 h-16 flex items-center"><Button variant="ghost" size="sm" onClick={onBack}><Icon name="ArrowLeft" className="w-4 h-4 mr-2" />Voltar</Button></div></header>
-            <main className="max-w-2xl mx-auto px-4 py-12 text-center">
+          <div className="min-h-screen bg-slate-50 flex flex-col">
+            <ConsensoAppBar {...topBar} />
+            <main className="max-w-2xl mx-auto px-4 py-12 text-center flex-1 w-full">
               <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="Lock" className="w-10 h-10 text-amber-600" /></div>
               <h1 className="text-2xl font-bold mb-2">Consenso em Andamento</h1>
               <p className="text-slate-600 mb-2">Os resultados serão revelados quando todos votarem.</p>
@@ -1664,22 +2066,29 @@
                   Sua privacidade é mantida: ninguém pode ver os resultados parciais.
                 </p>
               </div>
+              <Button variant="outline" size="sm" onClick={onBack} className="mt-8">
+                <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />{isManager ? 'Voltar ao painel' : 'Voltar à votação'}
+              </Button>
             </main>
           </div>
         );
       }
 
       return (
-        <div className="min-h-screen bg-slate-50">
-          <header className="bg-white border-b">
-            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={onBack}><Icon name="ArrowLeft" className="w-4 h-4 mr-2" />Voltar</Button>
-              <h1 className="text-lg font-semibold">Consenso Alcançado</h1>
-              <div className="w-20"></div>
-            </div>
-          </header>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar
+            {...topBar}
+            secondaryRow={
+              <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
+                <h1 className="text-base font-semibold text-slate-800">Consenso alcançado</h1>
+                <Button variant="ghost" size="sm" onClick={onBack}>
+                  <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />{isManager ? 'Painel' : 'Votação'}
+                </Button>
+              </div>
+            }
+          />
 
-          <main className="max-w-3xl mx-auto px-4 py-8">
+          <main className="max-w-3xl mx-auto px-4 py-8 flex-1 w-full">
             <div className="text-center mb-8">
               <Logo className="w-16 h-16 mx-auto mb-4" />
               <h1 className="text-2xl font-bold mb-2">{eventData.config.title}</h1>
@@ -1759,11 +2168,42 @@
       );
     };
 
-    const ManagerDashboard = ({ eventId, onViewResults, onBack, onEditVote, addToast }) => {
+    const ManagerDashboard = ({ eventId, onViewResults, onBack, onEditVote, addToast, topBar }) => {
       const [eventData, setEventData] = useState(null);
       const [copied, setCopied] = useState(false);
 
       useEffect(() => { loadEventData(); }, [eventId]);
+
+      useEffect(() => {
+        const refresh = () => {
+          tryHydrateEventFromInviteHash();
+          const ev = getEvent(eventId);
+          if (ev) setEventData(ev);
+        };
+        const onStorage = (e) => {
+          if (e.key === STORAGE_KEY || e.key === null) refresh();
+        };
+        const onVis = () => {
+          if (document.visibilityState === 'visible') refresh();
+        };
+        window.addEventListener('storage', onStorage);
+        document.addEventListener('visibilitychange', onVis);
+        return () => {
+          window.removeEventListener('storage', onStorage);
+          document.removeEventListener('visibilitychange', onVis);
+        };
+      }, [eventId]);
+
+      useEffect(() => {
+        const ev = getEvent(eventId);
+        const owner = ev?.config?.firebaseOwnerUid;
+        if (!owner || !consensoFirestoreReady()) return undefined;
+        const unsub = consensoSubscribeRemoteEvent(owner, eventId, () => {
+          const next = getEvent(eventId);
+          if (next) setEventData(next);
+        });
+        return unsub;
+      }, [eventId]);
 
       const loadEventData = () => {
         const event = getEvent(eventId);
@@ -1799,19 +2239,20 @@
       const canUnlockEarly = earlyThresholdReached && !eventData.config.resultsUnlocked && !quorumReached;
 
       return (
-        <div className="min-h-screen bg-slate-50">
-          <header className="bg-white border-b">
-            <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={onBack}><Icon name="ArrowLeft" className="w-4 h-4 mr-2" />Sair</Button>
-              <div className="flex items-center gap-3">
-                <Logo className="w-6 h-6" />
-                <h1 className="text-lg font-semibold">Painel do Organizador</h1>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar
+            {...topBar}
+            secondaryRow={
+              <div className="max-w-4xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Logo className="w-6 h-6 shrink-0" />
+                  <span className="font-semibold text-slate-800 truncate">Painel do organizador</span>
+                </div>
               </div>
-              <div className="w-20"></div>
-            </div>
-          </header>
+            }
+          />
 
-          <main className="max-w-4xl mx-auto px-4 py-8">
+          <main className="max-w-4xl mx-auto px-4 py-8 flex-1 w-full">
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold mb-2">{eventData.config.title}</h1>
               <p className="text-slate-600">{formatDisplayDateFull(eventData.config.startDate)} - {formatDisplayDateFull(eventData.config.endDate)}</p>
@@ -1936,6 +2377,7 @@
       const [toasts, setToasts] = useState([]);
       const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
       const [pendingAfterLogin, setPendingAfterLogin] = useState(null);
+      const [routeNonce, setRouteNonce] = useState(0);
 
       const addToast = (message, type = 'info') => {
         const id = Date.now();
@@ -1955,6 +2397,14 @@
         if (raw.startsWith('event/')) {
           const id = raw.slice(6).split('?')[0].split('/')[0];
           setEventId(id);
+          /* Após importar ?d=, organizador autenticado deve ir ao painel — senão parece que o link “não funciona” e os votos “somem”. */
+          if (canManageEventId(id)) {
+            setIsManager(true);
+            setCurrentView('manage');
+            const pathOnly = raw.split('?')[0];
+            if (pathOnly === `event/${id}`) window.location.hash = `manage/${id}`;
+            return;
+          }
           setIsManager(false);
           setCurrentView('vote');
           return;
@@ -1982,8 +2432,18 @@
         applyRouteFromHash();
         const onHash = () => applyRouteFromHash();
         window.addEventListener('hashchange', onHash);
-        return () => window.removeEventListener('hashchange', onHash);
+        const onRemote = () => setRouteNonce((n) => n + 1);
+        window.addEventListener('consenso-remote-hydrated', onRemote);
+        return () => {
+          window.removeEventListener('hashchange', onHash);
+          window.removeEventListener('consenso-remote-hydrated', onRemote);
+        };
       }, []);
+
+      useEffect(() => {
+        if (routeNonce === 0) return;
+        applyRouteFromHash();
+      }, [routeNonce]);
 
       const handleAdminLoginSuccess = () => {
         setAdminSessionState(getAdminSession());
@@ -2068,6 +2528,25 @@
         window.location.hash = `manage/${id}`;
       };
 
+      const openOrganizerLogin = () => {
+        setPendingAfterLogin({ view: 'events' });
+        setCurrentView('admin-login');
+      };
+
+      const handleOrganizerLogout = () => {
+        clearAdminSession();
+        setAdminSessionState(null);
+        addToast('Sessão encerrada', 'info');
+      };
+
+      const topBarNavigation = {
+        adminSession,
+        onGoHome: goHome,
+        onMyEvents: openMyEvents,
+        onOrganizerLogin: openOrganizerLogin,
+        onLogout: handleOrganizerLogout,
+      };
+
       const renderCurrentView = () => {
         switch (currentView) {
           case 'admin-login':
@@ -2076,8 +2555,8 @@
             return (
               <AdminEventsScreen
                 onOpenEvent={openEventFromDashboard}
-                onBack={goHome}
                 onCreate={openCreateFlow}
+                topBar={topBarNavigation}
               />
             );
           case 'home':
@@ -2086,28 +2565,30 @@
                 adminSession={adminSession}
                 onCreate={openCreateFlow}
                 onMyEvents={openMyEvents}
-                onOrganizerLogin={() => { setPendingAfterLogin({ view: 'events' }); setCurrentView('admin-login'); }}
-                onLogout={() => { clearAdminSession(); setAdminSessionState(null); addToast('Sessão encerrada', 'info'); }}
+                onOrganizerLogin={openOrganizerLogin}
+                onLogout={handleOrganizerLogout}
+                onGoHome={goHome}
               />
             );
           case 'create':
-            return <EventCreation onCreate={handleCreateEvent} onCancel={goHome} addToast={addToast} />;
+            return <EventCreation onCreate={handleCreateEvent} onCancel={goHome} addToast={addToast} topBar={topBarNavigation} />;
           case 'share':
-            return currentEvent && <ShareScreen event={currentEvent} onComplete={handleShareComplete} onBack={() => { window.location.hash = ''; setCurrentView('create'); }} addToast={addToast} />;
+            return currentEvent && <ShareScreen event={currentEvent} onComplete={handleShareComplete} onBack={() => { window.location.hash = ''; setCurrentView('create'); }} addToast={addToast} topBar={topBarNavigation} />;
           case 'vote':
-            return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} />;
+            return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} />;
           case 'results':
-            return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} />;
+            return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} topBar={topBarNavigation} />;
           case 'manage':
-            return <ManagerDashboard eventId={eventId} onViewResults={handleViewResults} onBack={goHome} onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId); }} addToast={addToast} />;
+            return <ManagerDashboard eventId={eventId} onViewResults={handleViewResults} onBack={goHome} onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId); }} addToast={addToast} topBar={topBarNavigation} />;
           default:
             return (
               <HomeScreen
                 adminSession={adminSession}
                 onCreate={openCreateFlow}
                 onMyEvents={openMyEvents}
-                onOrganizerLogin={() => { setPendingAfterLogin({ view: 'events' }); setCurrentView('admin-login'); }}
-                onLogout={() => { clearAdminSession(); setAdminSessionState(null); addToast('Sessão encerrada', 'info'); }}
+                onOrganizerLogin={openOrganizerLogin}
+                onLogout={handleOrganizerLogout}
+                onGoHome={goHome}
               />
             );
         }
@@ -2135,6 +2616,10 @@
   (file:// não funciona com login Google.)
 
   ID do cliente: window.CONSENSO_GOOGLE_CLIENT_ID no <script> acima do #root.
+
+  ========== Firebase / Firestore (mesmo projeto pepperhatapps que o Kanban) ==========
+  Publique as regras em syncpriv-app/firestore.rules no Console ou via firebase deploy.
+  Authentication: ative Google + Anônimo. O token GIS deve ser aceito pelo Firebase Auth (mesmo projeto OAuth).
   ================================================================
   -->
 </body>
