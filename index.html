@@ -1334,6 +1334,12 @@
                         <h1 className="text-2xl font-bold text-gray-800">{pageTitle}</h1>
                     </div>
                     <div className="flex gap-2 items-center">
+                        <a href="./consenso/syncpriv-app/" target="_blank" className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all font-semibold">
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+                            </svg>
+                            <span className="hidden sm:inline">Consenso</span>
+                        </a>
                         {undoStack && <button onClick={handleUndo} className="bg-yellow-500 text-white px-3 py-1 rounded shadow animate-pulse font-bold">↩ Desfazer</button>}
                         <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${isSaving ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>{isSaving ? 'Salvando...' : 'Salvo'}</span>
                         <div className="relative">
