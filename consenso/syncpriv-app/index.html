@@ -957,11 +957,17 @@
     const buildGuestInviteShareMessage = (eventTitle, eventLink) =>
       `Oi! 📅\n\nEstou organizando "${eventTitle}" no Consenso.\n\nSeus horários serão 100% privados — ninguém verá o que você marcou.\n\nVote aqui:\n${eventLink}`;
 
-    /** Atualiza só a parte da hash após # com o link completo do convite (inclui ?d=). */
-    const setVoteHashFromInviteLink = (eventId) => {
+    /** Atualiza só a parte da hash após # com o link completo do convite (inclui ?d=). Adiciona ?voter se o organizador está votando. */
+    const setVoteHashFromInviteLink = (eventId, isOrganizerVoting = false) => {
       const full = buildInviteLink(eventId);
       const i = full.indexOf('#');
-      window.location.hash = i >= 0 ? full.slice(i + 1) : `event/${eventId}`;
+      let hash = i >= 0 ? full.slice(i + 1) : `event/${eventId}`;
+      if (isOrganizerVoting && !hash.includes('?')) {
+        hash += '?voter';
+      } else if (isOrganizerVoting && !hash.includes('voter')) {
+        hash += '&voter';
+      }
+      window.location.hash = hash;
     };
 
     const calculateConsensus = (eventData) => {
@@ -2470,6 +2476,8 @@
         const raw = window.location.hash.replace(/^#/, '');
         if (raw.startsWith('event/')) {
           const id = raw.slice(6).split('?')[0].split('/')[0];
+          const queryString = raw.includes('?') ? raw.slice(raw.indexOf('?')) : '';
+          const isVoterMode = queryString.includes('voter');
           setEventId(id);
           /* Após importar ?d=, organizador autenticado deve ir ao painel — senão parece que o link “não funciona” e os votos “somem”. */
           if (canManageEventId(id)) {
@@ -2659,7 +2667,7 @@
                 eventId={eventId}
                 onViewResults={handleViewResults}
                 onBack={goHome}
-                onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId); }}
+                onEditVote={() => { setCurrentView('vote'); if (eventId) setVoteHashFromInviteLink(eventId, true); }}
                 addToast={addToast}
                 topBar={topBarNavigation}
                 onEventDeleted={goHome}
