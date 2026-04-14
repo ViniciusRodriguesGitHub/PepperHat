@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -2479,8 +2479,8 @@
           const queryString = raw.includes('?') ? raw.slice(raw.indexOf('?')) : '';
           const isVoterMode = queryString.includes('voter');
           setEventId(id);
-          /* Após importar ?d=, organizador autenticado deve ir ao painel — senão parece que o link “não funciona” e os votos “somem”. */
-          if (canManageEventId(id)) {
+          /* Se tem ?voter, o organizador quer votar. Caso contrário, redirecionar para painel. */
+          if (canManageEventId(id) && !isVoterMode) {
             setIsManager(true);
             setCurrentView('manage');
             const pathOnly = raw.split('?')[0];
