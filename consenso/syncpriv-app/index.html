@@ -2144,6 +2144,10 @@
             const existingVote = getUserVote(eventId, voter.id);
             if (existingVote) setSelectedSlots(new Set(existingVote.timeSlots));
           }
+          // Mostrar prompt de registro para convidados não registrados antes de votar
+          if (!registeredUser && !topBar?.adminSession && !voted) {
+            setShowRegistrationPrompt(true);
+          }
           return true;
         };
 
@@ -2241,12 +2245,6 @@
       const handleSubmit = async (skipPrompt = false) => {
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
-
-        // Se é um usuário anônimo votando, sugerir registro (mas não para organizadores/registrados)
-        if (!skipPrompt && !registeredUser && !topBar?.adminSession) {
-          setShowRegistrationPrompt(true);
-          return;
-        }
 
         setIsSubmitting(true);
         try {
