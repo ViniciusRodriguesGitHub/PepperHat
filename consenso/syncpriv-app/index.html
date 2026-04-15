@@ -2156,23 +2156,43 @@
           setTimezone(getTimezoneDisplay());
           tryHydrateEventFromInviteHash();
           let ev = getEvent(eventId);
-          if (!ev && consensoFirestoreReady()) {
-            try {
-              await ensureConsensoGuestFirebase();
-            } catch (e) {
-              console.error('[Consenso] auth convidado', e);
+          if (!ev) {
+            // Tentar buscar do Firestore se possível
+            if (consensoFirestoreReady()) {
+              try {
+                await ensureConsensoGuestFirebase();
+              } catch (e) {
+                console.error('[Consenso] auth convidado', e);
+              }
+              if (cancelled) return;
+              const owner = await consensoFetchLookupOwnerUid(eventId);
+              if (cancelled) return;
+              if (owner) {
+                unsub = consensoSubscribeRemoteEvent(owner, eventId, () => {
+                  if (cancelled) return;
+                  applyLocalState();
+                });
+                for (let i = 0; i < 50 && !getEvent(eventId); i++) await new Promise((r) => setTimeout(r, 80));
+              }
+              ev = getEvent(eventId);
+            } else {
+              // Se não tem auth, tentar auth anônimo para eventos synced
+              const owner = await consensoFetchLookupOwnerUid(eventId);
+              if (owner) {
+                try {
+                  await ensureConsensoGuestFirebase();
+                  if (cancelled) return;
+                  unsub = consensoSubscribeRemoteEvent(owner, eventId, () => {
+                    if (cancelled) return;
+                    applyLocalState();
+                  });
+                  for (let i = 0; i < 50 && !getEvent(eventId); i++) await new Promise((r) => setTimeout(r, 80));
+                  ev = getEvent(eventId);
+                } catch (e) {
+                  console.error('[Consenso] auth convidado fallback', e);
+                }
+              }
             }
-            if (cancelled) return;
-            const owner = await consensoFetchLookupOwnerUid(eventId);
-            if (cancelled) return;
-            if (owner) {
-              unsub = consensoSubscribeRemoteEvent(owner, eventId, () => {
-                if (cancelled) return;
-                applyLocalState();
-              });
-              for (let i = 0; i < 50 && !getEvent(eventId); i++) await new Promise((r) => setTimeout(r, 80));
-            }
-            ev = getEvent(eventId);
           }
           if (cancelled) return;
           if (!ev) {
@@ -3046,10 +3066,18 @@
       };
 
       const openEventFromDashboard = (id) => {
-        setEventId(id);
-        setIsManager(true);
-        setCurrentView('manage');
-        window.location.hash = `manage/${id}`;
+        if (canManageEventId(id)) {
+          setEventId(id);
+          setIsManager(true);
+          setCurrentView('manage');
+          window.location.hash = `manage/${id}`;
+        } else {
+          // Participante: ir para editar voto
+          setEventId(id);
+          setIsManager(false);
+          setCurrentView('vote');
+          setVoteHashFromInviteLink(id);
+        }
       };
 
       const openOrganizerLogin = () => {
