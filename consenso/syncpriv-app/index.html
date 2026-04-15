@@ -401,6 +401,15 @@
       return <span ref={iconRef} className="inline-flex items-center justify-center" />;
     };
 
+    const GoogleLogo = ({ className = "w-5 h-5" }) => (
+      <svg viewBox="0 0 46 46" className={className} xmlns="http://www.w3.org/2000/svg">
+        <path fill="#EA4335" d="M23 9.5c3.3 0 6.2 1.3 8.4 3.4l6.3-6.3C33.9 2.1 28.8 0 23 0 14.7 0 7.5 4.6 3.5 11.4l7.3 5.6C12.7 13 17.4 9.5 23 9.5z" />
+        <path fill="#34A853" d="M44.5 24.5c0-1.6-.1-3.1-.4-4.5H23v8.5h11.7c-.5 2.7-2 5-4.3 6.5l6.8 5.3C41.5 36.3 44.5 30.8 44.5 24.5z" />
+        <path fill="#4A90E2" d="M10.8 29.9c-.6-1.8-.9-3.7-.9-5.9s.3-4.1.9-5.9L3.5 12.4A21.9 21.9 0 0 0 0 24c0 3.6.9 7 2.5 9.9l8.3-4z" />
+        <path fill="#FBBC05" d="M23 44.3c5.6 0 10.4-1.9 13.9-5.1l-6.8-5.3c-1.9 1.3-4.3 2-7.1 2-5.6 0-10.3-3.6-12-8.4l-8.3 4C7.4 39.7 14.7 44.3 23 44.3z" />
+      </svg>
+    );
+
     const Toast = ({ message, type, onClose }) => {
       useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
       const bgColors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
@@ -1681,6 +1690,10 @@
         <div className="space-y-4">
           {mode === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
+              <Button type="button" variant="outline" onClick={() => setMode('google')} className="w-full flex items-center justify-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-100">
+                <GoogleLogo className="w-5 h-5" />
+                Continuar com Google
+              </Button>
               <div>
                 <Label htmlFor="guest-name">Seu Nome</Label>
                 <Input
@@ -1714,9 +1727,6 @@
                 <Button type="button" variant="ghost" onClick={() => setMode('login')} className="w-full text-sm">
                   Já tenho uma conta
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setMode('google')} className="w-full text-sm">
-                  Continuar com Google
-                </Button>
               </div>
             </form>
           )}
@@ -1745,7 +1755,8 @@
                 <Button type="button" variant="ghost" onClick={() => { setEmail(''); setMode('register'); }} className="w-full text-sm">
                   Criar nova conta
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setMode('google')} className="w-full text-sm">
+                <Button type="button" variant="ghost" onClick={() => setMode('google')} className="w-full text-sm flex items-center justify-center gap-2">
+                  <GoogleLogo className="w-4 h-4" />
                   Continuar com Google
                 </Button>
               </div>
@@ -2227,12 +2238,12 @@
         return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
       }, []);
 
-      const handleSubmit = async () => {
+      const handleSubmit = async (skipPrompt = false) => {
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
 
         // Se é um usuário anônimo votando pela primeira vez, sugerir registro (mas não para organizadores/registrados)
-        if (!registeredUser && !topBar?.adminSession && !hasVoted) {
+        if (!skipPrompt && !registeredUser && !topBar?.adminSession && !hasVoted) {
           setShowRegistrationPrompt(true);
           return;
         }
@@ -2244,14 +2255,12 @@
           
           // Se o usuário se registrou após votar anonimamente, migrar o voto
           if (registeredUser && !hasVoted) {
-            // Primeiro voto como usuário registrado
             const previousAnonymousVote = getUserVote(eventId, oldUser.id);
             if (previousAnonymousVote) {
-              // Remover voto anônimo e adicionar como registrado
               mergeAnonymousVoteToRegistered(oldUser.id, registeredUser.id, eventId);
             }
           }
-          
+
           onSetUserName(localUserName);
           submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
           trackParticipatedEvent(eventId);
@@ -2273,8 +2282,11 @@
             }
           }
           onComplete();
-        } catch (error) { addToast('Erro ao registrar voto', 'error'); }
-        finally { setIsSubmitting(false); }
+        } catch (error) {
+          addToast('Erro ao registrar voto', 'error');
+        } finally {
+          setIsSubmitting(false);
+        }
       };
 
       // Dialog de registro de convidado
@@ -2303,7 +2315,7 @@
                   }}
                   onSkip={() => {
                     setShowRegistrationPrompt(false);
-                    handleSubmit();
+                    handleSubmit(true);
                   }}
                   addToast={addToast}
                 />
