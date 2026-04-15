@@ -584,7 +584,9 @@
       const stored = localStorage.getItem(REGISTERED_USER_KEY);
       if (stored) {
         const user = JSON.parse(stored);
-        if (user.email === trimmedEmail) return user;
+        if (user.email === trimmedEmail) {
+          return user;
+        }
       }
       return null;
     };
@@ -1555,9 +1557,75 @@
     };
 
     const GuestRegistrationForm = ({ onSuccess, onSkip, addToast }) => {
+      const [mode, setMode] = useState('register'); // 'register', 'login', 'google'
       const [email, setEmail] = useState('');
       const [name, setName] = useState('');
       const [isSubmitting, setIsSubmitting] = useState(false);
+      const googleBtnRef = useRef(null);
+      const gisLoadedRef = useRef(false);
+
+      useEffect(() => {
+        if (mode !== 'google' || gisLoadedRef.current) return;
+        gisLoadedRef.current = true;
+
+        const cid = getGoogleClientId();
+        if (!cid) return;
+
+        const mountButton = (retry) => {
+          const el = googleBtnRef.current;
+          if (!window.google?.accounts?.id || !el) {
+            if (retry !== false) setTimeout(() => mountButton(false), 0);
+            return;
+          }
+          try {
+            window.google.accounts.id.initialize({
+              client_id: cid,
+              ux_mode: 'popup',
+              auto_select: false,
+              callback: async (response) => {
+                if (!response?.credential) {
+                  addToast('Não foi possível obter o token do Google.', 'error');
+                  return;
+                }
+                const payload = parseJwtPayload(response.credential);
+                if (!payload?.email || !payload?.sub) {
+                  addToast('Resposta do Google inválida.', 'error');
+                  return;
+                }
+                setIsSubmitting(true);
+                try {
+                  const user = registerUser(payload.email, payload.name || 'Usuário Google');
+                  onSuccess(user);
+                } catch (error) {
+                  addToast('Erro ao registrar com Google', 'error');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }
+            });
+            el.innerHTML = '';
+            const w = Math.min(320, typeof window !== 'undefined' ? Math.max(260, window.innerWidth - 48) : 320);
+            window.google.accounts.id.renderButton(el, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: 'continue_with',
+              width: w,
+              locale: 'pt-BR'
+            });
+          } catch (err) {
+            console.error('[Consenso] Google Sign-In:', err);
+            addToast('Erro ao iniciar o login com Google.', 'error');
+          }
+        };
+
+        loadGoogleIdentityScript()
+          .then(() => mountButton(true))
+          .catch((err) => {
+            console.error('[Consenso] GIS:', err);
+            addToast('Falha ao carregar o Google.', 'error');
+          });
+      }, [mode]);
 
       const handleRegister = (e) => {
         e.preventDefault();
@@ -1584,43 +1652,128 @@
         }
       };
 
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const trimmedEmail = email.trim().toLowerCase();
+
+        if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+          addToast('Por favor, informe um e-mail válido', 'error');
+          return;
+        }
+
+        setIsSubmitting(true);
+        try {
+          const user = loginUser(trimmedEmail);
+          if (user) {
+            onSuccess(user);
+          } else {
+            addToast('Conta não encontrada. Crie uma nova conta.', 'error');
+            setMode('register');
+          }
+        } catch (error) {
+          addToast('Erro ao fazer login', 'error');
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+
       return (
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <Label htmlFor="guest-name">Seu Nome</Label>
-            <Input
-              id="guest-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="José Silva"
-              autoComplete="name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="guest-email">E-mail</Label>
-            <Input
-              id="guest-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="jose@empresa.com"
-              autoComplete="email"
-            />
-          </div>
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-800">
-            <Icon name="Info" className="w-4 h-4 inline mr-1" />
-            Seus dados são armazenados localmente. Você poderá acompanhar todas as reuniões em que participou.
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button type="submit" disabled={isSubmitting || !email.trim() || !name.trim()} className="w-full">
-              {isSubmitting ? 'Registrando...' : 'Criar Conta'}
-            </Button>
-            <Button type="button" variant="ghost" onClick={onSkip} className="w-full">
-              Pular por enquanto
-            </Button>
-          </div>
-        </form>
+        <div className="space-y-4">
+          {mode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <Label htmlFor="guest-name">Seu Nome</Label>
+                <Input
+                  id="guest-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="José Silva"
+                  autoComplete="name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="guest-email">E-mail</Label>
+                <Input
+                  id="guest-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jose@empresa.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-800">
+                <Icon name="Info" className="w-4 h-4 inline mr-1" />
+                Seus dados são armazenados localmente. Você poderá acompanhar todas as reuniões em que participou.
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button type="submit" disabled={isSubmitting || !email.trim() || !name.trim()} className="w-full">
+                  {isSubmitting ? 'Registrando...' : 'Criar Conta'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setMode('login')} className="w-full text-sm">
+                  Já tenho uma conta
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setMode('google')} className="w-full text-sm">
+                  Continuar com Google
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {mode === 'login' && (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <Label htmlFor="login-email">E-mail da sua conta</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jose@empresa.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800">
+                <Icon name="Info" className="w-4 h-4 inline mr-1" />
+                Faça login com o e-mail que você registrou anteriormente.
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button type="submit" disabled={isSubmitting || !email.trim()} className="w-full">
+                  {isSubmitting ? 'Entrando...' : 'Entrar'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => { setEmail(''); setMode('register'); }} className="w-full text-sm">
+                  Criar nova conta
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setMode('google')} className="w-full text-sm">
+                  Continuar com Google
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {mode === 'google' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-800">
+                <Icon name="Info" className="w-4 h-4 inline mr-1" />
+                Faça login ou crie uma conta usando sua conta Google.
+              </div>
+              <div ref={googleBtnRef} className="flex justify-center min-h-[44px] w-full" />
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="ghost" onClick={() => setMode('register')} className="w-full text-sm">
+                  Criar conta com e-mail
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setMode('login')} className="w-full text-sm">
+                  Entrar com e-mail
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <Button type="button" variant="ghost" onClick={onSkip} className="w-full border-t pt-4 mt-4">
+            Pular por enquanto
+          </Button>
+        </div>
       );
     };
 
@@ -2078,8 +2231,8 @@
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
 
-        // Se é um usuário anônimo votando pela primeira vez, sugerir registro
-        if (!registeredUser && !hasVoted) {
+        // Se é um usuário anônimo votando pela primeira vez, sugerir registro (mas não para organizadores/registrados)
+        if (!registeredUser && !topBar?.adminSession && !hasVoted) {
           setShowRegistrationPrompt(true);
           return;
         }
