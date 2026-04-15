@@ -2242,8 +2242,8 @@
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
 
-        // Se é um usuário anônimo votando pela primeira vez, sugerir registro (mas não para organizadores/registrados)
-        if (!skipPrompt && !registeredUser && !topBar?.adminSession && !hasVoted) {
+        // Se é um usuário anônimo votando, sugerir registro (mas não para organizadores/registrados)
+        if (!skipPrompt && !registeredUser && !topBar?.adminSession) {
           setShowRegistrationPrompt(true);
           return;
         }
@@ -2253,8 +2253,8 @@
           const oldUser = getConsensoVoterUser(eventId);
           const user = registeredUser || oldUser;
           
-          // Se o usuário se registrou após votar anonimamente, migrar o voto
-          if (registeredUser && !hasVoted) {
+          // Se o usuário se registrou, migrar o voto se foi anônimo
+          if (registeredUser && oldUser.id !== registeredUser.id) {
             const previousAnonymousVote = getUserVote(eventId, oldUser.id);
             if (previousAnonymousVote) {
               mergeAnonymousVoteToRegistered(oldUser.id, registeredUser.id, eventId);
@@ -2302,7 +2302,7 @@
                   </div>
                   <h1 className="text-2xl font-bold text-slate-900 mb-2">Crie sua conta</h1>
                   <p className="text-slate-600 text-sm">
-                    Cadastre-se para poder acompanhar o andamento e resultado desta reunião, e não precisar votar novamente em outras convocações.
+                    Cadastre-se para poder acompanhar o andamento e resultado desta reunião, e gerenciar seus votos em outras convocações.
                   </p>
                 </div>
 
@@ -2914,19 +2914,21 @@
         const raw = window.location.hash.replace(/^#/, '');
         if (raw.startsWith('event/')) {
           const id = raw.slice(6).split('?')[0].split('/')[0];
-          const queryString = raw.includes('?') ? raw.slice(raw.indexOf('?')) : '';
-          const isVoterMode = queryString.includes('voter');
           setEventId(id);
-          /* Se tem ?voter, o organizador quer votar. Caso contrário, redirecionar para painel. */
-          if (canManageEventId(id) && !isVoterMode) {
-            setIsManager(true);
-            setCurrentView('manage');
-            const pathOnly = raw.split('?')[0];
-            if (pathOnly === `event/${id}`) window.location.hash = `manage/${id}`;
-            return;
+          if (canManageEventId(id)) {
+            const voter = getConsensoVoterUser(id);
+            const voted = hasUserVoted(id, voter.id);
+            if (!voted) {
+              setIsManager(false);
+              setCurrentView('vote');
+            } else {
+              setIsManager(true);
+              setCurrentView('manage');
+              window.location.hash = `manage/${id}`;
+            }
+          } else {
+            setCurrentView('vote');
           }
-          setIsManager(false);
-          setCurrentView('vote');
           return;
         }
         if (raw.startsWith('manage/')) {
