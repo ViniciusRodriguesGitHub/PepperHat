@@ -447,6 +447,8 @@
     const STORAGE_KEY = 'consenso_events';
     const USER_KEY = 'consenso_user';
     const ADMIN_SESSION_KEY = 'consenso_admin_session';
+    const REGISTERED_USER_KEY = 'consenso_registered_user';
+    const PARTICIPATED_EVENTS_KEY = 'consenso_participated_events';
 
     const getGoogleClientId = () => {
       try {
@@ -556,6 +558,81 @@
       const user = getCurrentUser();
       user.name = name;
       localStorage.setItem(USER_KEY, JSON.stringify(user));
+    };
+
+    // ===== Novo: Sistema de Usuário Registrado =====
+    const getRegisteredUser = () => {
+      const stored = localStorage.getItem(REGISTERED_USER_KEY);
+      return stored ? JSON.parse(stored) : null;
+    };
+
+    const registerUser = (email, name) => {
+      const trimmedEmail = email.trim().toLowerCase();
+      const user = {
+        id: generateId(),
+        email: trimmedEmail,
+        name: name.trim(),
+        registeredAt: new Date().toISOString(),
+        isAnonymous: false
+      };
+      localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(user));
+      return user;
+    };
+
+    const loginUser = (email) => {
+      const trimmedEmail = email.trim().toLowerCase();
+      const stored = localStorage.getItem(REGISTERED_USER_KEY);
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user.email === trimmedEmail) return user;
+      }
+      return null;
+    };
+
+    const logoutUser = () => {
+      localStorage.removeItem(REGISTERED_USER_KEY);
+    };
+
+    const trackParticipatedEvent = (eventId) => {
+      if (!eventId) return;
+      const participatedEvents = JSON.parse(localStorage.getItem(PARTICIPATED_EVENTS_KEY) || '[]');
+      if (!participatedEvents.includes(eventId)) {
+        participatedEvents.push(eventId);
+        localStorage.setItem(PARTICIPATED_EVENTS_KEY, JSON.stringify(participatedEvents));
+      }
+    };
+
+    const getParticipatedEvents = () => {
+      const participatedEvents = JSON.parse(localStorage.getItem(PARTICIPATED_EVENTS_KEY) || '[]');
+      return participatedEvents
+        .map(eventId => {
+          const event = getEvent(eventId);
+          return event ? { id: eventId, ...event } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.config.createdAt) - new Date(a.config.createdAt));
+    };
+
+    const mergeAnonymousVoteToRegistered = (oldUserId, newUserId, eventId) => {
+      const event = getEvent(eventId);
+      if (!event) return;
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const eventData = events[eventId];
+      if (!eventData) return;
+      
+      // Remove voto antigo (anônimo)
+      eventData.votes = eventData.votes.filter(v => v.userId !== oldUserId);
+      
+      // Atualiza o voto para o novo usuário registrado
+      const anonymousVote = event.votes.find(v => v.userId === oldUserId);
+      if (anonymousVote) {
+        eventData.votes.push({
+          ...anonymousVote,
+          userId: newUserId
+        });
+      }
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     };
 
     /** Mesmo appId que o Kanban em index.html (Funil de vendas). */
@@ -1114,7 +1191,7 @@
     );
 
     /**
-     * Barra global: início, minhas reuniões (organizador), entrar/sair.
+     * Barra global: início, minhas reuniões (organizador ou participante registrado), entrar/sair.
      * secondaryRow: conteúdo opcional abaixo (ex.: título da reunião + progresso na votação).
      */
     const ConsensoAppBar = ({
@@ -1123,6 +1200,7 @@
       onMyEvents,
       onOrganizerLogin,
       onLogout,
+      registeredUser,
       secondaryRow = null,
     }) => (
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
@@ -1143,7 +1221,7 @@
             </Button>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {adminSession && (
+            {(adminSession || registeredUser) && (
               <Button variant="ghost" size="sm" onClick={onMyEvents} className="!px-2 text-slate-700" title="Minhas reuniões">
                 <Icon name="Calendar" className="w-4 h-4 sm:mr-1" />
                 <span className="hidden sm:inline">Reuniões</span>
@@ -1153,6 +1231,15 @@
               <>
                 <span className="hidden lg:inline text-xs text-slate-500 max-w-[120px] xl:max-w-[200px] truncate" title={adminSession.email}>
                   {adminSession.email}
+                </span>
+                <Button variant="outline" size="sm" onClick={onLogout} className="!px-2 text-xs">
+                  Sair
+                </Button>
+              </>
+            ) : registeredUser ? (
+              <>
+                <span className="hidden lg:inline text-xs text-slate-500 max-w-[120px] xl:max-w-[200px] truncate" title={registeredUser.email}>
+                  {registeredUser.email}
                 </span>
                 <Button variant="outline" size="sm" onClick={onLogout} className="!px-2 text-xs">
                   Sair
@@ -1335,8 +1422,10 @@
       );
     };
 
-    const AdminEventsScreen = ({ onOpenEvent, onCreate, topBar, addToast }) => {
+    const AdminEventsScreen = ({ onOpenEvent, onCreate, topBar, addToast, onUserRegistered }) => {
       const [, bumpList] = useState(0);
+      const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
+      
       const handleDeleteRow = async (e, id, title) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1349,6 +1438,7 @@
           addToast(err?.message || 'Não foi possível excluir.', 'error');
         }
       };
+      
       useEffect(() => {
         let cancelled = false;
         const pull = async () => {
@@ -1365,52 +1455,176 @@
           document.removeEventListener('visibilitychange', onVis);
         };
       }, []);
-      const list = getEventsForAdmin();
+      
+      const createdList = getEventsForAdmin();
+      const participatedList = getParticipatedEvents();
+      
+      // Mapa de eventos participados por ID para fácil acesso
+      const participatedIds = new Set(participatedList.map(e => e.id));
+      
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
           <ConsensoAppBar {...topBar} />
           <header className="bg-white border-b border-slate-200">
-            <div className="max-w-3xl mx-auto px-4 h-12 flex items-center justify-between">
+            <div className="max-w-4xl mx-auto px-4 py-4 sm:py-0 sm:h-12 flex items-center justify-between">
               <span className="text-lg font-semibold text-slate-900">Minhas reuniões</span>
-              <Button size="sm" onClick={onCreate}>Nova reunião</Button>
+              {registeredUser ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600">{registeredUser.name}</span>
+                  <Button size="sm" onClick={() => { logoutUser(); setRegisteredUser(null); addToast('Desconectado.', 'info'); }}>Sair</Button>
+                </div>
+              ) : (
+                <Button size="sm" onClick={onCreate}>Nova reunião</Button>
+              )}
             </div>
           </header>
-          <main className="max-w-3xl mx-auto px-4 py-8 w-full">
-            {list.length === 0 ? (
+          <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-1">
+            {createdList.length === 0 && participatedList.length === 0 ? (
               <Card className="p-10 text-center">
                 <Icon name="Calendar" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-600 mb-4">Nenhuma reunião criada com esta conta ainda.</p>
+                <p className="text-slate-600 mb-4">
+                  {registeredUser 
+                    ? 'Você não criou ne­nhuma reunião ainda.' 
+                    : 'Nenhuma reunião criada com esta conta ainda.'}
+                </p>
                 <Button onClick={onCreate}>Criar primeira reunião</Button>
               </Card>
             ) : (
-              <ul className="space-y-3">
-                {list.map((row) => (
-                  <li key={row.id} className="flex gap-2 items-stretch">
-                    <button type="button" onClick={() => onOpenEvent(row.id)} className="flex-1 min-w-0 text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow transition-all">
-                      <div className="font-semibold text-slate-900">{row.config.title}</div>
-                      <div className="text-sm text-slate-500 mt-1">
-                        {formatDisplayDateFull(new Date(row.config.startDate))} — {row.votes.length}/{row.config.quorum} votos
-                      </div>
-                    </button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      title="Excluir reunião"
-                      className="shrink-0 px-3 border-red-200 text-red-600 hover:bg-red-50 self-stretch rounded-xl"
-                      onClick={(e) => handleDeleteRow(e, row.id, row.config.title)}
-                    >
-                      <Icon name="Trash2" className="w-5 h-5" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-8">
+                {createdList.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Icon name="Calendar" className="w-5 h-5 text-blue-600" />
+                      Reuniões que criei ({createdList.length})
+                    </h2>
+                    <ul className="space-y-3">
+                      {createdList.map((row) => (
+                        <li key={row.id} className="flex gap-2 items-stretch">
+                          <button type="button" onClick={() => onOpenEvent(row.id)} className="flex-1 min-w-0 text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow transition-all">
+                            <div className="font-semibold text-slate-900">{row.config.title}</div>
+                            <div className="text-sm text-slate-500 mt-1">
+                              {formatDisplayDateFull(new Date(row.config.startDate))} — {row.votes.length}/{row.config.quorum} votos
+                            </div>
+                          </button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            title="Excluir reunião"
+                            className="shrink-0 px-3 border-red-200 text-red-600 hover:bg-red-50 self-stretch rounded-xl"
+                            onClick={(e) => handleDeleteRow(e, row.id, row.config.title)}
+                          >
+                            <Icon name="Trash2" className="w-5 h-5" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {participatedList.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Icon name="Users" className="w-5 h-5 text-green-600" />
+                      Reuniões em que estou participando ({participatedList.length})
+                    </h2>
+                    <ul className="space-y-3">
+                      {participatedList.map((row) => {
+                        const createdIds = new Set(createdList.map(e => e.id));
+                        const isCreatedByMe = createdIds.has(row.id);
+                        if (isCreatedByMe) return null;
+                        const hasVoted = getVotedUserNames(row.id).some(name => name === registeredUser?.name);
+                        return (
+                          <li key={row.id} className="flex gap-2 items-stretch">
+                            <button type="button" onClick={() => onOpenEvent(row.id)} className="flex-1 min-w-0 text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-green-300 hover:shadow transition-all">
+                              <div className="font-semibold text-slate-900">{row.config.title}</div>
+                              <div className="text-sm text-slate-500 mt-1">
+                                {formatDisplayDateFull(new Date(row.config.startDate))} — {row.votes.length}/{row.config.quorum} votos {hasVoted && <span className="inline-block ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Votei</span>}
+                              </div>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
           </main>
         </div>
       );
     };
 
-    const HomeScreen = ({ onCreate, adminSession, onLogout, onMyEvents, onOrganizerLogin, onGoHome }) => {
+    const GuestRegistrationForm = ({ onSuccess, onSkip, addToast }) => {
+      const [email, setEmail] = useState('');
+      const [name, setName] = useState('');
+      const [isSubmitting, setIsSubmitting] = useState(false);
+
+      const handleRegister = (e) => {
+        e.preventDefault();
+        const trimmedEmail = email.trim().toLowerCase();
+        const trimmedName = name.trim();
+
+        if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+          addToast('Por favor, informe um e-mail válido', 'error');
+          return;
+        }
+        if (!trimmedName) {
+          addToast('Por favor, informe seu nome', 'error');
+          return;
+        }
+
+        setIsSubmitting(true);
+        try {
+          const user = registerUser(trimmedEmail, trimmedName);
+          onSuccess(user);
+        } catch (error) {
+          addToast('Erro ao registrar', 'error');
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+
+      return (
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <Label htmlFor="guest-name">Seu Nome</Label>
+            <Input
+              id="guest-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="José Silva"
+              autoComplete="name"
+            />
+          </div>
+          <div>
+            <Label htmlFor="guest-email">E-mail</Label>
+            <Input
+              id="guest-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="jose@empresa.com"
+              autoComplete="email"
+            />
+          </div>
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-800">
+            <Icon name="Info" className="w-4 h-4 inline mr-1" />
+            Seus dados são armazenados localmente. Você poderá acompanhar todas as reuniões em que participou.
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button type="submit" disabled={isSubmitting || !email.trim() || !name.trim()} className="w-full">
+              {isSubmitting ? 'Registrando...' : 'Criar Conta'}
+            </Button>
+            <Button type="button" variant="ghost" onClick={onSkip} className="w-full">
+              Pular por enquanto
+            </Button>
+          </div>
+        </form>
+      );
+    };
+
+    const HomeScreen = ({ onCreate, adminSession, registeredUser, onLogout, onMyEvents, onOrganizerLogin, onGoHome }) => {
       const [timezone, setTimezone] = useState('');
       useEffect(() => setTimezone(getTimezoneDisplay()), []);
       
@@ -1418,6 +1632,7 @@
         <div className="min-h-screen bg-slate-50 flex flex-col">
           <ConsensoAppBar
             adminSession={adminSession}
+            registeredUser={registeredUser}
             onGoHome={onGoHome}
             onMyEvents={onMyEvents}
             onOrganizerLogin={onOrganizerLogin}
@@ -1730,7 +1945,7 @@
       );
     };
 
-    const VotingInterface = ({ eventId, userName, onSetUserName, onComplete, onViewResults, addToast, topBar }) => {
+    const VotingInterface = ({ eventId, userName, onSetUserName, onComplete, onViewResults, addToast, topBar, onUserRegistered }) => {
       const [eventData, setEventData] = useState(null);
       const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
@@ -1739,6 +1954,8 @@
       const [hasVoted, setHasVoted] = useState(false);
       const [showNameInput, setShowNameInput] = useState(!userName);
       const [editingChoices, setEditingChoices] = useState(false);
+      const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false);
+      const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
       const editingChoicesRef = useRef(false);
       const [timezone, setTimezone] = useState('');
       const [isDragging, setIsDragging] = useState(false);
@@ -1861,11 +2078,30 @@
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
 
+        // Se é um usuário anônimo votando pela primeira vez, sugerir registro
+        if (!registeredUser && !hasVoted) {
+          setShowRegistrationPrompt(true);
+          return;
+        }
+
         setIsSubmitting(true);
         try {
-          const user = getConsensoVoterUser(eventId);
+          const oldUser = getConsensoVoterUser(eventId);
+          const user = registeredUser || oldUser;
+          
+          // Se o usuário se registrou após votar anonimamente, migrar o voto
+          if (registeredUser && !hasVoted) {
+            // Primeiro voto como usuário registrado
+            const previousAnonymousVote = getUserVote(eventId, oldUser.id);
+            if (previousAnonymousVote) {
+              // Remover voto anônimo e adicionar como registrado
+              mergeAnonymousVoteToRegistered(oldUser.id, registeredUser.id, eventId);
+            }
+          }
+          
           onSetUserName(localUserName);
           submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
+          trackParticipatedEvent(eventId);
           addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
           setHasVoted(true);
           setShowNameInput(false);
@@ -1887,6 +2123,42 @@
         } catch (error) { addToast('Erro ao registrar voto', 'error'); }
         finally { setIsSubmitting(false); }
       };
+
+      // Dialog de registro de convidado
+      if (showRegistrationPrompt && !registeredUser) {
+        return (
+          <div className="min-h-screen bg-slate-50 flex flex-col">
+            {topBar && <ConsensoAppBar {...topBar} />}
+            <main className="flex-1 flex items-center justify-center px-4 py-10">
+              <Card className="w-full max-w-md p-8">
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Icon name="User" className="w-7 h-7 text-blue-600" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-slate-900 mb-2">Crie sua conta</h1>
+                  <p className="text-slate-600 text-sm">
+                    Cadastre-se para poder acompanhar o andamento e resultado desta reunião, e não precisar votar novamente em outras convocações.
+                  </p>
+                </div>
+
+                <GuestRegistrationForm
+                  onSuccess={(user) => {
+                    setRegisteredUser(user);
+                    setShowRegistrationPrompt(false);
+                    if (onUserRegistered) onUserRegistered(user);
+                    addToast(`Bem-vindo, ${user.name}!`, 'success');
+                  }}
+                  onSkip={() => {
+                    setShowRegistrationPrompt(false);
+                    handleSubmit();
+                  }}
+                  addToast={addToast}
+                />
+              </Card>
+            </main>
+          </div>
+        );
+      }
 
       if (!eventData) {
         if (loadFailed) {
@@ -2456,6 +2728,7 @@
       const [isManager, setIsManager] = useState(false);
       const [toasts, setToasts] = useState([]);
       const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
+      const [registeredUser, setRegisteredUserState] = useState(() => getRegisteredUser());
       const [pendingAfterLogin, setPendingAfterLogin] = useState(null);
       const [routeNonce, setRouteNonce] = useState(0);
 
@@ -2603,6 +2876,10 @@
       };
       const handleSetUserName = (name) => { setUserNameState(name); setUserName(name); };
 
+      const handleUserRegistered = (user) => {
+        setRegisteredUserState(user);
+      };
+
       const openEventFromDashboard = (id) => {
         setEventId(id);
         setIsManager(true);
@@ -2621,12 +2898,19 @@
         addToast('Sessão encerrada', 'info');
       };
 
+      const handleRegisteredUserLogout = () => {
+        logoutUser();
+        setRegisteredUserState(null);
+        addToast('Desconectado.', 'info');
+      };
+
       const topBarNavigation = {
         adminSession,
+        registeredUser,
         onGoHome: goHome,
         onMyEvents: openMyEvents,
         onOrganizerLogin: openOrganizerLogin,
-        onLogout: handleOrganizerLogout,
+        onLogout: adminSession ? handleOrganizerLogout : handleRegisteredUserLogout,
       };
 
       const renderCurrentView = () => {
@@ -2640,16 +2924,18 @@
                 onCreate={openCreateFlow}
                 topBar={topBarNavigation}
                 addToast={addToast}
+                onUserRegistered={handleUserRegistered}
               />
             );
           case 'home':
             return (
               <HomeScreen
                 adminSession={adminSession}
+                registeredUser={registeredUser}
                 onCreate={openCreateFlow}
                 onMyEvents={openMyEvents}
                 onOrganizerLogin={openOrganizerLogin}
-                onLogout={handleOrganizerLogout}
+                onLogout={adminSession ? handleOrganizerLogout : handleRegisteredUserLogout}
                 onGoHome={goHome}
               />
             );
@@ -2658,7 +2944,7 @@
           case 'share':
             return currentEvent && <ShareScreen event={currentEvent} onComplete={handleShareComplete} onBack={() => { window.location.hash = ''; setCurrentView('create'); }} addToast={addToast} topBar={topBarNavigation} />;
           case 'vote':
-            return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} />;
+            return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} onUserRegistered={handleUserRegistered} />;
           case 'results':
             return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} topBar={topBarNavigation} />;
           case 'manage':
@@ -2677,10 +2963,11 @@
             return (
               <HomeScreen
                 adminSession={adminSession}
+                registeredUser={registeredUser}
                 onCreate={openCreateFlow}
                 onMyEvents={openMyEvents}
                 onOrganizerLogin={openOrganizerLogin}
-                onLogout={handleOrganizerLogout}
+                onLogout={adminSession ? handleOrganizerLogout : handleRegisteredUserLogout}
                 onGoHome={goHome}
               />
             );
