@@ -144,6 +144,10 @@
     
     /* Privacy Shield Gradient */
     .privacy-shield { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
+    .slot-preferred {
+      background: linear-gradient(135deg, #7a4d00 0%, #d4a017 24%, #fff1a8 48%, #c68a00 72%, #8a5700 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(146, 94, 0, .35);
+    }
     
     /* Safe area for notched devices */
     .safe-area-top { padding-top: env(safe-area-inset-top); }
@@ -455,6 +459,11 @@
     const HOUR_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
     const SHIFT_TIMES = { morning: 'Manhã (6h-12h)', afternoon: 'Tarde (12h-18h)', evening: 'Noite (18h-22h)' };
     const SEPARATOR_HOURS = ['12:00', '18:00'];
+    const HOUR_PERIODS = {
+      morning: { label: 'Manhã', hours: HOUR_SLOTS.filter((hour) => Number(hour.slice(0, 2)) < 12) },
+      afternoon: { label: 'Tarde', hours: HOUR_SLOTS.filter((hour) => Number(hour.slice(0, 2)) >= 12 && Number(hour.slice(0, 2)) < 18) },
+      evening: { label: 'Noite', hours: HOUR_SLOTS.filter((hour) => Number(hour.slice(0, 2)) >= 18) },
+    };
 
     const STORAGE_KEY = 'consenso_events';
     const USER_KEY = 'consenso_user';
@@ -668,6 +677,9 @@
     const consensoParticipantsColRef = (ownerUid, eventId) =>
       window.consensoFsCollection(consensoEventDocRef(ownerUid, eventId), 'participants');
 
+    const consensoPublicCommentsColRef = (ownerUid, eventId) =>
+      window.consensoFsCollection(consensoEventDocRef(ownerUid, eventId), 'public_comments');
+
     const consensoConfigToPlain = (c) => {
       const { creatorAdminKey, creatorAdminEmail, ...publicConfig } = c;
       return {
@@ -739,12 +751,26 @@
         userId: vote.userId,
         userName: vote.userName,
         timeSlots: vote.timeSlots,
+        preferredSlots: vote.preferredSlots || [],
+        comment: vote.comment || '',
+        commentVisibility: vote.commentVisibility || 'organizer',
         votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
       });
       batch.set(pref, {
         userId: vote.userId,
         votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
       });
+      const cref = window.consensoFsDoc(consensoPublicCommentsColRef(ownerUid, eventId), vote.userId);
+      if (vote.comment && vote.commentVisibility === 'everyone') {
+        batch.set(cref, {
+          userId: vote.userId,
+          userName: vote.userName,
+          comment: vote.comment,
+          votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
+        });
+      } else {
+        batch.delete(cref);
+      }
       await batch.commit();
     };
 
@@ -768,6 +794,7 @@
         id: generateId(),
         createdAt: new Date().toISOString(),
         resultsUnlocked: false,
+        finalized: false,
         creatorAdminKey: ak || undefined,
         creatorAdminEmail: admin?.email || undefined,
         ...(admin?.firebaseUid ? { firebaseOwnerUid: admin.firebaseUid } : {}),
@@ -814,17 +841,22 @@
       return event ? event.votes.find(v => v.userId === userId) || null : null;
     };
     
-    const unlockResults = (eventId) => {
+    const unlockResults = async (eventId) => {
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       if (events[eventId]) {
-        events[eventId].config.resultsUnlocked = true;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+        const finalizedAt = new Date().toISOString();
+        const hydrated = getEvent(eventId);
+        const verdict = calculateConsensus(hydrated);
+        const finalResult = {
+          ...verdict,
+          slots: verdict.slots.map((slot) => ({ ...slot, date: formatDate(slot.date) })),
+        };
         const owner = events[eventId].config?.firebaseOwnerUid;
         if (owner && consensoFirestoreReady()) {
-          consensoCloudMergeConfig(owner, eventId, { resultsUnlocked: true }).catch((e) =>
-            console.error('[Consenso] Firestore unlock', e)
-          );
+          await consensoCloudMergeConfig(owner, eventId, { resultsUnlocked: true, finalized: true, finalizedAt, finalResult });
         }
+        events[eventId].config = { ...events[eventId].config, resultsUnlocked: true, finalized: true, finalizedAt, finalResult };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       }
     };
 
@@ -842,6 +874,7 @@
         try {
           const votesCol = consensoVotesColRef(ownerUid, eventId);
           const participantsCol = consensoParticipantsColRef(ownerUid, eventId);
+          const publicCommentsCol = consensoPublicCommentsColRef(ownerUid, eventId);
           const vs = await window.consensoFsGetDocs(votesCol);
           for (let i = 0; i < vs.docs.length; i++) {
             await window.consensoFsDeleteDoc(vs.docs[i].ref);
@@ -849,6 +882,10 @@
           const ps = await window.consensoFsGetDocs(participantsCol);
           for (let i = 0; i < ps.docs.length; i++) {
             await window.consensoFsDeleteDoc(ps.docs[i].ref);
+          }
+          const cs = await window.consensoFsGetDocs(publicCommentsCol);
+          for (let i = 0; i < cs.docs.length; i++) {
+            await window.consensoFsDeleteDoc(cs.docs[i].ref);
           }
           await window.consensoFsDeleteDoc(consensoEventDocRef(ownerUid, eventId));
           await window.consensoFsDeleteDoc(consensoLookupDocRef(eventId));
@@ -892,7 +929,7 @@
       const incomingVotes = (payload.votes || []).map((v) => ({ ...v, votedAt: isoVote(v.votedAt) }));
 
       if (!events[eventId]) {
-        events[eventId] = { config: cfg, votes: incomingVotes };
+        events[eventId] = { config: cfg, votes: incomingVotes, publicComments: payload.publicComments || [] };
       } else {
         const byUser = new Map();
         [...(replaceVotes ? [] : (events[eventId].votes || [])), ...incomingVotes].forEach((v) => {
@@ -902,6 +939,7 @@
         events[eventId] = {
           config: { ...events[eventId].config, ...cfg },
           votes: Array.from(byUser.values()),
+          publicComments: payload.publicComments || events[eventId].publicComments || [],
         };
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -937,11 +975,13 @@
       const evRef = consensoEventDocRef(ownerUid, eventId);
       const votesRef = consensoVotesColRef(ownerUid, eventId);
       const participantsRef = consensoParticipantsColRef(ownerUid, eventId);
+      const publicCommentsRef = consensoPublicCommentsColRef(ownerUid, eventId);
       const currentUid = window.consensoFirebaseUser?.uid;
       const canReadAllVotes = currentUid === ownerUid;
       let lastCfg = null;
       let lastVoteDocs = [];
       let participantCount = 0;
+      let publicComments = [];
       const flush = () => {
         if (!lastCfg) return;
         const votes = lastVoteDocs.map((d) => {
@@ -950,13 +990,16 @@
             userId: v.userId,
             userName: v.userName,
             timeSlots: v.timeSlots || [],
+            preferredSlots: v.preferredSlots || [],
+            comment: v.comment || '',
+            commentVisibility: v.commentVisibility || 'organizer',
             votedAt: isoVote(v.votedAt),
           };
         });
         const hadLocal = !!getEvent(eventId);
         mergeHydratedEvent(
           eventId,
-          { config: { ...consensoConfigFromFs(lastCfg), voteCount: participantCount }, votes },
+          { config: { ...consensoConfigFromFs(lastCfg), voteCount: participantCount }, votes, publicComments },
           { replaceVotes: !canReadAllVotes }
         );
         if (onMerged) onMerged();
@@ -983,10 +1026,15 @@
         participantCount = snap.size;
         flush();
       });
+      const u4 = window.consensoFsOnSnapshot(publicCommentsRef, (snap) => {
+        publicComments = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        flush();
+      });
       return () => {
         u1();
         u2();
         u3();
+        u4();
       };
     };
 
@@ -1007,7 +1055,7 @@
           const vs = await window.consensoFsGetDocs(vcol);
           const votes = vs.docs.map((x) => {
             const v = x.data();
-            return { userId: v.userId, userName: v.userName, timeSlots: v.timeSlots || [], votedAt: isoVote(v.votedAt) };
+            return { userId: v.userId, userName: v.userName, timeSlots: v.timeSlots || [], preferredSlots: v.preferredSlots || [], comment: v.comment || '', commentVisibility: v.commentVisibility || 'organizer', votedAt: isoVote(v.votedAt) };
           });
           // Migra reuniões anteriores ao contador privado, sem copiar nomes ou horários.
           const participantsCol = window.consensoFsCollection(d.ref, 'participants');
@@ -1109,6 +1157,7 @@
 
     const {
       calculateConsensus,
+      canRevealResults,
       hasReachedQuorum,
       hasReachedEarlyRevelationThreshold,
       getMissingVotesCount,
@@ -1116,7 +1165,7 @@
       getVoteProgressPercentage
     } = window.ConsensoCore;
 
-    const canViewResults = (eventData, isManager) => eventData.config.resultsUnlocked || hasReachedQuorum(eventData);
+    const canViewResults = canRevealResults;
 
     const generateICalContent = (event) => {
       const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -1902,7 +1951,6 @@
       const [quorum, setQuorum] = useState(5);
       const [quorumInput, setQuorumInput] = useState('5');
       const [managerMode, setManagerMode] = useState('participant');
-      const [earlyRevelation, setEarlyRevelation] = useState(false);
       const [isSubmitting, setIsSubmitting] = useState(false);
 
       const handleQuorumSliderChange = (value) => { setQuorum(value[0]); setQuorumInput(value[0].toString()); };
@@ -1918,7 +1966,7 @@
         setIsSubmitting(true);
         try {
           const user = getCurrentUser();
-          const config = createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, earlyRevelation, creatorId: user.id });
+          const config = createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, earlyRevelation: false, creatorId: user.id });
           addToast('Reunião criada com sucesso!', 'success');
           onCreate(config);
         } catch (error) { addToast('Erro ao criar reunião', 'error'); }
@@ -2020,15 +2068,14 @@
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <Icon name="Flag" className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div className="flex items-start gap-3">
-                    <Icon name="Unlock" className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
-                      <Label className="text-slate-700 font-medium">Revelação Antecipada</Label>
-                      <p className="text-sm text-slate-500">Permitir ver resultados com 50% dos votos + sua autorização</p>
+                      <Label className="text-blue-900 font-medium">Finalização controlada</Label>
+                      <p className="text-sm text-blue-700">O resultado permanecerá oculto até você revisar os comentários e finalizar a votação no painel.</p>
                     </div>
                   </div>
-                  <Switch checked={earlyRevelation} onCheckedChange={setEarlyRevelation} />
                 </div>
               </div>
 
@@ -2140,6 +2187,10 @@
       const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
       const [selectedSlots, setSelectedSlots] = useState(new Set());
+      const [preferredSlots, setPreferredSlots] = useState(new Set());
+      const [selectionMode, setSelectionMode] = useState('unavailable');
+      const [comment, setComment] = useState('');
+      const [commentVisibility, setCommentVisibility] = useState('organizer');
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [hasVoted, setHasVoted] = useState(false);
       const [showNameInput, setShowNameInput] = useState(!userName);
@@ -2171,6 +2222,9 @@
             const existingVote = getUserVote(eventId, voter.id);
             if (existingVote) {
               setSelectedSlots(new Set(existingVote.timeSlots));
+              setPreferredSlots(new Set(existingVote.preferredSlots || []));
+              setComment(existingVote.comment || '');
+              setCommentVisibility(existingVote.commentVisibility || 'organizer');
               selectionInitializedRef.current = true;
             }
           } else if (!voted && !selectionInitializedRef.current) {
@@ -2277,6 +2331,27 @@
           slotKeys.forEach((key) => available ? next.add(key) : next.delete(key));
           return next;
         });
+        if (!available) {
+          setPreferredSlots((current) => {
+            const next = new Set(current);
+            slotKeys.forEach((key) => next.delete(key));
+            return next;
+          });
+        }
+      };
+
+      const setSlotsPreferred = (slotKeys) => {
+        if (!slotsInteractive) return;
+        setSelectedSlots((current) => new Set([...current, ...slotKeys]));
+        setPreferredSlots((current) => new Set([...current, ...slotKeys]));
+      };
+
+      const applySlotState = (slotKey, state) => {
+        if (state === 'preferred') setSlotsPreferred([slotKey]);
+        else if (state === 'available') {
+          setSlotsAvailability([slotKey], true);
+          setPreferredSlots((current) => { const next = new Set(current); next.delete(slotKey); return next; });
+        } else setSlotsAvailability([slotKey], false);
       };
 
       const toggleSlotGroup = (slotKeys) => {
@@ -2287,25 +2362,25 @@
       const handleCancelEditChoices = () => {
         const voter = getConsensoVoterUser(eventId);
         const existing = getUserVote(eventId, voter.id);
-        if (existing) setSelectedSlots(new Set(existing.timeSlots));
+        if (existing) {
+          setSelectedSlots(new Set(existing.timeSlots));
+          setPreferredSlots(new Set(existing.preferredSlots || []));
+          setComment(existing.comment || '');
+          setCommentVisibility(existing.commentVisibility || 'organizer');
+        }
         setEditingChoices(false);
       };
 
       const handleMouseDown = (slotKey) => {
         if (hasVoted && !showNameInput && !editingChoices) return;
         setIsDragging(true);
-        const isSelected = selectedSlots.has(slotKey);
-        setDragValue(!isSelected);
-        const newSlots = new Set(selectedSlots);
-        if (isSelected) newSlots.delete(slotKey); else newSlots.add(slotKey);
-        setSelectedSlots(newSlots);
+        setDragValue(selectionMode);
+        applySlotState(slotKey, selectionMode);
       };
 
       const handleMouseEnter = (slotKey) => {
         if (!isDragging || dragValue === null) return;
-        const newSlots = new Set(selectedSlots);
-        if (dragValue) newSlots.add(slotKey); else newSlots.delete(slotKey);
-        setSelectedSlots(newSlots);
+        applySlotState(slotKey, dragValue);
       };
 
       useEffect(() => {
@@ -2337,7 +2412,14 @@
           }
 
           onSetUserName(localUserName);
-          await submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
+          await submitVote(eventId, {
+            userId: user.id,
+            userName: localUserName.trim(),
+            timeSlots: Array.from(selectedSlots),
+            preferredSlots: Array.from(preferredSlots).filter((slot) => selectedSlots.has(slot)),
+            comment: comment.trim().slice(0, 1000),
+            commentVisibility,
+          });
           trackParticipatedEvent(eventId);
           addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
           setHasVoted(true);
@@ -2434,7 +2516,7 @@
       const resultsAvailable = canViewResults(eventData, false);
       const progress = getVoteProgressPercentage(eventData);
 
-      const slotsInteractive = !hasVoted || showNameInput || editingChoices;
+      const slotsInteractive = !eventData.config.finalized && (!hasVoted || showNameInput || editingChoices);
 
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -2497,13 +2579,45 @@
               </CardHeader>
 
               {slotsInteractive && (
-                <div className="p-4 border-b flex flex-wrap gap-2 bg-white">
-                  <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, true)}>
-                    <Icon name="CheckCheck" className="w-4 h-4 mr-2" />Marcar tudo disponível
-                  </Button>
-                  <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, false)}>
-                    <Icon name="X" className="w-4 h-4 mr-2" />Desmarcar tudo
-                  </Button>
+                <div className="p-4 border-b bg-white space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-600 mb-2">1. Escolha o tipo de marcação e clique ou arraste na grade:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant={selectionMode === 'unavailable' ? 'primary' : 'outline'} onClick={() => setSelectionMode('unavailable')}>
+                        <Icon name="X" className="w-4 h-4 mr-2" />Indisponível
+                      </Button>
+                      <Button variant={selectionMode === 'available' ? 'primary' : 'outline'} onClick={() => setSelectionMode('available')}>
+                        <Icon name="Check" className="w-4 h-4 mr-2" />Disponível
+                      </Button>
+                      <button type="button" onClick={() => setSelectionMode('preferred')} className={`px-4 py-2 rounded-lg text-sm font-medium border ${selectionMode === 'preferred' ? 'slot-preferred text-white border-amber-700' : 'bg-white text-amber-800 border-amber-400'}`}>
+                        <Icon name="Star" className="w-4 h-4 mr-2 inline" />Preferencial
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, true)}><Icon name="CheckCheck" className="w-4 h-4 mr-2" />Tudo disponível</Button>
+                    <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, false)}><Icon name="X" className="w-4 h-4 mr-2" />Tudo indisponível</Button>
+                  </div>
+                  {eventData.config.granularity === 'hour' && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-600 mb-2">2. Ou aplique a todos os dias por período:</p>
+                      <div className="grid sm:grid-cols-3 gap-2">
+                        {Object.values(HOUR_PERIODS).map((period) => {
+                          const keys = dates.flatMap((date) => period.hours.map((hour) => getSlotKey(date, hour)));
+                          return (
+                            <div key={period.label} className="border rounded-lg p-2 bg-slate-50">
+                              <div className="text-sm font-semibold mb-2">{period.label}</div>
+                              <div className="flex flex-wrap gap-1">
+                                <button type="button" onClick={() => { setSlotsAvailability(keys, true); setPreferredSlots((current) => { const next = new Set(current); keys.forEach((key) => next.delete(key)); return next; }); }} className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">Disponível</button>
+                                <button type="button" onClick={() => setSlotsPreferred(keys)} className="px-2 py-1 text-xs rounded slot-preferred text-white">Preferencial</button>
+                                <button type="button" onClick={() => setSlotsAvailability(keys, false)} className="px-2 py-1 text-xs rounded bg-slate-200 text-slate-800">Indisponível</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2550,6 +2664,7 @@
                         {dates.map(date => {
                           const slotKey = getSlotKey(date, time);
                           const isSelected = selectedSlots.has(slotKey);
+                          const isPreferred = preferredSlots.has(slotKey);
                           return (
                             <div key={slotKey} className={`w-24 flex-shrink-0 p-1 ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
                               <button
@@ -2557,8 +2672,8 @@
                                 onPointerEnter={() => handleMouseEnter(slotKey)}
                                 disabled={!slotsInteractive}
                                 style={{ touchAction: 'none' }}
-                                className={`w-full h-10 rounded-md transition-all ${isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
-                                {isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
+                                className={`w-full h-10 rounded-md transition-all ${isPreferred ? 'slot-preferred' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                {isPreferred ? <Icon name="Star" className="w-4 h-4 text-white mx-auto fill-current" /> : isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
                               </button>
                             </div>
                           );
@@ -2572,12 +2687,26 @@
               <div className="p-4 bg-slate-50 border-t flex items-center gap-6 text-sm">
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-slate-100 rounded border"></div><span className="text-slate-600">Indisponível</span></div>
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center"><Icon name="Check" className="w-3 h-3 text-white" /></div><span className="text-slate-600">Disponível</span></div>
+                <div className="flex items-center gap-2"><div className="w-6 h-6 slot-preferred rounded flex items-center justify-center"><Icon name="Star" className="w-3 h-3 text-white fill-current" /></div><span className="text-slate-600">Preferencial</span></div>
                 <div className="flex items-center gap-2 ml-auto"><div className="w-6 h-1 bg-red-400"></div><span className="text-slate-600">Divisão período</span></div>
               </div>
             </Card>
 
+            <Card className="p-6 mb-6">
+              <h3 className="font-semibold flex items-center gap-2 mb-2"><Icon name="MessageCircle" className="w-5 h-5" />Comentário opcional</h3>
+              <p className="text-sm text-slate-500 mb-3">Use para explicar restrições ou observações sem alterar sua disponibilidade.</p>
+              <textarea value={comment} onChange={(e) => setComment(e.target.value.slice(0, 1000))} disabled={!slotsInteractive} rows="3" placeholder="Ex.: consigo chegar 15 minutos depois..." className="w-full border rounded-lg p-3 text-sm disabled:bg-slate-100" />
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <label className="flex items-center gap-2 text-sm border rounded-lg p-3 flex-1 cursor-pointer"><input type="radio" name="commentVisibility" checked={commentVisibility === 'organizer'} onChange={() => setCommentVisibility('organizer')} disabled={!slotsInteractive} /><span><strong>Somente organizador</strong><br/><span className="text-xs text-slate-500">Não aparece para os demais convidados.</span></span></label>
+                <label className="flex items-center gap-2 text-sm border rounded-lg p-3 flex-1 cursor-pointer"><input type="radio" name="commentVisibility" checked={commentVisibility === 'everyone'} onChange={() => setCommentVisibility('everyone')} disabled={!slotsInteractive} /><span><strong>Compartilhar com todos</strong><br/><span className="text-xs text-slate-500">Será exibido junto ao resultado final.</span></span></label>
+              </div>
+              <div className="text-xs text-slate-400 text-right mt-1">{comment.length}/1000</div>
+            </Card>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
-              {hasVoted && !showNameInput && !editingChoices ? (
+              {eventData.config.finalized ? (
+                <div className="w-full flex justify-end"><Button onClick={onViewResults}><Icon name="Eye" className="w-4 h-4 mr-2" />Consultar resultado final</Button></div>
+              ) : hasVoted && !showNameInput && !editingChoices ? (
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:ml-auto">
                   <Button variant="outline" onClick={() => setEditingChoices(true)} className="justify-center">
                     <Icon name="Pencil" className="w-4 h-4 mr-2" />Editar minhas escolhas
@@ -2622,7 +2751,11 @@
       useEffect(() => {
         tryHydrateEventFromInviteHash();
         const event = getEvent(eventId);
-        if (event) { setEventData(event); setVerdict(calculateConsensus(event)); }
+        if (event) {
+          const saved = event.config.finalResult;
+          setEventData(event);
+          setVerdict(saved ? { ...saved, slots: (saved.slots || []).map((slot) => ({ ...slot, date: parseLocalDate(slot.date) })) } : calculateConsensus(event));
+        }
       }, [eventId]);
 
       const handleExportICal = (slot) => {
@@ -2650,16 +2783,19 @@
 
       const quorumReached = hasReachedQuorum(eventData);
       const progressPercent = getVoteProgressPercentage(eventData);
+      const sharedComments = (eventData.publicComments || []).length
+        ? eventData.publicComments
+        : eventData.votes.filter((vote) => vote.commentVisibility === 'everyone' && vote.comment);
 
-      if (!quorumReached && !eventData.config.resultsUnlocked) {
+      if (!eventData.config.finalized) {
         return (
           <div className="min-h-screen bg-slate-50 flex flex-col">
             <ConsensoAppBar {...topBar} />
             <main className="max-w-2xl mx-auto px-4 py-12 text-center flex-1 w-full">
               <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="Lock" className="w-10 h-10 text-amber-600" /></div>
               <h1 className="text-2xl font-bold mb-2">Consenso em Andamento</h1>
-              <p className="text-slate-600 mb-2">Os resultados serão revelados quando todos votarem.</p>
-              <p className="text-sm text-slate-500 mb-6">Quórum necessário: <strong>{eventData.config.quorum} participantes</strong></p>
+              <p className="text-slate-600 mb-2">Os resultados serão revelados somente depois que o organizador revisar os comentários e finalizar a votação.</p>
+              <p className="text-sm text-slate-500 mb-6">Progresso atual: <strong>{getVoteCount(eventData)}/{eventData.config.quorum} participantes</strong></p>
               
               <Card className="p-6 mb-6">
                 <div className="flex justify-between mb-4"><span className="text-slate-600">Progresso</span><span className="font-semibold">{getVoteCount(eventData)}/{eventData.config.quorum}</span></div>
@@ -2735,6 +2871,7 @@
                       </div>
                     </CardHeader>
                     <CardContent>
+                      {slot.preferredVotes > 0 && <div className="mb-3 inline-flex items-center gap-1 px-2 py-1 rounded slot-preferred text-white text-xs"><Icon name="Star" className="w-3 h-3 fill-current" />{slot.preferredVotes} preferência{slot.preferredVotes !== 1 ? 's' : ''}</div>}
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleExportGoogle(slot)} className="flex-1">
                           <Icon name="ExternalLink" className="w-4 h-4 mr-2" />Google Calendar
@@ -2764,6 +2901,13 @@
               </div>
             </Card>
 
+            {sharedComments.length > 0 && (
+              <Card className="p-6 mt-6">
+                <h3 className="font-semibold flex items-center gap-2 mb-4"><Icon name="MessageCircle" className="w-5 h-5" />Comentários compartilhados</h3>
+                <div className="space-y-3">{sharedComments.map((item) => <div key={item.id || item.userId} className="bg-slate-50 rounded-lg p-3"><div className="text-sm font-medium">{item.userName || 'Participante'}</div><div className="text-sm text-slate-600 whitespace-pre-wrap">{item.comment}</div></div>)}</div>
+              </Card>
+            )}
+
             <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-800 text-center">
                 <Icon name="ShieldCheck" className="w-4 h-4 inline mr-1" />
@@ -2778,6 +2922,7 @@
     const ManagerDashboard = ({ eventId, onViewResults, onBack, onEditVote, addToast, topBar, onEventDeleted }) => {
       const [eventData, setEventData] = useState(null);
       const [copied, setCopied] = useState(false);
+      const [commentsReviewed, setCommentsReviewed] = useState(false);
 
       useEffect(() => { loadEventData(); }, [eventId]);
 
@@ -2830,10 +2975,16 @@
         catch { addToast('Erro ao copiar', 'error'); }
       };
 
-      const handleUnlockResults = () => {
-        unlockResults(eventId);
-        loadEventData();
-        addToast('Resultados desbloqueados!', 'success');
+      const handleUnlockResults = async () => {
+        if (!commentsReviewed) { addToast('Confirme que você revisou os comentários.', 'error'); return; }
+        if (getVoteCount(eventData) === 0) { addToast('Aguarde pelo menos um voto antes de finalizar.', 'error'); return; }
+        try {
+          await unlockResults(eventId);
+          loadEventData();
+          addToast('Votação finalizada e resultado revelado!', 'success');
+        } catch (e) {
+          addToast('Não foi possível finalizar. Tente novamente.', 'error');
+        }
       };
 
       const handleDeleteEvent = async () => {
@@ -2854,8 +3005,7 @@
       const missingCount = getMissingVotesCount(eventData);
       const progressPercent = getVoteProgressPercentage(eventData);
       const quorumReached = hasReachedQuorum(eventData);
-      const earlyThresholdReached = hasReachedEarlyRevelationThreshold(eventData);
-      const canUnlockEarly = earlyThresholdReached && !eventData.config.resultsUnlocked && !quorumReached;
+      const voterComments = eventData.votes.filter((vote) => vote.comment && vote.comment.trim());
 
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -2882,9 +3032,7 @@
                 <div className="flex items-start gap-3">
                   <Icon name="EyeOff" className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div className="text-sm text-blue-800">
-                    <strong>Você não vê os horários marcados.</strong> Como organizador, você só acompanha 
-                    quem votou e o progresso. Os horários individuais são secretos e só o consenso 
-                    final será calculado quando o quórum for atingido.
+                    <strong>A interface não exibe grades individuais.</strong> Você acompanha quem votou, o progresso e os comentários. A apuração usa os votos armazenados e só é mostrada ao grupo depois da sua finalização.
                   </div>
                 </div>
               </CardContent>
@@ -2908,12 +3056,45 @@
                 </div>
                 {quorumReached ? (
                   <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
-                    <Icon name="CheckCircle" className="w-5 h-5" /><span className="font-medium">Consenso alcançado! Resultados disponíveis.</span>
+                    <Icon name="CheckCircle" className="w-5 h-5" /><span className="font-medium">Quórum alcançado. Revise os comentários e finalize quando estiver pronto.</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
                     <Icon name="Lock" className="w-5 h-5" /><span className="font-medium">Aguardando consenso do grupo</span>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="mb-6">
+              <CardHeader><CardTitle className="flex items-center gap-2"><Icon name="MessageCircle" className="w-5 h-5 text-blue-600" />Comentários dos participantes ({voterComments.length})</CardTitle></CardHeader>
+              <CardContent>
+                {voterComments.length ? (
+                  <div className="space-y-3 max-h-72 overflow-y-auto mb-4">
+                    {voterComments.map((vote) => (
+                      <div key={vote.userId} className="border rounded-lg p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                          <span className="text-sm font-semibold">{vote.userName || 'Participante'}</span>
+                          <span className={`text-xs px-2 py-1 rounded ${vote.commentVisibility === 'everyone' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>{vote.commentVisibility === 'everyone' ? 'Visível a todos no resultado' : 'Somente organizador'}</span>
+                        </div>
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap">{vote.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-slate-500 mb-4">Nenhum comentário foi enviado.</p>}
+                <label className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer">
+                  <input type="checkbox" checked={commentsReviewed} onChange={(e) => setCommentsReviewed(e.target.checked)} className="mt-1" />
+                  <span className="text-sm text-amber-900"><strong>Revisei os comentários.</strong><br/>Entendo que finalizar bloqueará a apuração atual e revelará o resultado aos participantes.</span>
+                </label>
+              </CardContent>
+            </Card>
+
+            <Card className={`mb-6 ${eventData.config.finalized ? 'border-green-300 bg-green-50' : 'border-blue-300 bg-blue-50'}`}>
+              <CardContent className="p-6">
+                {eventData.config.finalized ? (
+                  <div><div className="flex items-center gap-2 text-green-800 font-semibold mb-3"><Icon name="CheckCircle" className="w-5 h-5" />Votação finalizada</div><Button onClick={onViewResults} className="w-full"><Icon name="Eye" className="w-4 h-4 mr-2" />Consultar resultado final</Button></div>
+                ) : (
+                  <div><h3 className="font-semibold mb-1">Finalizar votação e revelar resultado</h3><p className="text-sm text-slate-600 mb-4">O resultado continua oculto mesmo após o quórum. Finalize apenas depois de conferir os comentários.</p><Button onClick={handleUnlockResults} disabled={!commentsReviewed || getVoteCount(eventData) === 0} className="w-full"><Icon name="Flag" className="w-4 h-4 mr-2" />Finalizar e revelar resultado</Button></div>
                 )}
               </CardContent>
             </Card>
@@ -2941,15 +3122,13 @@
                   <Button variant="outline" onClick={handleCopyLink} className="w-full justify-between">
                     <span className="flex items-center gap-2"><Icon name={copied ? 'Check' : 'Copy'} className="w-4 h-4" />Copiar Link</span>
                   </Button>
-                  <Button variant="outline" onClick={onEditVote} className="w-full justify-between">
-                    <span className="flex items-center gap-2"><Icon name="Pencil" className="w-4 h-4" />Editar meu voto</span>
-                  </Button>
+                  {!eventData.config.finalized && <Button variant="outline" onClick={onEditVote} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name="Pencil" className="w-4 h-4" />Editar meu voto</span></Button>}
                   {!quorumReached && (
                     <Button variant="outline" onClick={handleCopyReminder} className="w-full justify-between">
                       <span className="flex items-center gap-2"><Icon name="MessageCircle" className="w-4 h-4" />Copiar Lembrete</span>
                     </Button>
                   )}
-                  {quorumReached && (
+                  {eventData.config.finalized && (
                     <Button onClick={onViewResults} className="w-full"><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Consenso</Button>
                   )}
                 </CardContent>
@@ -2966,32 +3145,6 @@
               </CardContent>
             </Card>
 
-            {canUnlockEarly && (
-              <Card className="mb-6 border-amber-200 bg-amber-50">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Icon name="Unlock" className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">Revelação Antecipada</h3>
-                      <p className="text-sm text-slate-600 mb-4">{progressPercent}% do quórum votou. Você pode autorizar a visualização do consenso.</p>
-                      <Button onClick={handleUnlockResults} variant="outline" className="bg-white">Autorizar Resultado Prévio</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {eventData.config.resultsUnlocked && (
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm">
-                  <Icon name="Unlock" className="w-4 h-4" />
-                  Consenso desbloqueado antecipadamente
-                </div>
-                <Button onClick={onViewResults} className="w-full mt-4"><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Consenso</Button>
-              </div>
-            )}
           </main>
         </div>
       );

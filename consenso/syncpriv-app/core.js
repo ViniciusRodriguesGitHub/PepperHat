@@ -25,27 +25,32 @@
   const calculateConsensus = ({ config, votes }) => {
     if (!votes.length) return { type: 'none', slots: [], totalVotes: 0, quorum: config.quorum };
     const slotMap = new Map();
-    votes.forEach((vote) => new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
+    votes.forEach((vote) => {
+      const preferred = new Set(Array.isArray(vote.preferredSlots) ? vote.preferredSlots : []);
+      new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
       const [dateStr, time] = String(slotKey).split('|');
       if (!dateStr || !time) return;
-      if (!slotMap.has(slotKey)) slotMap.set(slotKey, { date: parseLocalDate(dateStr), time, votes: 0 });
+      if (!slotMap.has(slotKey)) slotMap.set(slotKey, { date: parseLocalDate(dateStr), time, votes: 0, preferredVotes: 0 });
       slotMap.get(slotKey).votes += 1;
-    }));
-    const chronological = (a, b) => a.date - b.date || a.time.localeCompare(b.time);
+      if (preferred.has(slotKey)) slotMap.get(slotKey).preferredVotes += 1;
+      });
+    });
+    const ranked = (a, b) => b.preferredVotes - a.preferredVotes || a.date - b.date || a.time.localeCompare(b.time);
     const slots = Array.from(slotMap.values());
-    const unanimous = slots.filter((slot) => slot.votes === votes.length).sort(chronological);
+    const unanimous = slots.filter((slot) => slot.votes === votes.length).sort(ranked);
     if (unanimous.length) return { type: 'unanimous', slots: unanimous.slice(0, 1), totalVotes: votes.length, quorum: config.quorum };
     if (!slots.length) return { type: 'none', slots: [], totalVotes: votes.length, quorum: config.quorum };
     const maxVotes = Math.max(...slots.map((slot) => slot.votes));
-    return { type: 'majority', slots: slots.filter((slot) => slot.votes === maxVotes).sort(chronological).slice(0, 2), totalVotes: votes.length, quorum: config.quorum };
+    return { type: 'majority', slots: slots.filter((slot) => slot.votes === maxVotes).sort(ranked).slice(0, 2), totalVotes: votes.length, quorum: config.quorum };
   };
   const getVoteCount = ({ config, votes }) => {
     const publicCount = Number(config && config.voteCount);
     return Number.isFinite(publicCount) && publicCount >= 0 ? Math.max(publicCount, votes.length) : votes.length;
   };
   const hasReachedQuorum = (event) => getVoteCount(event) >= event.config.quorum;
+  const canRevealResults = (event) => Boolean(event && event.config && event.config.finalized);
   const hasReachedEarlyRevelationThreshold = (event) => Boolean(event.config.earlyRevelation) && getVoteCount(event) >= Math.ceil(event.config.quorum * 0.5);
   const getMissingVotesCount = (event) => Math.max(0, event.config.quorum - getVoteCount(event));
   const getVoteProgressPercentage = (event) => event.config.quorum > 0 ? Math.min(100, Math.round((getVoteCount(event) / event.config.quorum) * 100)) : 0;
-  return { calculateConsensus, formatLocalDate, getMissingVotesCount, getVoteCount, getVoteProgressPercentage, hasReachedEarlyRevelationThreshold, hasReachedQuorum, parseLocalDate, sanitizeInvitePayload };
+  return { calculateConsensus, canRevealResults, formatLocalDate, getMissingVotesCount, getVoteCount, getVoteProgressPercentage, hasReachedEarlyRevelationThreshold, hasReachedQuorum, parseLocalDate, sanitizeInvitePayload };
 });
