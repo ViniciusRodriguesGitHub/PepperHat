@@ -25,9 +25,11 @@
   const calculateConsensus = ({ config, votes }) => {
     if (!votes.length) return { type: 'none', slots: [], totalVotes: 0, quorum: config.quorum };
     const slotMap = new Map();
+    const blockedSlots = new Set(Array.isArray(config.blockedSlots) ? config.blockedSlots : []);
     votes.forEach((vote) => {
       const preferred = new Set(Array.isArray(vote.preferredSlots) ? vote.preferredSlots : []);
       new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
+      if (blockedSlots.has(slotKey)) return;
       const [dateStr, time] = String(slotKey).split('|');
       if (!dateStr || !time) return;
       if (!slotMap.has(slotKey)) slotMap.set(slotKey, { date: parseLocalDate(dateStr), time, votes: 0, preferredVotes: 0 });

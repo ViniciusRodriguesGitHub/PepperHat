@@ -53,3 +53,13 @@ test('resultado depende da finalização do organizador, não apenas do quórum'
   event.config.finalized = true;
   assert.equal(core.canRevealResults(event), true);
 });
+test('períodos bloqueados pelo organizador nunca entram na apuração', () => {
+  const result = core.calculateConsensus({
+    config: { quorum: 2, blockedSlots: ['2026-08-07|09:00'] },
+    votes: [
+      { timeSlots: ['2026-08-07|09:00', '2026-08-07|10:00'] },
+      { timeSlots: ['2026-08-07|09:00', '2026-08-07|10:00'] },
+    ],
+  });
+  assert.equal(result.slots[0].time, '10:00');
+});

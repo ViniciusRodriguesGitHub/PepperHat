@@ -34,11 +34,13 @@ service cloud.firestore {
         allow create, update: if request.auth != null
           && request.auth.uid == voteUid
           && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.finalized != true
+          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.votingOpened != false
           && request.resource.data.userId == voteUid
           && request.resource.data.keys().hasOnly(['userId', 'userName', 'timeSlots', 'preferredSlots', 'comment', 'commentVisibility', 'votedAt'])
           && request.resource.data.userName is string
           && request.resource.data.userName.size() <= 120
           && request.resource.data.timeSlots is list
+          && !request.resource.data.timeSlots.hasAny(get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('blockedSlots', []))
           && request.resource.data.preferredSlots is list
           && request.resource.data.timeSlots.hasAll(request.resource.data.preferredSlots)
           && request.resource.data.comment is string
@@ -53,6 +55,7 @@ service cloud.firestore {
         allow create, update: if request.auth != null
           && (request.auth.uid == participantUid || request.auth.uid == ownerUid)
           && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.finalized != true
+          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.votingOpened != false
           && request.resource.data.userId == participantUid
           && request.resource.data.keys().hasOnly(['userId', 'votedAt']);
         allow delete: if request.auth != null
@@ -64,6 +67,7 @@ service cloud.firestore {
         allow create, update: if request.auth != null
           && request.auth.uid == commentUid
           && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.finalized != true
+          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.votingOpened != false
           && request.resource.data.userId == commentUid
           && request.resource.data.keys().hasOnly(['userId', 'userName', 'comment', 'votedAt'])
           && request.resource.data.userName is string
