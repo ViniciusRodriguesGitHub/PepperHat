@@ -176,6 +176,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+  <script src="core.js"></script>
 </head>
 <body class="bg-slate-50 safe-area-top safe-area-bottom">
   <!-- PWA Install Prompt Container -->
@@ -426,9 +427,11 @@
     );
 
     const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const formatDate = (date) => date.toISOString().split('T')[0];
-    const formatDisplayDate = (date) => new Date(date).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
-    const formatDisplayDateFull = (date) => new Date(date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const { parseLocalDate, formatLocalDate } = window.ConsensoCore;
+    const formatDate = formatLocalDate;
+    const asDisplayDate = (date) => typeof date === 'string' ? parseLocalDate(date) : date;
+    const formatDisplayDate = (date) => asDisplayDate(date).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+    const formatDisplayDateFull = (date) => asDisplayDate(date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
     
     const getDatesInRange = (start, end) => {
       const dates = [];
@@ -662,12 +665,18 @@
     const consensoVotesColRef = (ownerUid, eventId) =>
       window.consensoFsCollection(consensoEventDocRef(ownerUid, eventId), 'votes');
 
-    const consensoConfigToPlain = (c) => ({
-      ...c,
-      startDate: c.startDate instanceof Date ? c.startDate.toISOString() : c.startDate,
-      endDate: c.endDate instanceof Date ? c.endDate.toISOString() : c.endDate,
-      createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
-    });
+    const consensoParticipantsColRef = (ownerUid, eventId) =>
+      window.consensoFsCollection(consensoEventDocRef(ownerUid, eventId), 'participants');
+
+    const consensoConfigToPlain = (c) => {
+      const { creatorAdminKey, creatorAdminEmail, ...publicConfig } = c;
+      return {
+        ...publicConfig,
+        startDate: c.startDate instanceof Date ? c.startDate.toISOString() : c.startDate,
+        endDate: c.endDate instanceof Date ? c.endDate.toISOString() : c.endDate,
+        createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+      };
+    };
 
     const consensoFsScalarToIso = (v) => {
       if (v == null) return v;
@@ -714,17 +723,29 @@
         'votes',
         vote.userId
       );
-      await window.consensoFsSetDoc(vref, {
+      const pref = window.consensoFsDoc(
+        window.consensoDb,
+        'artifacts',
+        CONSENSO_FB_APP_ID,
+        'users',
+        ownerUid,
+        'consenso_v1',
+        eventId,
+        'participants',
+        vote.userId
+      );
+      const batch = window.consensoFsWriteBatch(window.consensoDb);
+      batch.set(vref, {
         userId: vote.userId,
         userName: vote.userName,
         timeSlots: vote.timeSlots,
         votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
       });
-      await window.consensoFsSetDoc(
-        consensoEventDocRef(ownerUid, eventId),
-        { updatedAt: new Date().toISOString() },
-        { merge: true }
-      );
+      batch.set(pref, {
+        userId: vote.userId,
+        votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
+      });
+      await batch.commit();
     };
 
     const consensoCloudMergeConfig = async (ownerUid, eventId, partial) => {
@@ -769,18 +790,18 @@
       };
     };
     
-    const submitVote = (eventId, vote) => {
+    const submitVote = async (eventId, vote) => {
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       const event = events[eventId];
       if (!event) throw new Error('Event not found');
       const votedAt = new Date().toISOString();
+      const owner = event.config?.firebaseOwnerUid;
+      if (owner && consensoFirestoreReady()) {
+        await consensoCloudPushVote(owner, eventId, { ...vote, votedAt });
+      }
       event.votes = event.votes.filter(v => v.userId !== vote.userId);
       event.votes.push({ ...vote, votedAt });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-      const owner = event.config?.firebaseOwnerUid;
-      if (owner && consensoFirestoreReady()) {
-        consensoCloudPushVote(owner, eventId, { ...vote, votedAt }).catch((e) => console.error('[Consenso] Firestore vote', e));
-      }
     };
     
     const hasUserVoted = (eventId, userId) => {
@@ -820,9 +841,14 @@
       if (ownerUid && session?.firebaseUid === ownerUid && consensoFirestoreReady() && window.consensoFsDeleteDoc) {
         try {
           const votesCol = consensoVotesColRef(ownerUid, eventId);
+          const participantsCol = consensoParticipantsColRef(ownerUid, eventId);
           const vs = await window.consensoFsGetDocs(votesCol);
           for (let i = 0; i < vs.docs.length; i++) {
             await window.consensoFsDeleteDoc(vs.docs[i].ref);
+          }
+          const ps = await window.consensoFsGetDocs(participantsCol);
+          for (let i = 0; i < ps.docs.length; i++) {
+            await window.consensoFsDeleteDoc(ps.docs[i].ref);
           }
           await window.consensoFsDeleteDoc(consensoEventDocRef(ownerUid, eventId));
           await window.consensoFsDeleteDoc(consensoLookupDocRef(eventId));
@@ -843,20 +869,7 @@
     };
 
     /** Serializa evento para JSON (datas em ISO) — usado no link do convite. */
-    const eventSnapshotToJSON = (eventData) => {
-      const { config, votes } = eventData;
-      const c = { ...config };
-      c.startDate = c.startDate instanceof Date ? c.startDate.toISOString() : c.startDate;
-      c.endDate = c.endDate instanceof Date ? c.endDate.toISOString() : c.endDate;
-      c.createdAt = c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt;
-      return {
-        config: c,
-        votes: (votes || []).map((v) => ({
-          ...v,
-          votedAt: v.votedAt instanceof Date ? v.votedAt.toISOString() : v.votedAt,
-        })),
-      };
-    };
+    const eventSnapshotToJSON = (eventData) => window.ConsensoCore.sanitizeInvitePayload(eventData);
 
     const isoVote = (d) => {
       if (!d) return new Date().toISOString();
@@ -865,8 +878,8 @@
       return new Date(d).toISOString();
     };
 
-    /** Grava no localStorage o snapshot vindo do link (convidados em outro aparelho). Mescla votos por userId. */
-    const mergeHydratedEvent = (eventId, payload) => {
+    /** Grava no localStorage dados confiáveis da reunião. Votos só entram por leitura autenticada da nuvem. */
+    const mergeHydratedEvent = (eventId, payload, { replaceVotes = false } = {}) => {
       if (!payload?.config || String(payload.config.id) !== String(eventId)) return false;
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       const cfg = {
@@ -882,7 +895,7 @@
         events[eventId] = { config: cfg, votes: incomingVotes };
       } else {
         const byUser = new Map();
-        [...(events[eventId].votes || []), ...incomingVotes].forEach((v) => {
+        [...(replaceVotes ? [] : (events[eventId].votes || [])), ...incomingVotes].forEach((v) => {
           const prev = byUser.get(v.userId);
           if (!prev || new Date(v.votedAt) > new Date(prev.votedAt)) byUser.set(v.userId, v);
         });
@@ -899,7 +912,8 @@
       if (!window.consensoSignInAnonymously) return;
       if (window.consensoFirebaseUser) return;
       try {
-        await window.consensoSignInAnonymously();
+        const credential = await window.consensoSignInAnonymously();
+        if (credential?.user) window.consensoFirebaseUser = credential.user;
       } catch (e) {
         console.error('[Consenso] signInAnonymously', e);
       }
@@ -922,8 +936,12 @@
       if (!consensoFirestoreReady()) return () => {};
       const evRef = consensoEventDocRef(ownerUid, eventId);
       const votesRef = consensoVotesColRef(ownerUid, eventId);
+      const participantsRef = consensoParticipantsColRef(ownerUid, eventId);
+      const currentUid = window.consensoFirebaseUser?.uid;
+      const canReadAllVotes = currentUid === ownerUid;
       let lastCfg = null;
       let lastVoteDocs = [];
+      let participantCount = 0;
       const flush = () => {
         if (!lastCfg) return;
         const votes = lastVoteDocs.map((d) => {
@@ -936,7 +954,11 @@
           };
         });
         const hadLocal = !!getEvent(eventId);
-        mergeHydratedEvent(eventId, { config: consensoConfigFromFs(lastCfg), votes });
+        mergeHydratedEvent(
+          eventId,
+          { config: { ...consensoConfigFromFs(lastCfg), voteCount: participantCount }, votes },
+          { replaceVotes: !canReadAllVotes }
+        );
         if (onMerged) onMerged();
         if (!hadLocal && getEvent(eventId)) {
           window.dispatchEvent(new CustomEvent('consenso-remote-hydrated', { detail: { eventId } }));
@@ -947,13 +969,24 @@
         lastCfg = snap.data().config;
         flush();
       });
-      const u2 = window.consensoFsOnSnapshot(votesRef, (snap) => {
-        lastVoteDocs = snap.docs;
+      const ownVoteRef = currentUid ? window.consensoFsDoc(votesRef, currentUid) : null;
+      const u2 = !currentUid ? () => {} : window.consensoFsOnSnapshot(canReadAllVotes ? votesRef : ownVoteRef, (snap) => {
+          if (!canReadAllVotes) {
+            lastVoteDocs = snap.exists() ? [snap] : [];
+            flush();
+            return;
+          }
+          lastVoteDocs = snap.docs;
+          flush();
+        });
+      const u3 = window.consensoFsOnSnapshot(participantsRef, (snap) => {
+        participantCount = snap.size;
         flush();
       });
       return () => {
         u1();
         u2();
+        u3();
       };
     };
 
@@ -976,6 +1009,21 @@
             const v = x.data();
             return { userId: v.userId, userName: v.userName, timeSlots: v.timeSlots || [], votedAt: isoVote(v.votedAt) };
           });
+          // Migra reuniões anteriores ao contador privado, sem copiar nomes ou horários.
+          const participantsCol = window.consensoFsCollection(d.ref, 'participants');
+          const participants = await window.consensoFsGetDocs(participantsCol);
+          const participantIds = new Set(participants.docs.map((x) => x.id));
+          const missingReceipts = votes.filter((vote) => vote.userId && !participantIds.has(vote.userId));
+          if (missingReceipts.length) {
+            const batch = window.consensoFsWriteBatch(window.consensoDb);
+            missingReceipts.forEach((vote) => {
+              batch.set(window.consensoFsDoc(participantsCol, vote.userId), {
+                userId: vote.userId,
+                votedAt: isoVote(vote.votedAt),
+              });
+            });
+            await batch.commit();
+          }
           mergeHydratedEvent(eventId, { config: cfg, votes });
         }
       } catch (e) {
@@ -1012,7 +1060,8 @@
         const json = LZString.decompressFromEncodedURIComponent(d);
         if (!json) return;
         const payload = JSON.parse(json);
-        mergeHydratedEvent(id, payload);
+        // Links antigos podiam conter votos. Nunca os importe da URL.
+        mergeHydratedEvent(id, { config: payload.config, votes: [] }, { replaceVotes: true });
       } catch (e) {
         console.error('[Consenso] Link de convite inválido:', e);
       }
@@ -1043,7 +1092,7 @@
 
     /** Mesma mensagem para WhatsApp e “Copiar texto”; URL sozinha na última linha (melhor para apps não cortarem o link). */
     const buildGuestInviteShareMessage = (eventTitle, eventLink) =>
-      `Oi! 📅\n\nEstou organizando "${eventTitle}" no Consenso.\n\nSeus horários serão 100% privados — ninguém verá o que você marcou.\n\nVote aqui:\n${eventLink}`;
+      `Oi! 📅\n\nEstou organizando "${eventTitle}" no Consenso.\n\nSuas escolhas não são mostradas aos outros participantes; apenas o resultado agregado é exibido.\n\nVote aqui:\n${eventLink}`;
 
     /** Atualiza só a parte da hash após # com o link completo do convite (inclui ?d=). Adiciona ?voter se o organizador está votando. */
     const setVoteHashFromInviteLink = (eventId, isOrganizerVoting = false) => {
@@ -1058,39 +1107,16 @@
       window.location.hash = hash;
     };
 
-    const calculateConsensus = (eventData) => {
-      const { config, votes } = eventData;
-      if (votes.length === 0) return { type: 'none', slots: [], totalVotes: 0, quorum: config.quorum };
-      
-      const slotMap = new Map();
-      votes.forEach(vote => {
-        vote.timeSlots.forEach(slotKey => {
-          if (!slotMap.has(slotKey)) {
-            const [dateStr, time] = slotKey.split('|');
-            slotMap.set(slotKey, { date: new Date(dateStr), time, votes: 0, voterIds: [] });
-          }
-          const slot = slotMap.get(slotKey);
-          slot.votes++;
-          slot.voterIds.push(vote.userId);
-        });
-      });
-      
-      const slots = Array.from(slotMap.values());
-      const unanimousSlots = slots.filter(s => s.votes === votes.length).sort((a, b) => a.date - b.date || a.time.localeCompare(b.time));
-      
-      if (unanimousSlots.length > 0) return { type: 'unanimous', slots: unanimousSlots.slice(0, 2), totalVotes: votes.length, quorum: config.quorum };
-      
-      const maxVotes = Math.max(...slots.map(s => s.votes));
-      const majoritySlots = slots.filter(s => s.votes === maxVotes).sort((a, b) => a.date - b.date || a.time.localeCompare(b.time)).slice(0, 2);
-      
-      return { type: 'majority', slots: majoritySlots, totalVotes: votes.length, quorum: config.quorum };
-    };
-    
-    const hasReachedQuorum = (eventData) => eventData.votes.length >= eventData.config.quorum;
-    const hasReachedEarlyRevelationThreshold = (eventData) => eventData.config.earlyRevelation && eventData.votes.length >= Math.ceil(eventData.config.quorum * 0.5);
+    const {
+      calculateConsensus,
+      hasReachedQuorum,
+      hasReachedEarlyRevelationThreshold,
+      getMissingVotesCount,
+      getVoteCount,
+      getVoteProgressPercentage
+    } = window.ConsensoCore;
+
     const canViewResults = (eventData, isManager) => eventData.config.resultsUnlocked || hasReachedQuorum(eventData);
-    const getMissingVotesCount = (eventData) => Math.max(0, eventData.config.quorum - eventData.votes.length);
-    const getVoteProgressPercentage = (eventData) => Math.min(100, Math.round((eventData.votes.length / eventData.config.quorum) * 100));
 
     const generateICalContent = (event) => {
       const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -1118,7 +1144,7 @@
     
     const parseTimeSlot = (slotKey, title) => {
       const [dateStr, timeStr] = slotKey.split('|');
-      const date = new Date(dateStr);
+      const date = parseLocalDate(dateStr);
       
       if (timeStr === 'morning') {
         const start = new Date(date); start.setHours(6, 0, 0, 0);
@@ -1144,7 +1170,7 @@
     const generateReminderMessage = (eventTitle, missingCount, eventLink, totalQuorum) => {
       const votedCount = totalQuorum - missingCount;
       const progressPercent = Math.round((votedCount / totalQuorum) * 100);
-      return `Oi! 👋\n\nFaltam apenas ${missingCount} pessoa${missingCount > 1 ? 's' : ''} para fecharmos o horário da reunião "${eventTitle}".\n\nProgresso: ${votedCount}/${totalQuorum} (${progressPercent}%)\n\nSeus horários são 100% privados no Consenso!\n\nVote aqui: ${eventLink}\n\nObrigado! 🗓️`;
+      return `Oi! 👋\n\nFaltam apenas ${missingCount} pessoa${missingCount > 1 ? 's' : ''} para fecharmos o horário da reunião "${eventTitle}".\n\nProgresso: ${votedCount}/${totalQuorum} (${progressPercent}%)\n\nSuas escolhas não são exibidas aos outros participantes.\n\nVote aqui: ${eventLink}\n\nObrigado! 🗓️`;
     };
 
     const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled, className = '', type = 'button' }) => {
@@ -1810,7 +1836,7 @@
             <div className="max-w-3xl mx-auto text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-6">
                 <Icon name="ShieldCheck" className="w-4 h-4" />
-                <span>Privacidade 100% Garantida</span>
+                <span>Privacidade por padrão</span>
               </div>
               
               <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
@@ -1818,7 +1844,7 @@
               </h1>
               
               <p className="text-lg text-slate-600 mb-4 max-w-2xl mx-auto">
-                Ninguém verá seus horários escolhidos. Nem o organizador. Nem outros participantes.
+                Suas escolhas individuais não são exibidas aos outros participantes.
               </p>
               
               <p className="text-base text-slate-500 mb-8 max-w-xl mx-auto">
@@ -1837,7 +1863,7 @@
                     <Icon name="EyeOff" className="w-5 h-5 text-blue-600" />
                   </div>
                   <h3 className="font-semibold text-slate-900 mb-2">Seus Horários São Secretos</h3>
-                  <p className="text-sm text-slate-600">Ninguém vê quais horários você marcou. Apenas você tem acesso aos seus votos.</p>
+                  <p className="text-sm text-slate-600">Outros participantes veem apenas o progresso e o resultado agregado, nunca sua grade individual.</p>
                 </Card>
                 
                 <Card className="p-6">
@@ -1845,7 +1871,7 @@
                     <Icon name="CheckCircle" className="w-5 h-5 text-green-600" />
                   </div>
                   <h3 className="font-semibold text-slate-900 mb-2">Vote Sem Julgamentos</h3>
-                  <p className="text-sm text-slate-600">Marque todos os horários disponíveis livremente. Sua privacidade é garantida.</p>
+                  <p className="text-sm text-slate-600">Todos os horários começam marcados; basta retirar os períodos em que você não pode participar.</p>
                 </Card>
                 
                 <Card className="p-6">
@@ -1885,7 +1911,7 @@
       const handleSubmit = () => {
         if (!getAdminSession()) { addToast('Faça login como organizador para criar uma reunião', 'error'); return; }
         if (!title.trim()) { addToast('Por favor, informe o nome do evento', 'error'); return; }
-        const start = new Date(startDate), end = new Date(endDate);
+        const start = parseLocalDate(startDate), end = parseLocalDate(endDate);
         if (start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
         if (quorum < 2) { addToast('Quórum mínimo de 2 participantes', 'error'); return; }
 
@@ -2121,6 +2147,7 @@
       const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false);
       const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
       const editingChoicesRef = useRef(false);
+      const selectionInitializedRef = useRef(false);
       const [timezone, setTimezone] = useState('');
       const [isDragging, setIsDragging] = useState(false);
       const [dragValue, setDragValue] = useState(null);
@@ -2142,7 +2169,17 @@
           setHasVoted(voted);
           if (voted && !editingChoicesRef.current) {
             const existingVote = getUserVote(eventId, voter.id);
-            if (existingVote) setSelectedSlots(new Set(existingVote.timeSlots));
+            if (existingVote) {
+              setSelectedSlots(new Set(existingVote.timeSlots));
+              selectionInitializedRef.current = true;
+            }
+          } else if (!voted && !selectionInitializedRef.current) {
+            const eventDates = getDatesInRange(event.config.startDate, event.config.endDate);
+            const eventTimes = event.config.granularity === 'hour'
+              ? HOUR_SLOTS
+              : event.config.granularity === 'shift' ? ['morning', 'afternoon', 'evening'] : ['day'];
+            setSelectedSlots(new Set(eventDates.flatMap((date) => eventTimes.map((time) => `${formatDate(date)}|${time}`))));
+            selectionInitializedRef.current = true;
           }
           // Mostrar prompt de registro para convidados não registrados antes de votar
           if (!registeredUser && !topBar?.adminSession && !voted) {
@@ -2231,6 +2268,21 @@
       };
 
       const getSlotKey = (date, time) => `${formatDate(date)}|${time}`;
+      const allSlotKeys = dates.flatMap((date) => getTimeSlots().map((time) => getSlotKey(date, time)));
+
+      const setSlotsAvailability = (slotKeys, available) => {
+        if (!slotsInteractive) return;
+        setSelectedSlots((current) => {
+          const next = new Set(current);
+          slotKeys.forEach((key) => available ? next.add(key) : next.delete(key));
+          return next;
+        });
+      };
+
+      const toggleSlotGroup = (slotKeys) => {
+        const makeAvailable = slotKeys.some((key) => !selectedSlots.has(key));
+        setSlotsAvailability(slotKeys, makeAvailable);
+      };
 
       const handleCancelEditChoices = () => {
         const voter = getConsensoVoterUser(eventId);
@@ -2259,20 +2311,25 @@
       useEffect(() => {
         const handleGlobalMouseUp = () => { setIsDragging(false); setDragValue(null); };
         document.addEventListener('mouseup', handleGlobalMouseUp);
-        return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.addEventListener('pointerup', handleGlobalMouseUp);
+        document.addEventListener('pointercancel', handleGlobalMouseUp);
+        return () => {
+          document.removeEventListener('mouseup', handleGlobalMouseUp);
+          document.removeEventListener('pointerup', handleGlobalMouseUp);
+          document.removeEventListener('pointercancel', handleGlobalMouseUp);
+        };
       }, []);
 
       const handleSubmit = async (skipPrompt = false) => {
         if (!localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
-        if (selectedSlots.size === 0) { addToast('Selecione pelo menos um horário', 'error'); return; }
-
         setIsSubmitting(true);
         try {
           const oldUser = getConsensoVoterUser(eventId);
-          const user = registeredUser || oldUser;
+          const cloudEvent = getEvent(eventId);
+          const user = cloudEvent?.config?.firebaseOwnerUid ? oldUser : (registeredUser || oldUser);
           
           // Se o usuário se registrou, migrar o voto se foi anônimo
-          if (registeredUser && oldUser.id !== registeredUser.id) {
+          if (!cloudEvent?.config?.firebaseOwnerUid && registeredUser && oldUser.id !== registeredUser.id) {
             const previousAnonymousVote = getUserVote(eventId, oldUser.id);
             if (previousAnonymousVote) {
               mergeAnonymousVoteToRegistered(oldUser.id, registeredUser.id, eventId);
@@ -2280,7 +2337,7 @@
           }
 
           onSetUserName(localUserName);
-          submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
+          await submitVote(eventId, { userId: user.id, userName: localUserName.trim(), timeSlots: Array.from(selectedSlots) });
           trackParticipatedEvent(eventId);
           addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
           setHasVoted(true);
@@ -2395,7 +2452,7 @@
                 <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right">
                     <div className="text-xs text-slate-500">Progresso</div>
-                    <div className="font-semibold text-sm">{eventData.votes.length}/{eventData.config.quorum}</div>
+                    <div className="font-semibold text-sm">{getVoteCount(eventData)}/{eventData.config.quorum}</div>
                   </div>
                   <div className="w-28 sm:w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-600 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
@@ -2412,11 +2469,11 @@
                   <Icon name="ShieldCheck" className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold mb-2">Seus Horários São 100% Privados</h2>
+                  <h2 className="text-lg font-bold mb-2">Suas escolhas não são exibidas ao grupo</h2>
                   <ul className="space-y-1 text-sm text-blue-100">
-                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Ninguém verá quais horários você marcou</li>
-                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Nem o organizador tem acesso aos seus votos</li>
-                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Vote em TODOS os horários disponíveis</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Outros convidados não acessam sua grade individual</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />O link do convite nunca inclui votos</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Desmarque apenas os períodos indisponíveis</li>
                     <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Apenas o consenso final será revelado</li>
                   </ul>
                 </div>
@@ -2432,9 +2489,23 @@
 
             <Card className="mb-6 overflow-hidden">
               <CardHeader className="flex items-center justify-between bg-slate-50">
-                <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />Selecione seus horários disponíveis</h2>
-                <span className="text-sm text-slate-500">{selectedSlots.size} selecionado{selectedSlots.size !== 1 ? 's' : ''}</span>
+                <div>
+                  <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />Desmarque quando você não estiver disponível</h2>
+                  <p className="text-xs text-slate-500 mt-1">Todos os períodos começam disponíveis.</p>
+                </div>
+                <span className="text-sm text-slate-500">{selectedSlots.size} disponível{selectedSlots.size !== 1 ? 'is' : ''}</span>
               </CardHeader>
+
+              {slotsInteractive && (
+                <div className="p-4 border-b flex flex-wrap gap-2 bg-white">
+                  <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, true)}>
+                    <Icon name="CheckCheck" className="w-4 h-4 mr-2" />Marcar tudo disponível
+                  </Button>
+                  <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, false)}>
+                    <Icon name="X" className="w-4 h-4 mr-2" />Desmarcar tudo
+                  </Button>
+                </div>
+              )}
 
               <div className="p-4 overflow-x-auto">
                 <div className="min-w-max">
@@ -2445,6 +2516,16 @@
                         <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
                         <div className="text-lg font-semibold">{getDayNumber(date)}</div>
                         <div className="text-xs text-slate-400">{getMonthName(date)}</div>
+                        {slotsInteractive && (
+                          <button
+                            type="button"
+                            onClick={() => toggleSlotGroup(timeSlots.map((time) => getSlotKey(date, time)))}
+                            className="mt-1 text-[10px] text-blue-700 hover:underline"
+                            title="Marcar ou desmarcar todos os períodos deste dia"
+                          >
+                            alternar dia
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2453,16 +2534,29 @@
                     const isSeparator = SEPARATOR_HOURS.includes(time);
                     return (
                       <div key={time} className="flex">
-                        <div className={`w-20 flex-shrink-0 py-3 pr-4 text-right text-sm font-medium flex items-center justify-end ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
-                          {eventData.config.granularity === 'shift' ? SHIFT_TIMES[time] : time === 'day' ? 'Dia' : time}
+                        <div className={`w-20 flex-shrink-0 py-2 pr-2 text-right text-sm font-medium flex flex-col items-end justify-center ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
+                          <span>{eventData.config.granularity === 'shift' ? SHIFT_TIMES[time] : time === 'day' ? 'Dia' : time}</span>
+                          {slotsInteractive && dates.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSlotGroup(dates.map((date) => getSlotKey(date, time)))}
+                              className="text-[10px] font-normal text-blue-700 hover:underline"
+                              title="Marcar ou desmarcar este período em todos os dias"
+                            >
+                              todos dias
+                            </button>
+                          )}
                         </div>
                         {dates.map(date => {
                           const slotKey = getSlotKey(date, time);
                           const isSelected = selectedSlots.has(slotKey);
                           return (
                             <div key={slotKey} className={`w-24 flex-shrink-0 p-1 ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
-                              <button onMouseDown={() => handleMouseDown(slotKey)} onMouseEnter={() => handleMouseEnter(slotKey)}
+                              <button
+                                onPointerDown={(e) => { e.preventDefault(); handleMouseDown(slotKey); }}
+                                onPointerEnter={() => handleMouseEnter(slotKey)}
                                 disabled={!slotsInteractive}
+                                style={{ touchAction: 'none' }}
                                 className={`w-full h-10 rounded-md transition-all ${isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
                                 {isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
                               </button>
@@ -2497,7 +2591,7 @@
               ) : (
                 <>
                   <div className="text-sm text-slate-500">
-                    {editingChoices ? 'Ajuste os horários e salve. Funciona com ou sem login de organizador.' : 'Dica: Clique e arraste para selecionar vários horários'}
+                    {editingChoices ? 'Desmarque os períodos indisponíveis e salve.' : 'Dica: clique e arraste para marcar ou desmarcar vários períodos'}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     {editingChoices && (
@@ -2507,7 +2601,7 @@
                     )}
                     <Button
                       onClick={handleSubmit}
-                      disabled={isSubmitting || selectedSlots.size === 0}
+                      disabled={isSubmitting}
                       className="order-1 sm:order-2"
                     >
                       {isSubmitting ? 'Enviando...' : hasVoted ? (editingChoices ? 'Salvar alterações' : 'Atualizar voto') : 'Confirmar voto'}
@@ -2568,7 +2662,7 @@
               <p className="text-sm text-slate-500 mb-6">Quórum necessário: <strong>{eventData.config.quorum} participantes</strong></p>
               
               <Card className="p-6 mb-6">
-                <div className="flex justify-between mb-4"><span className="text-slate-600">Progresso</span><span className="font-semibold">{eventData.votes.length}/{eventData.config.quorum}</span></div>
+                <div className="flex justify-between mb-4"><span className="text-slate-600">Progresso</span><span className="font-semibold">{getVoteCount(eventData)}/{eventData.config.quorum}</span></div>
                 <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-blue-600 transition-all" style={{ width: `${progressPercent}%` }} /></div>
                 <p className="text-center text-sm text-slate-500 mt-2">{progressPercent}% completo</p>
               </Card>
@@ -2664,7 +2758,7 @@
             <Card className="p-6">
               <h3 className="font-semibold mb-4">Estatísticas</h3>
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div><div className="text-2xl font-bold text-blue-600">{eventData.votes.length}</div><div className="text-sm text-slate-500">Votos</div></div>
+                <div><div className="text-2xl font-bold text-blue-600">{getVoteCount(eventData)}</div><div className="text-sm text-slate-500">Votos</div></div>
                 <div><div className="text-2xl font-bold">{eventData.config.quorum}</div><div className="text-sm text-slate-500">Quórum</div></div>
                 <div><div className="text-2xl font-bold text-green-600">{progressPercent}%</div><div className="text-sm text-slate-500">Progresso</div></div>
               </div>
@@ -2801,7 +2895,7 @@
               <CardContent>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <div className="text-3xl font-bold">{eventData.votes.length} <span className="text-lg text-slate-500">/ {eventData.config.quorum}</span></div>
+                    <div className="text-3xl font-bold">{getVoteCount(eventData)} <span className="text-lg text-slate-500">/ {eventData.config.quorum}</span></div>
                     <div className="text-sm text-slate-500">votos recebidos</div>
                   </div>
                   <div className="text-right">
