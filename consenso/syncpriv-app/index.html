@@ -176,7 +176,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
-  <script src="core.js?v=6"></script>
+  <script src="core.js?v=7"></script>
 </head>
 <body class="bg-slate-50 safe-area-top safe-area-bottom">
   <!-- PWA Install Prompt Container -->
@@ -427,7 +427,7 @@
     );
 
     const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const { parseLocalDate, formatLocalDate } = window.ConsensoCore;
+    const { parseLocalDate, formatLocalDate, rankConsensusSlots } = window.ConsensoCore;
     const formatDate = formatLocalDate;
     const asDisplayDate = (date) => typeof date === 'string' ? parseLocalDate(date) : date;
     const formatDisplayDate = (date) => asDisplayDate(date).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -816,11 +816,12 @@
         creatorAdminEmail: admin?.email || undefined,
         ...(admin?.firebaseUid ? { firebaseOwnerUid: admin.firebaseUid } : {}),
       };
-      events[newConfig.id] = { config: newConfig, votes: [] };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       if (admin?.firebaseUid && consensoFirestoreReady()) {
+        await waitForConsensoFirebaseUser(admin.firebaseUid);
         await consensoCloudWriteNewEvent(admin.firebaseUid, newConfig);
       }
+      events[newConfig.id] = { config: newConfig, votes: [] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       return newConfig;
     };
     
@@ -859,21 +860,29 @@
       return event ? event.votes.find(v => v.userId === userId) || null : null;
     };
     
-    const unlockResults = async (eventId) => {
+    const unlockResults = async (eventId, selectedSlotKey) => {
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       if (events[eventId]) {
         const finalizedAt = new Date().toISOString();
         const hydrated = getEvent(eventId);
-        const verdict = calculateConsensus(hydrated);
+        const rankedSlots = rankConsensusSlots(hydrated);
+        const chosenSlot = rankedSlots.find((slot) => slot.key === selectedSlotKey);
+        if (!chosenSlot) throw new Error('Selecione uma opção válida do consenso.');
+        const verdict = {
+          type: chosenSlot.votes === hydrated.votes.length ? 'unanimous' : 'majority',
+          slots: [chosenSlot],
+          totalVotes: hydrated.votes.length,
+          quorum: hydrated.config.quorum,
+        };
         const finalResult = {
           ...verdict,
           slots: verdict.slots.map((slot) => ({ ...slot, date: formatDate(slot.date) })),
         };
         const owner = events[eventId].config?.firebaseOwnerUid;
         if (owner && consensoFirestoreReady()) {
-          await consensoCloudMergeConfig(owner, eventId, { resultsUnlocked: true, finalized: true, finalizedAt, finalResult });
+          await consensoCloudMergeConfig(owner, eventId, { resultsUnlocked: true, finalized: true, finalizedAt, finalResult, selectedFinalSlot: selectedSlotKey });
         }
-        events[eventId].config = { ...events[eventId].config, resultsUnlocked: true, finalized: true, finalizedAt, finalResult };
+        events[eventId].config = { ...events[eventId].config, resultsUnlocked: true, finalized: true, finalizedAt, finalResult, selectedFinalSlot: selectedSlotKey };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       }
     };
@@ -973,6 +982,34 @@
       } catch (e) {
         console.error('[Consenso] signInAnonymously', e);
       }
+    };
+
+    const waitForConsensoFirebaseUser = async (expectedUid, timeoutMs = 8000) => {
+      if (!expectedUid) return null;
+      if (window.consensoFirebaseUser?.uid === expectedUid) return window.consensoFirebaseUser;
+      if (window.consensoFirebaseUser?.uid && window.consensoFirebaseUser.uid !== expectedUid) {
+        throw new Error('A conta Firebase ativa é diferente da conta do organizador. Saia e entre novamente.');
+      }
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          window.removeEventListener('consenso-firebase-auth', onAuth);
+          reject(new Error('A autenticação do Firebase não ficou pronta. Saia e entre novamente como organizador.'));
+        }, timeoutMs);
+        const onAuth = (event) => {
+          const user = event.detail;
+          if (!user) return;
+          if (user.uid !== expectedUid) {
+            clearTimeout(timeout);
+            window.removeEventListener('consenso-firebase-auth', onAuth);
+            reject(new Error('A conta Firebase ativa é diferente da conta do organizador. Saia e entre novamente.'));
+            return;
+          }
+          clearTimeout(timeout);
+          window.removeEventListener('consenso-firebase-auth', onAuth);
+          resolve(user);
+        };
+        window.addEventListener('consenso-firebase-auth', onAuth);
+      });
     };
 
     const consensoFetchLookupOwnerUid = async (eventId) => {
@@ -1986,6 +2023,7 @@
         if (!getAdminSession()) { addToast('Faça login como organizador para criar uma reunião', 'error'); return; }
         if (!title.trim()) { addToast('Por favor, informe o nome do evento', 'error'); return; }
         const start = parseLocalDate(startDate), end = parseLocalDate(endDate);
+        if (!startDate || !endDate || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { addToast('Informe datas de início e fim válidas.', 'error'); return; }
         if (start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
         if (quorum < 2) { addToast('Quórum mínimo de 2 participantes', 'error'); return; }
 
@@ -1995,7 +2033,10 @@
           const config = await createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, earlyRevelation: false, creatorId: user.id });
           addToast('Reunião criada com sucesso!', 'success');
           onCreate(config);
-        } catch (error) { addToast('Erro ao criar reunião', 'error'); }
+        } catch (error) {
+          console.error('[Consenso] Falha ao criar reunião', error);
+          addToast(error?.message || 'Erro ao criar reunião', 'error');
+        }
         finally { setIsSubmitting(false); }
       };
 
@@ -2964,6 +3005,7 @@
       const [eventData, setEventData] = useState(null);
       const [copied, setCopied] = useState(false);
       const [commentsReviewed, setCommentsReviewed] = useState(false);
+      const [selectedFinalSlot, setSelectedFinalSlot] = useState('');
 
       useEffect(() => { loadEventData(); }, [eventId]);
 
@@ -3019,8 +3061,9 @@
       const handleUnlockResults = async () => {
         if (!commentsReviewed) { addToast('Confirme que você revisou os comentários.', 'error'); return; }
         if (getVoteCount(eventData) === 0) { addToast('Aguarde pelo menos um voto antes de finalizar.', 'error'); return; }
+        if (!selectedFinalSlot) { addToast('Escolha a data e o horário que serão definidos como resultado final.', 'error'); return; }
         try {
-          await unlockResults(eventId);
+          await unlockResults(eventId, selectedFinalSlot);
           loadEventData();
           addToast('Votação finalizada e resultado revelado!', 'success');
         } catch (e) {
@@ -3047,6 +3090,15 @@
       const progressPercent = getVoteProgressPercentage(eventData);
       const quorumReached = hasReachedQuorum(eventData);
       const voterComments = eventData.votes.filter((vote) => vote.comment && vote.comment.trim());
+      const consensusOptions = rankConsensusSlots(eventData);
+      const formatConsensusOption = (slot) => {
+        const date = formatDisplayDateFull(slot.date);
+        if (slot.time === 'day') return date;
+        if (slot.time === 'morning') return `${date} — Manhã`;
+        if (slot.time === 'afternoon') return `${date} — Tarde`;
+        if (slot.time === 'evening') return `${date} — Noite`;
+        return `${date} às ${slot.time}`;
+      };
 
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -3130,12 +3182,34 @@
               </CardContent>
             </Card>
 
+            {!eventData.config.finalized && (
+              <Card className="mb-6">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Icon name="CalendarCheck" className="w-5 h-5 text-blue-600" />Escolha do resultado final</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-600 mb-4">Todas as datas e horários escolhidos por pelo menos um participante aparecem abaixo, ordenados pela maior quantidade de votos. Selecione uma opção para definir o resultado que será revelado.</p>
+                  {consensusOptions.length ? (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {consensusOptions.map((slot) => (
+                        <label key={slot.key} className={`flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${selectedFinalSlot === slot.key ? 'border-blue-500 bg-blue-50' : 'hover:bg-slate-50'}`}>
+                          <span className="flex items-center gap-3 min-w-0">
+                            <input type="radio" name="selectedFinalSlot" value={slot.key} checked={selectedFinalSlot === slot.key} onChange={() => setSelectedFinalSlot(slot.key)} />
+                            <span className="text-sm font-medium">{formatConsensusOption(slot)}</span>
+                          </span>
+                          <span className="text-xs font-semibold whitespace-nowrap px-2 py-1 rounded-full bg-slate-100 text-slate-700">{slot.votes}/{getVoteCount(eventData)} votos</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : <p className="text-sm text-slate-500">As opções aparecerão assim que o primeiro voto for recebido.</p>}
+                </CardContent>
+              </Card>
+            )}
+
             <Card className={`mb-6 ${eventData.config.finalized ? 'border-green-300 bg-green-50' : 'border-blue-300 bg-blue-50'}`}>
               <CardContent className="p-6">
                 {eventData.config.finalized ? (
                   <div><div className="flex items-center gap-2 text-green-800 font-semibold mb-3"><Icon name="CheckCircle" className="w-5 h-5" />Votação finalizada</div><Button onClick={onViewResults} className="w-full"><Icon name="Eye" className="w-4 h-4 mr-2" />Consultar resultado final</Button></div>
                 ) : (
-                  <div><h3 className="font-semibold mb-1">Finalizar votação e revelar resultado</h3><p className="text-sm text-slate-600 mb-4">O resultado continua oculto mesmo após o quórum. Finalize apenas depois de conferir os comentários.</p><Button onClick={handleUnlockResults} disabled={!commentsReviewed || getVoteCount(eventData) === 0} className="w-full"><Icon name="Flag" className="w-4 h-4 mr-2" />Finalizar e revelar resultado</Button></div>
+                  <div><h3 className="font-semibold mb-1">Finalizar votação e revelar resultado</h3><p className="text-sm text-slate-600 mb-4">O resultado continua oculto mesmo após o quórum. Escolha uma opção acima e finalize apenas depois de conferir os comentários.</p><Button onClick={handleUnlockResults} disabled={!commentsReviewed || !selectedFinalSlot || getVoteCount(eventData) === 0} className="w-full"><Icon name="Flag" className="w-4 h-4 mr-2" />Finalizar e revelar resultado escolhido</Button></div>
                 )}
               </CardContent>
             </Card>

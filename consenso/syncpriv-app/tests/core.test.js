@@ -52,3 +52,17 @@ test('períodos bloqueados pelo organizador nunca entram na apuração', () => {
   });
   assert.equal(result.slots[0].time, '10:00');
 });
+
+test('organizador recebe todas as opções do consenso ordenadas por votos', () => {
+  const slots = core.rankConsensusSlots({
+    config: { blockedSlots: ['2026-08-07|08:00'] },
+    votes: [
+      { timeSlots: ['2026-08-07|08:00', '2026-08-07|09:00', '2026-08-08|10:00'] },
+      { timeSlots: ['2026-08-07|09:00'] },
+    ],
+  });
+  assert.deepEqual(slots.map((slot) => [slot.key, slot.votes]), [
+    ['2026-08-07|09:00', 2],
+    ['2026-08-08|10:00', 1],
+  ]);
+});

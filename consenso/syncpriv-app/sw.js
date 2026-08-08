@@ -1,9 +1,9 @@
 // Consenso - Service Worker
-const CACHE_NAME = 'consenso-v7';
+const CACHE_NAME = 'consenso-v8';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './core.js?v=6',
+  './core.js?v=7',
   './manifest.json',
   './logo.png',
   './icons/icon-72x72.png',

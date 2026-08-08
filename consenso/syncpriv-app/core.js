@@ -43,6 +43,20 @@
     const maxVotes = Math.max(...slots.map((slot) => slot.votes));
     return { type: 'majority', slots: slots.filter((slot) => slot.votes === maxVotes).sort(ranked).slice(0, 2), totalVotes: votes.length, quorum: config.quorum };
   };
+  const rankConsensusSlots = ({ config, votes }) => {
+    const blockedSlots = new Set(Array.isArray(config && config.blockedSlots) ? config.blockedSlots : []);
+    const slotMap = new Map();
+    (votes || []).forEach((vote) => {
+      new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
+        if (blockedSlots.has(slotKey)) return;
+        const [dateStr, time] = String(slotKey).split('|');
+        if (!dateStr || !time) return;
+        if (!slotMap.has(slotKey)) slotMap.set(slotKey, { key: slotKey, date: parseLocalDate(dateStr), time, votes: 0 });
+        slotMap.get(slotKey).votes += 1;
+      });
+    });
+    return Array.from(slotMap.values()).sort((a, b) => b.votes - a.votes || a.date - b.date || a.time.localeCompare(b.time));
+  };
   const getVoteCount = ({ config, votes }) => {
     const publicCount = Number(config && config.voteCount);
     return Number.isFinite(publicCount) && publicCount >= 0 ? Math.max(publicCount, votes.length) : votes.length;
@@ -52,5 +66,5 @@
   const hasReachedEarlyRevelationThreshold = (event) => Boolean(event.config.earlyRevelation) && getVoteCount(event) >= Math.ceil(event.config.quorum * 0.5);
   const getMissingVotesCount = (event) => Math.max(0, event.config.quorum - getVoteCount(event));
   const getVoteProgressPercentage = (event) => event.config.quorum > 0 ? Math.min(100, Math.round((getVoteCount(event) / event.config.quorum) * 100)) : 0;
-  return { calculateConsensus, canRevealResults, formatLocalDate, getMissingVotesCount, getVoteCount, getVoteProgressPercentage, hasReachedEarlyRevelationThreshold, hasReachedQuorum, parseLocalDate, sanitizeInvitePayload };
+  return { calculateConsensus, canRevealResults, formatLocalDate, getMissingVotesCount, getVoteCount, getVoteProgressPercentage, hasReachedEarlyRevelationThreshold, hasReachedQuorum, parseLocalDate, rankConsensusSlots, sanitizeInvitePayload };
 });
