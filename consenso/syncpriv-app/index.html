@@ -236,7 +236,7 @@
     // Register Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('./sw.js')
           .then((registration) => {
             console.log('[PWA] Service Worker registered:', registration.scope);
           })
@@ -742,8 +742,7 @@
         'participants',
         vote.userId
       );
-      const batch = window.consensoFsWriteBatch(window.consensoDb);
-      batch.set(vref, {
+      const voteData = {
         userId: vote.userId,
         userName: vote.userName,
         timeSlots: vote.timeSlots,
@@ -751,23 +750,31 @@
         comment: vote.comment || '',
         commentVisibility: vote.commentVisibility || 'organizer',
         votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
-      });
-      batch.set(pref, {
+      };
+      await window.consensoFsSetDoc(vref, voteData);
+      try {
+        await window.consensoFsSetDoc(pref, {
         userId: vote.userId,
         votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
-      });
-      const cref = window.consensoFsDoc(consensoPublicCommentsColRef(ownerUid, eventId), vote.userId);
-      if (vote.comment && vote.commentVisibility === 'everyone') {
-        batch.set(cref, {
-          userId: vote.userId,
-          userName: vote.userName,
-          comment: vote.comment,
-          votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
         });
-      } else if (vote.removePublicComment) {
-        batch.delete(cref);
+      } catch (receiptError) {
+        console.error('[Consenso] Voto salvo, mas o recibo de contagem falhou', receiptError);
       }
-      await batch.commit();
+      const cref = window.consensoFsDoc(consensoPublicCommentsColRef(ownerUid, eventId), vote.userId);
+      try {
+        if (vote.comment && vote.commentVisibility === 'everyone') {
+          await window.consensoFsSetDoc(cref, {
+            userId: vote.userId,
+            userName: vote.userName,
+            comment: vote.comment,
+            votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
+          });
+        } else if (vote.removePublicComment) {
+          await window.consensoFsDeleteDoc(cref);
+        }
+      } catch (commentError) {
+        console.error('[Consenso] Voto salvo, mas a sincronização do comentário público falhou', commentError);
+      }
     };
 
     const consensoCloudMergeConfig = async (ownerUid, eventId, partial) => {
@@ -1022,6 +1029,8 @@
         if (!snap.exists()) return;
         lastCfg = snap.data().config;
         flush();
+      }, (error) => {
+        console.error('[Consenso] Falha ao acompanhar a reunião', error);
       });
       const ownVoteRef = currentUid ? window.consensoFsDoc(votesRef, currentUid) : null;
       const u2 = !currentUid ? () => {} : window.consensoFsOnSnapshot(canReadAllVotes ? votesRef : ownVoteRef, (snap) => {
@@ -1032,14 +1041,20 @@
           }
           lastVoteDocs = snap.docs;
           flush();
+        }, (error) => {
+          console.error('[Consenso] Falha ao acompanhar o voto', error);
         });
       const u3 = window.consensoFsOnSnapshot(participantsRef, (snap) => {
         participantCount = snap.size;
         flush();
+      }, (error) => {
+        console.warn('[Consenso] Contador de participantes indisponível', error);
       });
       const u4 = window.consensoFsOnSnapshot(publicCommentsRef, (snap) => {
         publicComments = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
         flush();
+      }, (error) => {
+        console.warn('[Consenso] Comentários públicos indisponíveis', error);
       });
       return () => {
         u1();
@@ -2217,7 +2232,6 @@
       const [localUserName, setLocalUserName] = useState(userName);
       const [selectedSlots, setSelectedSlots] = useState(new Set());
       const [blockedSlots, setBlockedSlots] = useState(new Set());
-      const [blockingMode, setBlockingMode] = useState(false);
       const [comment, setComment] = useState('');
       const [commentVisibility, setCommentVisibility] = useState('organizer');
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2405,14 +2419,14 @@
       const handleMouseDown = (slotKey) => {
         if (hasVoted && !showNameInput && !editingChoices) return;
         setIsDragging(true);
-        const nextState = organizerPreparation && blockingMode ? 'blocked' : !selectedSlots.has(slotKey);
+        const nextState = organizerPreparation ? (blockedSlots.has(slotKey) ? 'unblocked' : 'blocked') : !selectedSlots.has(slotKey);
         setDragValue(nextState);
-        applySlotState(slotKey, nextState);
+        if (organizerPreparation) setSlotsBlocked([slotKey], nextState === 'blocked'); else applySlotState(slotKey, nextState);
       };
 
       const handleMouseEnter = (slotKey) => {
         if (!isDragging || dragValue === null) return;
-        applySlotState(slotKey, dragValue);
+        if (organizerPreparation) setSlotsBlocked([slotKey], dragValue === 'blocked'); else applySlotState(slotKey, dragValue);
       };
 
       useEffect(() => {
@@ -2429,7 +2443,7 @@
 
       const handleSubmit = async (skipPrompt = false) => {
         if (!organizerPreparation && !eventData.config.votingOpened && eventData.config.votingOpened !== undefined) { addToast('A votação ainda não foi aberta pelo organizador.', 'error'); return; }
-        if ((!organizerPreparation || eventData.config.managerMode === 'participant') && !localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
+        if (!organizerPreparation && !localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         setIsSubmitting(true);
         try {
           if (eventData.config.firebaseOwnerUid) {
@@ -2460,7 +2474,6 @@
             };
           if (organizerPreparation) {
             await activateEventVoting(eventId, Array.from(blockedSlots));
-            if (eventData.config.managerMode === 'participant') await submitVote(eventId, votePayload);
             addToast('Grade confirmada. A votação está aberta e o link foi liberado!', 'success');
             if (onPreparationComplete) onPreparationComplete(getEvent(eventId));
             return;
@@ -2617,7 +2630,7 @@
               </div>
             </div>
 
-            {showNameInput && (!organizerPreparation || eventData?.config?.managerMode === 'participant') && (
+            {showNameInput && !organizerPreparation && (
               <Card className="p-6 mb-6">
                 <Label className="mb-2 block"><Icon name="User" className="w-4 h-4 inline mr-2" />Seu Nome</Label>
                 <Input value={localUserName} onChange={(e) => setLocalUserName(e.target.value)} placeholder="Digite seu nome" />
@@ -2627,44 +2640,18 @@
             <Card className="mb-6 overflow-hidden">
               <CardHeader className="flex items-center justify-between bg-slate-50">
                 <div>
-                  <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />{organizerPreparation ? 'Defina a grade válida e suas escolhas' : 'Desmarque quando você não estiver disponível'}</h2>
-                  <p className="text-xs text-slate-500 mt-1">{organizerPreparation ? 'Bloqueados ficam fora da votação de todos. Depois, registre sua própria disponibilidade se você também participa.' : 'Todos os períodos permitidos começam disponíveis.'}</p>
+                  <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />{organizerPreparation ? 'Etapa 1: bloqueie as opções impossíveis' : 'Desmarque quando você não estiver disponível'}</h2>
+                  <p className="text-xs text-slate-500 mt-1">{organizerPreparation ? 'Nesta etapa você não está votando. Ao concluir, seguirá para o painel do organizador.' : 'Todos os períodos permitidos começam disponíveis.'}</p>
                 </div>
-                <span className="text-sm text-slate-500">{selectedSlots.size} {selectedSlots.size === 1 ? 'horário disponível' : 'horários disponíveis'}</span>
+                <span className="text-sm text-slate-500">{organizerPreparation ? `${blockedSlots.size} bloqueado${blockedSlots.size === 1 ? '' : 's'}` : `${selectedSlots.size} ${selectedSlots.size === 1 ? 'horário disponível' : 'horários disponíveis'}`}</span>
               </CardHeader>
 
               {slotsInteractive && (
-                <div className="p-4 border-b bg-white space-y-4">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-600 mb-2">Clique ou arraste para marcar/desmarcar. {organizerPreparation && 'Ative o modo de bloqueio apenas para retirar opções de todos os convidados.'}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {organizerPreparation && <Button variant={blockingMode ? 'primary' : 'outline'} onClick={() => setBlockingMode((value) => !value)}><Icon name={blockingMode ? 'Ban' : 'MousePointer2'} className="w-4 h-4 mr-2" />{blockingMode ? 'Bloqueando opções' : 'Marcar/desmarcar normalmente'}</Button>}
-                    </div>
+                <div className="p-3 border-b bg-white flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-slate-600">{organizerPreparation ? 'Clique ou arraste para bloquear/desbloquear opções.' : 'Clique ou arraste para marcar/desmarcar sua disponibilidade.'}</p>
+                  <div className="flex gap-2">
+                    {organizerPreparation ? <><Button variant="outline" size="sm" onClick={() => setSlotsBlocked(allSlotKeys, false)}>Desbloquear tudo</Button><Button variant="outline" size="sm" onClick={() => setSlotsBlocked(allSlotKeys, true)}>Bloquear tudo</Button></> : <><Button variant="outline" size="sm" onClick={() => setSlotsNormalAvailable(allSlotKeys)}>Marcar tudo</Button><Button variant="outline" size="sm" onClick={() => setSlotsAvailability(allSlotKeys, false)}>Desmarcar tudo</Button></>}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => setSlotsNormalAvailable(allSlotKeys)}><Icon name="CheckCheck" className="w-4 h-4 mr-2" />Tudo disponível</Button>
-                    <Button variant="outline" onClick={() => setSlotsAvailability(allSlotKeys, false)}><Icon name="X" className="w-4 h-4 mr-2" />Tudo indisponível</Button>
-                  </div>
-                  {eventData.config.granularity === 'hour' && (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-600 mb-2">2. Ou aplique a todos os dias por período:</p>
-                      <div className="grid sm:grid-cols-3 gap-2">
-                        {Object.values(HOUR_PERIODS).map((period) => {
-                          const keys = dates.flatMap((date) => period.hours.map((hour) => getSlotKey(date, hour)));
-                          return (
-                            <div key={period.label} className="border rounded-lg p-2 bg-slate-50">
-                              <div className="text-sm font-semibold mb-2">{period.label}</div>
-                              <div className="flex flex-wrap gap-1">
-                                <button type="button" onClick={() => setSlotsNormalAvailable(keys)} className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">Disponível</button>
-                                <button type="button" onClick={() => setSlotsAvailability(keys, false)} className="px-2 py-1 text-xs rounded bg-slate-200 text-slate-800">Indisponível</button>
-                                {organizerPreparation && <button type="button" onClick={() => setSlotsBlocked(keys, true)} className="px-2 py-1 text-xs rounded bg-red-100 text-red-800">Bloquear</button>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -2677,7 +2664,7 @@
                         <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
                         <div className="text-lg font-semibold">{getDayNumber(date)}</div>
                         <div className="text-xs text-slate-400">{getMonthName(date)}</div>
-                        {slotsInteractive && (
+                        {slotsInteractive && !organizerPreparation && (
                           <button
                             type="button"
                             onClick={() => toggleSlotGroup(displayTimeSlots.map((time) => getSlotKey(date, time)))}
@@ -2687,18 +2674,22 @@
                             alternar dia
                           </button>
                         )}
-                        {organizerPreparation && <button type="button" onClick={() => setSlotsBlocked(timeSlots.map((time) => getSlotKey(date, time)), true)} className="block mx-auto text-[10px] text-red-700 hover:underline">bloquear dia</button>}
+                        {organizerPreparation && <button type="button" onClick={() => { const keys = timeSlots.map((time) => getSlotKey(date, time)); setSlotsBlocked(keys, !keys.every((key) => blockedSlots.has(key))); }} className="block mx-auto text-[10px] text-red-700 hover:underline">alternar bloqueio</button>}
                       </div>
                     ))}
                   </div>
 
                   {displayTimeSlots.map(time => {
                     const isSeparator = SEPARATOR_HOURS.includes(time);
+                    const hourPeriod = eventData.config.granularity === 'hour' ? Object.values(HOUR_PERIODS).find((period) => period.hours[0] === time) : null;
+                    const hourPeriodKeys = hourPeriod ? displayDates.flatMap((date) => hourPeriod.hours.map((hour) => getSlotKey(date, hour))) : [];
                     return (
-                      <div key={time} className="flex">
+                      <React.Fragment key={time}>
+                      {hourPeriod && <div className="flex items-center justify-between gap-2 px-2 py-1.5 bg-slate-100 border-y text-xs"><strong>{hourPeriod.label}</strong><div className="flex gap-1">{organizerPreparation ? <><button type="button" onClick={() => setSlotsBlocked(hourPeriodKeys, true)} className="px-2 py-1 rounded bg-red-100 text-red-800">Bloquear período</button><button type="button" onClick={() => setSlotsBlocked(hourPeriodKeys, false)} className="px-2 py-1 rounded bg-white border text-slate-700">Desbloquear</button></> : <><button type="button" onClick={() => setSlotsNormalAvailable(hourPeriodKeys)} className="px-2 py-1 rounded bg-blue-100 text-blue-800">Marcar período</button><button type="button" onClick={() => setSlotsAvailability(hourPeriodKeys, false)} className="px-2 py-1 rounded bg-white border text-slate-700">Desmarcar</button></>}</div></div>}
+                      <div className="flex">
                         <div className={`w-20 flex-shrink-0 py-2 pr-2 text-right text-sm font-medium flex flex-col items-end justify-center ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
                           <span>{eventData.config.granularity === 'shift' ? SHIFT_TIMES[time] : time === 'day' ? 'Dia' : time}</span>
-                          {slotsInteractive && displayDates.length > 1 && (
+                          {slotsInteractive && displayDates.length > 1 && !organizerPreparation && (
                             <button
                               type="button"
                               onClick={() => toggleSlotGroup(displayDates.map((date) => getSlotKey(date, time)))}
@@ -2708,6 +2699,7 @@
                               todos dias
                             </button>
                           )}
+                          {organizerPreparation && eventData.config.granularity !== 'hour' && <button type="button" onClick={() => { const keys = displayDates.map((date) => getSlotKey(date, time)); setSlotsBlocked(keys, !keys.every((key) => blockedSlots.has(key))); }} className="text-[10px] font-normal text-red-700 hover:underline">alternar bloqueio</button>}
                         </div>
                         {displayDates.map(date => {
                           const slotKey = getSlotKey(date, time);
@@ -2720,13 +2712,14 @@
                                 onPointerEnter={() => handleMouseEnter(slotKey)}
                                 disabled={!slotsInteractive || (isBlocked && !organizerPreparation)}
                                 style={{ touchAction: 'none' }}
-                                className={`w-full h-10 rounded-md transition-all ${isBlocked ? 'bg-red-100 border-2 border-red-300' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
-                                {isBlocked ? <Icon name="Ban" className="w-4 h-4 text-red-700 mx-auto" /> : isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
+                                className={`w-full h-10 rounded-md transition-all ${isBlocked ? 'bg-red-100 border-2 border-red-300' : organizerPreparation ? 'bg-green-50 border border-green-200' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                {isBlocked ? <Icon name="Ban" className="w-4 h-4 text-red-700 mx-auto" /> : organizerPreparation ? <Icon name="Check" className="w-4 h-4 text-green-600 mx-auto" /> : isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
                               </button>
                             </div>
                           );
                         })}
                       </div>
+                      </React.Fragment>
                     );
                   })}
                   {!organizerPreparation && (!displayDates.length || !displayTimeSlots.length) && <div className="p-8 text-center text-slate-500">O organizador bloqueou todos os períodos desta votação.</div>}
@@ -2741,7 +2734,7 @@
               </div>
             </Card>
 
-            <Card className="p-6 mb-6">
+            {!organizerPreparation && <Card className="p-6 mb-6">
               <h3 className="font-semibold flex items-center gap-2 mb-2"><Icon name="MessageCircle" className="w-5 h-5" />Comentário opcional</h3>
               <p className="text-sm text-slate-500 mb-3">Use para explicar restrições ou observações sem alterar sua disponibilidade.</p>
               <textarea value={comment} onChange={(e) => setComment(e.target.value.slice(0, 1000))} disabled={!slotsInteractive} rows="3" placeholder="Ex.: consigo chegar 15 minutos depois..." className="w-full border rounded-lg p-3 text-sm disabled:bg-slate-100" />
@@ -2750,7 +2743,7 @@
                 <label className="flex items-center gap-2 text-sm border rounded-lg p-3 flex-1 cursor-pointer"><input type="radio" name="commentVisibility" checked={commentVisibility === 'everyone'} onChange={() => setCommentVisibility('everyone')} disabled={!slotsInteractive} /><span><strong>Compartilhar com todos</strong><br/><span className="text-xs text-slate-500">Será exibido junto ao resultado final.</span></span></label>
               </div>
               <div className="text-xs text-slate-400 text-right mt-1">{comment.length}/1000</div>
-            </Card>
+            </Card>}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
               {eventData.config.finalized ? (
@@ -3172,7 +3165,7 @@
                   ) : (
                     <><Button variant="outline" onClick={handleCopyLink} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name={copied ? 'Check' : 'Copy'} className="w-4 h-4" />Copiar Link</span></Button>{!eventData.config.finalized && <Button variant="outline" onClick={onEditVote} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name="Pencil" className="w-4 h-4" />Editar meu voto</span></Button>}</>
                   )}
-                  {!quorumReached && (
+                  {eventData.config.votingOpened !== false && !quorumReached && (
                     <Button variant="outline" onClick={handleCopyReminder} className="w-full justify-between">
                       <span className="flex items-center gap-2"><Icon name="MessageCircle" className="w-4 h-4" />Copiar Lembrete</span>
                     </Button>
@@ -3349,7 +3342,8 @@
       const handlePreparationComplete = (eventData) => {
         setCurrentEvent(eventData.config);
         setIsManager(true);
-        setCurrentView('share');
+        setCurrentView('manage');
+        window.location.hash = `manage/${eventData.config.id}`;
       };
 
       const handleVoteComplete = () => setCurrentView('results');
