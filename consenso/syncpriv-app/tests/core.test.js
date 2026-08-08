@@ -35,17 +35,6 @@ test('link de convite não carrega votos nem dados administrativos', () => {
   assert.equal(payload.config.creatorAdminKey, undefined);
   assert.equal(payload.config.title, 'Reunião');
 });
-test('preferência desempata horários com a mesma disponibilidade', () => {
-  const result = core.calculateConsensus({
-    config: { quorum: 2 },
-    votes: [
-      { timeSlots: ['2026-08-07|09:00', '2026-08-07|10:00'], preferredSlots: ['2026-08-07|10:00'] },
-      { timeSlots: ['2026-08-07|09:00', '2026-08-07|10:00'], preferredSlots: ['2026-08-07|10:00'] },
-    ],
-  });
-  assert.equal(result.slots[0].time, '10:00');
-  assert.equal(result.slots[0].preferredVotes, 2);
-});
 test('resultado depende da finalização do organizador, não apenas do quórum', () => {
   const event = { config: { quorum: 2, voteCount: 2, finalized: false }, votes: [{}, {}] };
   assert.equal(core.hasReachedQuorum(event), true);

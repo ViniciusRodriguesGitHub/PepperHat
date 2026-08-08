@@ -27,17 +27,15 @@
     const slotMap = new Map();
     const blockedSlots = new Set(Array.isArray(config.blockedSlots) ? config.blockedSlots : []);
     votes.forEach((vote) => {
-      const preferred = new Set(Array.isArray(vote.preferredSlots) ? vote.preferredSlots : []);
       new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
       if (blockedSlots.has(slotKey)) return;
       const [dateStr, time] = String(slotKey).split('|');
       if (!dateStr || !time) return;
-      if (!slotMap.has(slotKey)) slotMap.set(slotKey, { date: parseLocalDate(dateStr), time, votes: 0, preferredVotes: 0 });
+      if (!slotMap.has(slotKey)) slotMap.set(slotKey, { date: parseLocalDate(dateStr), time, votes: 0 });
       slotMap.get(slotKey).votes += 1;
-      if (preferred.has(slotKey)) slotMap.get(slotKey).preferredVotes += 1;
       });
     });
-    const ranked = (a, b) => b.preferredVotes - a.preferredVotes || a.date - b.date || a.time.localeCompare(b.time);
+    const ranked = (a, b) => a.date - b.date || a.time.localeCompare(b.time);
     const slots = Array.from(slotMap.values());
     const unanimous = slots.filter((slot) => slot.votes === votes.length).sort(ranked);
     if (unanimous.length) return { type: 'unanimous', slots: unanimous.slice(0, 1), totalVotes: votes.length, quorum: config.quorum };

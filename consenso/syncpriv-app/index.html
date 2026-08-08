@@ -144,10 +144,6 @@
     
     /* Privacy Shield Gradient */
     .privacy-shield { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
-    .slot-preferred {
-      background: linear-gradient(135deg, #7a4d00 0%, #d4a017 24%, #fff1a8 48%, #c68a00 72%, #8a5700 100%);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(146, 94, 0, .35);
-    }
     
     /* Safe area for notched devices */
     .safe-area-top { padding-top: env(safe-area-inset-top); }
@@ -458,7 +454,7 @@
 
     const HOUR_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
     const SHIFT_TIMES = { morning: 'Manhã (6h-12h)', afternoon: 'Tarde (12h-18h)', evening: 'Noite (18h-22h)' };
-    const SEPARATOR_HOURS = ['12:00', '18:00'];
+    const SEPARATOR_HOURS = ['11:00', '17:00'];
     const HOUR_PERIODS = {
       morning: { label: 'Manhã', hours: HOUR_SLOTS.filter((hour) => Number(hour.slice(0, 2)) < 12) },
       afternoon: { label: 'Tarde', hours: HOUR_SLOTS.filter((hour) => Number(hour.slice(0, 2)) >= 12 && Number(hour.slice(0, 2)) < 18) },
@@ -768,7 +764,7 @@
           comment: vote.comment,
           votedAt: typeof vote.votedAt === 'string' ? vote.votedAt : new Date(vote.votedAt).toISOString(),
         });
-      } else {
+      } else if (vote.removePublicComment) {
         batch.delete(cref);
       }
       await batch.commit();
@@ -836,12 +832,13 @@
       const event = events[eventId];
       if (!event) throw new Error('Event not found');
       const votedAt = new Date().toISOString();
+      const { removePublicComment, ...storedVote } = vote;
       const owner = event.config?.firebaseOwnerUid;
       if (owner && consensoFirestoreReady()) {
         await consensoCloudPushVote(owner, eventId, { ...vote, votedAt });
       }
       event.votes = event.votes.filter(v => v.userId !== vote.userId);
-      event.votes.push({ ...vote, votedAt });
+      event.votes.push({ ...storedVote, votedAt });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     };
     
@@ -2219,9 +2216,8 @@
       const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
       const [selectedSlots, setSelectedSlots] = useState(new Set());
-      const [preferredSlots, setPreferredSlots] = useState(new Set());
       const [blockedSlots, setBlockedSlots] = useState(new Set());
-      const [selectionMode, setSelectionMode] = useState('unavailable');
+      const [blockingMode, setBlockingMode] = useState(false);
       const [comment, setComment] = useState('');
       const [commentVisibility, setCommentVisibility] = useState('organizer');
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2257,7 +2253,6 @@
             const existingVote = getUserVote(eventId, voter.id);
             if (existingVote) {
               setSelectedSlots(new Set(existingVote.timeSlots.filter((slot) => !configuredBlocked.has(slot))));
-              setPreferredSlots(new Set(existingVote.preferredSlots || []));
               setComment(existingVote.comment || '');
               setCommentVisibility(existingVote.commentVisibility || 'organizer');
               selectionInitializedRef.current = true;
@@ -2366,26 +2361,12 @@
           slotKeys.forEach((key) => available && !blockedSlots.has(key) ? next.add(key) : next.delete(key));
           return next;
         });
-        if (!available) {
-          setPreferredSlots((current) => {
-            const next = new Set(current);
-            slotKeys.forEach((key) => next.delete(key));
-            return next;
-          });
-        }
-      };
-
-      const setSlotsPreferred = (slotKeys) => {
-        if (!slotsInteractive) return;
-        setSelectedSlots((current) => new Set([...current, ...slotKeys]));
-        setPreferredSlots((current) => new Set([...current, ...slotKeys]));
       };
 
       const setSlotsNormalAvailable = (slotKeys) => {
         if (!slotsInteractive) return;
         if (organizerPreparation) setBlockedSlots((current) => { const next = new Set(current); slotKeys.forEach((key) => next.delete(key)); return next; });
         setSelectedSlots((current) => new Set([...current, ...slotKeys]));
-        setPreferredSlots((current) => { const next = new Set(current); slotKeys.forEach((key) => next.delete(key)); return next; });
       };
 
       const setSlotsBlocked = (slotKeys, blocked = true) => {
@@ -2398,11 +2379,10 @@
         if (blocked) setSlotsAvailability(slotKeys, false);
       };
 
-      const applySlotState = (slotKey, state) => {
+      const applySlotState = (slotKey, available) => {
         if (blockedSlots.has(slotKey) && !organizerPreparation) return;
-        if (state === 'blocked') setSlotsBlocked([slotKey], true);
-        else if (state === 'preferred') { setSlotsBlocked([slotKey], false); setSlotsPreferred([slotKey]); }
-        else if (state === 'available') setSlotsNormalAvailable([slotKey]);
+        if (available === 'blocked') setSlotsBlocked([slotKey], true);
+        else if (available) setSlotsNormalAvailable([slotKey]);
         else setSlotsAvailability([slotKey], false);
       };
 
@@ -2416,7 +2396,6 @@
         const existing = getUserVote(eventId, voter.id);
         if (existing) {
           setSelectedSlots(new Set(existing.timeSlots));
-          setPreferredSlots(new Set(existing.preferredSlots || []));
           setComment(existing.comment || '');
           setCommentVisibility(existing.commentVisibility || 'organizer');
         }
@@ -2426,8 +2405,9 @@
       const handleMouseDown = (slotKey) => {
         if (hasVoted && !showNameInput && !editingChoices) return;
         setIsDragging(true);
-        setDragValue(selectionMode);
-        applySlotState(slotKey, selectionMode);
+        const nextState = organizerPreparation && blockingMode ? 'blocked' : !selectedSlots.has(slotKey);
+        setDragValue(nextState);
+        applySlotState(slotKey, nextState);
       };
 
       const handleMouseEnter = (slotKey) => {
@@ -2452,6 +2432,10 @@
         if ((!organizerPreparation || eventData.config.managerMode === 'participant') && !localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
         setIsSubmitting(true);
         try {
+          if (eventData.config.firebaseOwnerUid) {
+            await ensureConsensoGuestFirebase();
+            if (!window.consensoFirebaseUser?.uid) throw new Error('Autenticação do convidado indisponível');
+          }
           const oldUser = getConsensoVoterUser(eventId);
           const cloudEvent = getEvent(eventId);
           const user = cloudEvent?.config?.firebaseOwnerUid ? oldUser : (registeredUser || oldUser);
@@ -2469,9 +2453,10 @@
               userId: user.id,
               userName: localUserName.trim(),
               timeSlots: Array.from(selectedSlots).filter((slot) => !blockedSlots.has(slot)),
-              preferredSlots: Array.from(preferredSlots).filter((slot) => selectedSlots.has(slot) && !blockedSlots.has(slot)),
+              preferredSlots: [],
               comment: comment.trim().slice(0, 1000),
               commentVisibility,
+              removePublicComment: getUserVote(eventId, user.id)?.commentVisibility === 'everyone' && commentVisibility !== 'everyone',
             };
           if (organizerPreparation) {
             await activateEventVoting(eventId, Array.from(blockedSlots));
@@ -2501,7 +2486,8 @@
           }
           onComplete();
         } catch (error) {
-          addToast('Erro ao registrar voto', 'error');
+          console.error('[Consenso] Falha ao salvar voto', error);
+          addToast(error?.code === 'permission-denied' ? 'Voto recusado pelo Firebase. Publique as regras mais recentes e tente novamente.' : 'Erro ao registrar voto. Verifique a conexão e tente novamente.', 'error');
         } finally {
           setIsSubmitting(false);
         }
@@ -2580,6 +2566,8 @@
       }
 
       const timeSlots = getTimeSlots();
+      const displayDates = organizerPreparation ? dates : dates.filter((date) => timeSlots.some((time) => !blockedSlots.has(getSlotKey(date, time))));
+      const displayTimeSlots = organizerPreparation ? timeSlots : timeSlots.filter((time) => displayDates.some((date) => !blockedSlots.has(getSlotKey(date, time))));
       const resultsAvailable = canViewResults(eventData, false);
       const progress = getVoteProgressPercentage(eventData);
 
@@ -2594,7 +2582,7 @@
                 <div className="min-w-0">
                   <h1 className="text-lg font-bold text-slate-900 truncate">{eventData.config.title}</h1>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 mt-1">
-                    <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{dates.length} dias</span>
+                    <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{displayDates.length} dias disponíveis</span>
                     <span className="flex items-center gap-1"><Icon name="Globe" className="w-4 h-4" />{timezone}</span>
                   </div>
                 </div>
@@ -2642,24 +2630,15 @@
                   <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />{organizerPreparation ? 'Defina a grade válida e suas escolhas' : 'Desmarque quando você não estiver disponível'}</h2>
                   <p className="text-xs text-slate-500 mt-1">{organizerPreparation ? 'Bloqueados ficam fora da votação de todos. Depois, registre sua própria disponibilidade se você também participa.' : 'Todos os períodos permitidos começam disponíveis.'}</p>
                 </div>
-                <span className="text-sm text-slate-500">{selectedSlots.size} disponível{selectedSlots.size !== 1 ? 'is' : ''}</span>
+                <span className="text-sm text-slate-500">{selectedSlots.size} {selectedSlots.size === 1 ? 'horário disponível' : 'horários disponíveis'}</span>
               </CardHeader>
 
               {slotsInteractive && (
                 <div className="p-4 border-b bg-white space-y-4">
                   <div>
-                    <p className="text-xs font-semibold text-slate-600 mb-2">1. Escolha o tipo de marcação e clique ou arraste na grade:</p>
+                    <p className="text-xs font-semibold text-slate-600 mb-2">Clique ou arraste para marcar/desmarcar. {organizerPreparation && 'Ative o modo de bloqueio apenas para retirar opções de todos os convidados.'}</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button variant={selectionMode === 'unavailable' ? 'primary' : 'outline'} onClick={() => setSelectionMode('unavailable')}>
-                        <Icon name="X" className="w-4 h-4 mr-2" />Indisponível
-                      </Button>
-                      <Button variant={selectionMode === 'available' ? 'primary' : 'outline'} onClick={() => setSelectionMode('available')}>
-                        <Icon name="Check" className="w-4 h-4 mr-2" />Disponível
-                      </Button>
-                      <button type="button" onClick={() => setSelectionMode('preferred')} className={`px-4 py-2 rounded-lg text-sm font-medium border ${selectionMode === 'preferred' ? 'slot-preferred text-white border-amber-700' : 'bg-white text-amber-800 border-amber-400'}`}>
-                        <Icon name="Star" className="w-4 h-4 mr-2 inline" />Preferencial
-                      </button>
-                      {organizerPreparation && <Button variant={selectionMode === 'blocked' ? 'primary' : 'outline'} onClick={() => setSelectionMode('blocked')}><Icon name="Ban" className="w-4 h-4 mr-2" />Bloqueado pelo organizador</Button>}
+                      {organizerPreparation && <Button variant={blockingMode ? 'primary' : 'outline'} onClick={() => setBlockingMode((value) => !value)}><Icon name={blockingMode ? 'Ban' : 'MousePointer2'} className="w-4 h-4 mr-2" />{blockingMode ? 'Bloqueando opções' : 'Marcar/desmarcar normalmente'}</Button>}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -2677,7 +2656,6 @@
                               <div className="text-sm font-semibold mb-2">{period.label}</div>
                               <div className="flex flex-wrap gap-1">
                                 <button type="button" onClick={() => setSlotsNormalAvailable(keys)} className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">Disponível</button>
-                                <button type="button" onClick={() => setSlotsPreferred(keys)} className="px-2 py-1 text-xs rounded slot-preferred text-white">Preferencial</button>
                                 <button type="button" onClick={() => setSlotsAvailability(keys, false)} className="px-2 py-1 text-xs rounded bg-slate-200 text-slate-800">Indisponível</button>
                                 {organizerPreparation && <button type="button" onClick={() => setSlotsBlocked(keys, true)} className="px-2 py-1 text-xs rounded bg-red-100 text-red-800">Bloquear</button>}
                               </div>
@@ -2694,7 +2672,7 @@
                 <div className="min-w-max">
                   <div className="flex">
                     <div className="w-20 flex-shrink-0"></div>
-                    {dates.map(date => (
+                    {displayDates.map(date => (
                       <div key={date.toISOString()} className="w-24 flex-shrink-0 text-center py-2 border-b">
                         <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
                         <div className="text-lg font-semibold">{getDayNumber(date)}</div>
@@ -2702,7 +2680,7 @@
                         {slotsInteractive && (
                           <button
                             type="button"
-                            onClick={() => toggleSlotGroup(timeSlots.map((time) => getSlotKey(date, time)))}
+                            onClick={() => toggleSlotGroup(displayTimeSlots.map((time) => getSlotKey(date, time)))}
                             className="mt-1 text-[10px] text-blue-700 hover:underline"
                             title="Marcar ou desmarcar todos os períodos deste dia"
                           >
@@ -2714,16 +2692,16 @@
                     ))}
                   </div>
 
-                  {timeSlots.map(time => {
+                  {displayTimeSlots.map(time => {
                     const isSeparator = SEPARATOR_HOURS.includes(time);
                     return (
                       <div key={time} className="flex">
                         <div className={`w-20 flex-shrink-0 py-2 pr-2 text-right text-sm font-medium flex flex-col items-end justify-center ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
                           <span>{eventData.config.granularity === 'shift' ? SHIFT_TIMES[time] : time === 'day' ? 'Dia' : time}</span>
-                          {slotsInteractive && dates.length > 1 && (
+                          {slotsInteractive && displayDates.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => toggleSlotGroup(dates.map((date) => getSlotKey(date, time)))}
+                              onClick={() => toggleSlotGroup(displayDates.map((date) => getSlotKey(date, time)))}
                               className="text-[10px] font-normal text-blue-700 hover:underline"
                               title="Marcar ou desmarcar este período em todos os dias"
                             >
@@ -2731,10 +2709,9 @@
                             </button>
                           )}
                         </div>
-                        {dates.map(date => {
+                        {displayDates.map(date => {
                           const slotKey = getSlotKey(date, time);
                           const isSelected = selectedSlots.has(slotKey);
-                          const isPreferred = preferredSlots.has(slotKey);
                           const isBlocked = blockedSlots.has(slotKey);
                           return (
                             <div key={slotKey} className={`w-24 flex-shrink-0 p-1 ${isSeparator ? 'border-b-4 border-red-400' : 'border-b'}`}>
@@ -2743,8 +2720,8 @@
                                 onPointerEnter={() => handleMouseEnter(slotKey)}
                                 disabled={!slotsInteractive || (isBlocked && !organizerPreparation)}
                                 style={{ touchAction: 'none' }}
-                                className={`w-full h-10 rounded-md transition-all ${isBlocked ? 'bg-red-100 border-2 border-red-300' : isPreferred ? 'slot-preferred' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
-                                {isBlocked ? <Icon name="Ban" className="w-4 h-4 text-red-700 mx-auto" /> : isPreferred ? <Icon name="Star" className="w-4 h-4 text-white mx-auto fill-current" /> : isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
+                                className={`w-full h-10 rounded-md transition-all ${isBlocked ? 'bg-red-100 border-2 border-red-300' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                {isBlocked ? <Icon name="Ban" className="w-4 h-4 text-red-700 mx-auto" /> : isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
                               </button>
                             </div>
                           );
@@ -2752,14 +2729,14 @@
                       </div>
                     );
                   })}
+                  {!organizerPreparation && (!displayDates.length || !displayTimeSlots.length) && <div className="p-8 text-center text-slate-500">O organizador bloqueou todos os períodos desta votação.</div>}
                 </div>
               </div>
 
               <div className="p-4 bg-slate-50 border-t flex items-center gap-6 text-sm">
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-slate-100 rounded border"></div><span className="text-slate-600">Indisponível</span></div>
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center"><Icon name="Check" className="w-3 h-3 text-white" /></div><span className="text-slate-600">Disponível</span></div>
-                <div className="flex items-center gap-2"><div className="w-6 h-6 slot-preferred rounded flex items-center justify-center"><Icon name="Star" className="w-3 h-3 text-white fill-current" /></div><span className="text-slate-600">Preferencial</span></div>
-                <div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-100 border-2 border-red-300 rounded flex items-center justify-center"><Icon name="Ban" className="w-3 h-3 text-red-700" /></div><span className="text-slate-600">Bloqueado</span></div>
+                {organizerPreparation && <div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-100 border-2 border-red-300 rounded flex items-center justify-center"><Icon name="Ban" className="w-3 h-3 text-red-700" /></div><span className="text-slate-600">Bloqueado</span></div>}
                 <div className="flex items-center gap-2 ml-auto"><div className="w-6 h-1 bg-red-400"></div><span className="text-slate-600">Divisão período</span></div>
               </div>
             </Card>
@@ -2943,7 +2920,6 @@
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {slot.preferredVotes > 0 && <div className="mb-3 inline-flex items-center gap-1 px-2 py-1 rounded slot-preferred text-white text-xs"><Icon name="Star" className="w-3 h-3 fill-current" />{slot.preferredVotes} preferência{slot.preferredVotes !== 1 ? 's' : ''}</div>}
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleExportGoogle(slot)} className="flex-1">
                           <Icon name="ExternalLink" className="w-4 h-4 mr-2" />Google Calendar
