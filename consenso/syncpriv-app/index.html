@@ -1301,10 +1301,10 @@
       );
     };
 
-    const Input = ({ value, onChange, placeholder, type = 'text', className = '', min, max, id }) => (
-      <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} min={min} max={max} 
+    const Input = React.forwardRef(({ value, onChange, placeholder, type = 'text', className = '', min, max, id, ...props }, ref) => (
+      <input ref={ref} id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} min={min} max={max} {...props}
         className={`w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${className}`} />
-    );
+    ));
 
     const Label = ({ children, htmlFor, className = '' }) => (
       <label htmlFor={htmlFor} className={`block text-sm font-medium text-slate-700 mb-1 ${className}`}>{children}</label>
@@ -1703,7 +1703,7 @@
       );
     };
 
-    const GuestRegistrationForm = ({ onSuccess, onSkip, addToast }) => {
+    const GuestRegistrationForm = ({ onSuccess, onSkip, addToast, showSkip = true }) => {
       const [mode, setMode] = useState('register'); // 'register', 'login', 'google'
       const [email, setEmail] = useState('');
       const [name, setName] = useState('');
@@ -1919,9 +1919,11 @@
             </div>
           )}
 
-          <Button type="button" variant="ghost" onClick={onSkip} className="w-full border-t pt-4 mt-4">
-            Pular por enquanto
-          </Button>
+          {showSkip && (
+            <Button type="button" variant="ghost" onClick={onSkip} className="w-full border-t pt-4 mt-4">
+              Pular por enquanto
+            </Button>
+          )}
         </div>
       );
     };
@@ -2276,16 +2278,17 @@
       const [comment, setComment] = useState('');
       const [commentVisibility, setCommentVisibility] = useState('organizer');
       const [isSubmitting, setIsSubmitting] = useState(false);
+      const [nameError, setNameError] = useState(false);
       const [hasVoted, setHasVoted] = useState(false);
       const [showNameInput, setShowNameInput] = useState(!userName);
       const [editingChoices, setEditingChoices] = useState(false);
-      const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false);
       const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
       const editingChoicesRef = useRef(false);
       const selectionInitializedRef = useRef(false);
       const [timezone, setTimezone] = useState('');
       const [isDragging, setIsDragging] = useState(false);
       const [dragValue, setDragValue] = useState(null);
+      const nameInputRef = useRef(null);
 
       useEffect(() => {
         editingChoicesRef.current = editingChoices;
@@ -2319,10 +2322,6 @@
               : event.config.granularity === 'shift' ? ['morning', 'afternoon', 'evening'] : ['day'];
             setSelectedSlots(new Set(eventDates.flatMap((date) => eventTimes.map((time) => `${formatDate(date)}|${time}`)).filter((slot) => !configuredBlocked.has(slot))));
             selectionInitializedRef.current = true;
-          }
-          // Mostrar prompt de registro para convidados não registrados antes de votar
-          if (!registeredUser && !topBar?.adminSession && !voted) {
-            setShowRegistrationPrompt(true);
           }
           return true;
         };
@@ -2484,7 +2483,13 @@
 
       const handleSubmit = async (skipPrompt = false) => {
         if (!organizerPreparation && !eventData.config.votingOpened && eventData.config.votingOpened !== undefined) { addToast('A votação ainda não foi aberta pelo organizador.', 'error'); return; }
-        if (!organizerPreparation && !localUserName.trim()) { addToast('Por favor, informe seu nome', 'error'); return; }
+        if (!organizerPreparation && !localUserName.trim()) {
+          setNameError(true);
+          addToast('Informe seu nome no campo destacado para confirmar o voto.', 'error');
+          setTimeout(() => nameInputRef.current?.focus(), 0);
+          return;
+        }
+        setNameError(false);
         setIsSubmitting(true);
         try {
           if (eventData.config.firebaseOwnerUid) {
@@ -2527,16 +2532,11 @@
           setEditingChoices(false);
           setEventData(getEvent(eventId));
           const evCloud = getEvent(eventId);
-          if (evCloud?.config?.firebaseOwnerUid && consensoFirestoreReady()) {
-            addToast('Voto sincronizado na nuvem.', 'info');
-          } else {
+          if (!evCloud?.config?.firebaseOwnerUid || !consensoFirestoreReady()) {
             setVoteHashFromInviteLink(eventId);
             try {
               await navigator.clipboard.writeText(window.location.href);
-              addToast('Voto contabilizado neste link. Link atualizado copiado para compartilhar com o organizador.', 'info');
-            } catch {
-              addToast('Voto contabilizado neste link. Compartilhe a URL atual para sincronizar com o organizador.', 'info');
-            }
+            } catch {}
           }
           onComplete();
         } catch (error) {
@@ -2546,42 +2546,6 @@
           setIsSubmitting(false);
         }
       };
-
-      // Dialog de registro de convidado
-      if (showRegistrationPrompt && !registeredUser) {
-        return (
-          <div className="min-h-screen bg-slate-50 flex flex-col">
-            {topBar && <ConsensoAppBar {...topBar} />}
-            <main className="flex-1 flex items-center justify-center px-4 py-10">
-              <Card className="w-full max-w-md p-8">
-                <div className="text-center mb-6">
-                  <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icon name="User" className="w-7 h-7 text-blue-600" />
-                  </div>
-                  <h1 className="text-2xl font-bold text-slate-900 mb-2">Crie sua conta</h1>
-                  <p className="text-slate-600 text-sm">
-                    Cadastre-se para poder acompanhar o andamento e resultado desta reunião, e gerenciar seus votos em outras convocações.
-                  </p>
-                </div>
-
-                <GuestRegistrationForm
-                  onSuccess={(user) => {
-                    setRegisteredUser(user);
-                    setShowRegistrationPrompt(false);
-                    if (onUserRegistered) onUserRegistered(user);
-                    addToast(`Bem-vindo, ${user.name}!`, 'success');
-                  }}
-                  onSkip={() => {
-                    setShowRegistrationPrompt(false);
-                    handleSubmit(true);
-                  }}
-                  addToast={addToast}
-                />
-              </Card>
-            </main>
-          </div>
-        );
-      }
 
       if (!eventData) {
         if (loadFailed) {
@@ -2623,7 +2587,7 @@
       const displayDates = organizerPreparation ? dates : dates.filter((date) => timeSlots.some((time) => !blockedSlots.has(getSlotKey(date, time))));
       const displayTimeSlots = organizerPreparation ? timeSlots : timeSlots.filter((time) => displayDates.some((date) => !blockedSlots.has(getSlotKey(date, time))));
       const resultsAvailable = canViewResults(eventData, false);
-      const progress = getVoteProgressPercentage(eventData);
+      const managerViewing = organizerPreparation || Boolean(topBar?.adminSession && canManageEventId(eventId));
 
       const slotsInteractive = !eventData.config.finalized && (organizerPreparation || eventData.config.votingOpened !== false) && (!hasVoted || showNameInput || editingChoices || organizerPreparation);
 
@@ -2640,15 +2604,15 @@
                     <span className="flex items-center gap-1"><Icon name="Globe" className="w-4 h-4" />{timezone}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 shrink-0">
+                {managerViewing && <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right">
                     <div className="text-xs text-slate-500">Progresso</div>
                     <div className="font-semibold text-sm">{getVoteCount(eventData)}/{eventData.config.quorum}</div>
                   </div>
                   <div className="w-28 sm:w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-600 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                    <div className="h-full bg-blue-600 transition-all" style={{ width: `${Math.min(getVoteProgressPercentage(eventData), 100)}%` }} />
                   </div>
-                </div>
+                </div>}
               </div>
             }
           />
@@ -2670,13 +2634,6 @@
                 </div>
               </div>
             </div>
-
-            {showNameInput && !organizerPreparation && (
-              <Card className="p-6 mb-6">
-                <Label className="mb-2 block"><Icon name="User" className="w-4 h-4 inline mr-2" />Seu Nome</Label>
-                <Input value={localUserName} onChange={(e) => setLocalUserName(e.target.value)} placeholder="Digite seu nome" />
-              </Card>
-            )}
 
             <Card className="mb-6 overflow-hidden">
               <CardHeader className="flex items-center justify-between bg-slate-50">
@@ -2805,7 +2762,23 @@
                   <div className="text-sm text-slate-500">
                     {organizerPreparation ? 'Revise os bloqueios: após abrir, convidados poderão votar e a grade ficará fixa.' : editingChoices ? 'Desmarque os períodos indisponíveis e salve.' : 'Dica: clique e arraste para marcar ou desmarcar vários períodos'}
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                    {!organizerPreparation && showNameInput && (
+                      <div className={`rounded-lg p-1 transition-all ${nameError ? 'bg-red-50 ring-2 ring-red-500' : ''}`}>
+                        <Label htmlFor="voter-name" className={`mb-1 block text-xs ${nameError ? 'text-red-700 font-semibold' : ''}`}>
+                          <Icon name="User" className="w-4 h-4 inline mr-1" />Seu nome {nameError && '— obrigatório'}
+                        </Label>
+                        <Input
+                          ref={nameInputRef}
+                          id="voter-name"
+                          value={localUserName}
+                          onChange={(e) => { setLocalUserName(e.target.value); if (e.target.value.trim()) setNameError(false); }}
+                          placeholder="Digite seu nome"
+                          aria-invalid={nameError}
+                          className={nameError ? 'border-red-500 focus:ring-red-500' : ''}
+                        />
+                      </div>
+                    )}
                     {editingChoices && (
                       <Button variant="ghost" onClick={handleCancelEditChoices} className="order-2 sm:order-1">
                         Cancelar
@@ -2816,12 +2789,56 @@
                       disabled={isSubmitting}
                       className="order-1 sm:order-2"
                     >
-                      {isSubmitting ? 'Enviando...' : organizerPreparation ? 'Confirmar grade e abrir votação' : hasVoted ? (editingChoices ? 'Salvar alterações' : 'Atualizar voto') : 'Confirmar voto'}
+                      {isSubmitting ? 'Enviando...' : organizerPreparation ? 'Confirmar grade e abrir votação' : hasVoted ? (editingChoices ? 'Salvar alterações' : 'Atualizar voto') : 'Confirmar Voto'}
                     </Button>
                   </div>
                 </>
               )}
             </div>
+          </main>
+        </div>
+      );
+    };
+
+    const VoteSuccessScreen = ({ registeredUser, onUserRegistered, addToast, topBar, onGoHome }) => {
+      const [showRegistration, setShowRegistration] = useState(false);
+
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <ConsensoAppBar {...topBar} />
+          <main className="flex-1 flex items-center justify-center px-4 py-10">
+            <Card className="w-full max-w-lg p-8 text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Icon name="Check" className="w-10 h-10 text-green-700" />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900 mb-2">Voto feito com sucesso!</h1>
+              <p className="text-slate-600">Suas escolhas foram enviadas ao gerenciador.</p>
+
+              {!registeredUser && !showRegistration && (
+                <div className="mt-8 p-5 rounded-xl bg-blue-50 border border-blue-200">
+                  <h2 className="font-semibold text-slate-900 mb-2">Que tal usar o Consenso gratuitamente?</h2>
+                  <p className="text-sm text-slate-600 mb-4">Crie sua conta grátis para organizar reuniões e acompanhar suas convocações em um só lugar.</p>
+                  <Button onClick={() => setShowRegistration(true)} className="w-full">Criar conta grátis</Button>
+                </div>
+              )}
+
+              {!registeredUser && showRegistration && (
+                <div className="mt-8 text-left border-t pt-6">
+                  <h2 className="text-lg font-semibold text-center mb-4">Crie sua conta grátis</h2>
+                  <GuestRegistrationForm
+                    showSkip={false}
+                    onSuccess={(user) => {
+                      if (onUserRegistered) onUserRegistered(user);
+                      setShowRegistration(false);
+                      addToast(`Conta criada. Bem-vindo, ${user.name}!`, 'success');
+                    }}
+                    addToast={addToast}
+                  />
+                </div>
+              )}
+
+              <Button variant="ghost" onClick={onGoHome} className="mt-6">Ir para o início</Button>
+            </Card>
           </main>
         </div>
       );
@@ -2878,13 +2895,13 @@
               <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="Lock" className="w-10 h-10 text-amber-600" /></div>
               <h1 className="text-2xl font-bold mb-2">Consenso em Andamento</h1>
               <p className="text-slate-600 mb-2">Os resultados serão revelados somente depois que o organizador revisar os comentários e finalizar a votação.</p>
-              <p className="text-sm text-slate-500 mb-6">Progresso atual: <strong>{getVoteCount(eventData)}/{eventData.config.quorum} participantes</strong></p>
-              
-              <Card className="p-6 mb-6">
+              {isManager && <p className="text-sm text-slate-500 mb-6">Progresso atual: <strong>{getVoteCount(eventData)}/{eventData.config.quorum} participantes</strong></p>}
+
+              {isManager && <Card className="p-6 mb-6">
                 <div className="flex justify-between mb-4"><span className="text-slate-600">Progresso</span><span className="font-semibold">{getVoteCount(eventData)}/{eventData.config.quorum}</span></div>
                 <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-blue-600 transition-all" style={{ width: `${progressPercent}%` }} /></div>
                 <p className="text-center text-sm text-slate-500 mt-2">{progressPercent}% completo</p>
-              </Card>
+              </Card>}
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
@@ -2949,9 +2966,9 @@
                         {index === 0 && <Icon name="Trophy" className="w-5 h-5 text-amber-500" />}
                         {formatSlotDisplay(slot)}
                       </CardTitle>
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                      {isManager && <div className="flex items-center gap-2 text-sm text-slate-500">
                         <Icon name="Users" className="w-4 h-4" />{slot.votes}/{verdict.totalVotes} votos
-                      </div>
+                      </div>}
                     </CardHeader>
                     <CardContent>
                       <div className="flex gap-2">
@@ -2974,14 +2991,14 @@
               </div>
             )}
 
-            <Card className="p-6">
+            {isManager && <Card className="p-6">
               <h3 className="font-semibold mb-4">Estatísticas</h3>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div><div className="text-2xl font-bold text-blue-600">{getVoteCount(eventData)}</div><div className="text-sm text-slate-500">Votos</div></div>
                 <div><div className="text-2xl font-bold">{eventData.config.quorum}</div><div className="text-sm text-slate-500">Quórum</div></div>
                 <div><div className="text-2xl font-bold text-green-600">{progressPercent}%</div><div className="text-sm text-slate-500">Progresso</div></div>
               </div>
-            </Card>
+            </Card>}
 
             {sharedComments.length > 0 && (
               <Card className="p-6 mt-6">
@@ -3420,7 +3437,7 @@
         window.location.hash = `manage/${eventData.config.id}`;
       };
 
-      const handleVoteComplete = () => setCurrentView('results');
+      const handleVoteComplete = () => setCurrentView(isManager ? 'results' : 'vote-success');
       const handleViewResults = () => setCurrentView('results');
       const handleBackToManage = () => {
         setCurrentView('manage');
@@ -3512,6 +3529,8 @@
             return currentEvent && <ShareScreen event={currentEvent} onComplete={handleShareComplete} onBack={() => { window.location.hash = ''; setCurrentView('create'); }} addToast={addToast} topBar={topBarNavigation} />;
           case 'vote':
             return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} onUserRegistered={handleUserRegistered} organizerPreparation={isManager && getEvent(eventId)?.config?.votingOpened === false} onPreparationComplete={handlePreparationComplete} />;
+          case 'vote-success':
+            return <VoteSuccessScreen registeredUser={registeredUser} onUserRegistered={handleUserRegistered} addToast={addToast} topBar={topBarNavigation} onGoHome={goHome} />;
           case 'results':
             return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} topBar={topBarNavigation} />;
           case 'manage':
