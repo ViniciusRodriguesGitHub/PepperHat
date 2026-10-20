@@ -2542,6 +2542,12 @@
             await ensureConsensoGuestFirebase();
             if (!window.consensoFirebaseUser?.uid) throw new Error('Autenticação do convidado indisponível');
           }
+          if (organizerPreparation) {
+            await activateEventVoting(eventId, Array.from(blockedSlots));
+            addToast('Grade confirmada. A votação está aberta e o link foi liberado!', 'success');
+            if (onPreparationComplete) onPreparationComplete(getEvent(eventId));
+            return;
+          }
           const oldUser = getConsensoVoterUser(eventId);
           const cloudEvent = getEvent(eventId);
           const user = cloudEvent?.config?.firebaseOwnerUid ? oldUser : (registeredUser || oldUser);
@@ -2565,12 +2571,6 @@
               commentVisibility,
               removePublicComment: getUserVote(eventId, user.id)?.commentVisibility === 'everyone' && (commentVisibility !== 'everyone' || !comment.trim()),
             };
-          if (organizerPreparation) {
-            await activateEventVoting(eventId, Array.from(blockedSlots));
-            addToast('Grade confirmada. A votação está aberta e o link foi liberado!', 'success');
-            if (onPreparationComplete) onPreparationComplete(getEvent(eventId));
-            return;
-          }
           await submitVote(eventId, votePayload);
           trackParticipatedEvent(eventId);
           addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
@@ -2588,7 +2588,9 @@
           onComplete();
         } catch (error) {
           console.error('[Consenso] Falha ao salvar voto', error);
-          addToast(error?.code === 'permission-denied' ? 'Voto recusado pelo Firebase. Publique as regras mais recentes e tente novamente.' : 'Erro ao registrar voto. Verifique a conexão e tente novamente.', 'error');
+          addToast(organizerPreparation
+            ? (error?.code === 'permission-denied' ? 'Não foi possível abrir a votação: acesso do organizador recusado. Entre novamente e tente outra vez.' : 'Não foi possível confirmar a grade. Verifique a conexão e tente novamente.')
+            : (error?.code === 'permission-denied' ? 'Voto recusado pelo Firebase. Publique as regras mais recentes e tente novamente.' : 'Erro ao registrar voto. Verifique a conexão e tente novamente.'), 'error');
         } finally {
           setIsSubmitting(false);
         }
@@ -2631,8 +2633,8 @@
       }
 
       const timeSlots = getTimeSlots();
-      const displayDates = organizerPreparation ? dates : dates.filter((date) => timeSlots.some((time) => !blockedSlots.has(getSlotKey(date, time))));
-      const displayTimeSlots = organizerPreparation ? timeSlots : timeSlots.filter((time) => displayDates.some((date) => !blockedSlots.has(getSlotKey(date, time))));
+      const displayDates = dates;
+      const displayTimeSlots = timeSlots;
       const resultsAvailable = canViewResults(eventData, false);
       const managerViewing = organizerPreparation || Boolean(topBar?.adminSession && canManageEventId(eventId));
 
@@ -2649,7 +2651,7 @@
                   <h1 className="text-lg font-bold text-slate-900 truncate">{eventData.config.title}</h1>
                   <p className="text-sm text-slate-600 mt-1">{organizerPreparation ? 'Bloqueie os horários que ninguém poderá escolher. Isso não registra seu voto.' : 'Marque sua disponibilidade pessoal entre as opções permitidas.'}</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 mt-1">
-                    <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{displayDates.length} dias disponíveis</span>
+                    <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{displayDates.length} dias na grade</span>
                     <span className="flex items-center gap-1"><Icon name="Globe" className="w-4 h-4" />{timezone}</span>
                   </div>
                 </div>
@@ -2757,9 +2759,11 @@
                               <button
                                 onPointerDown={(e) => { e.preventDefault(); handleMouseDown(slotKey); }}
                                 onPointerEnter={() => handleMouseEnter(slotKey)}
+                                aria-label={`${formatDate(date)} ${time}: ${isBlocked ? 'Bloqueado pelo organizador' : isSelected ? 'Disponível' : 'Indisponível'}`}
+                                title={isBlocked ? 'Bloqueado pelo organizador' : undefined}
                                 disabled={!slotsInteractive || (isBlocked && !organizerPreparation)}
                                 style={{ touchAction: 'none' }}
-                                className={`w-full h-10 rounded-md transition-all ${isBlocked ? 'bg-red-100 border-2 border-red-300' : organizerPreparation ? 'bg-green-50 border border-green-200' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                className={`w-full h-10 rounded-md transition-all ${isBlocked ? 'bg-red-100 border-2 border-red-300' : organizerPreparation ? 'bg-green-50 border border-green-200' : isSelected ? 'bg-blue-600' : 'bg-slate-100 hover:bg-slate-200'} ${!slotsInteractive || (isBlocked && !organizerPreparation) ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
                                 {isBlocked ? <Icon name="Ban" className="w-4 h-4 text-red-700 mx-auto" /> : organizerPreparation ? <Icon name="Check" className="w-4 h-4 text-green-600 mx-auto" /> : isSelected && <Icon name="Check" className="w-4 h-4 text-white mx-auto" />}
                               </button>
                             </div>
@@ -2769,14 +2773,14 @@
                       </React.Fragment>
                     );
                   })}
-                  {!organizerPreparation && (!displayDates.length || !displayTimeSlots.length) && <div className="p-8 text-center text-slate-500">O organizador bloqueou todos os períodos desta votação.</div>}
+                  {!organizerPreparation && allSlotKeys.length > 0 && allSlotKeys.every((key) => blockedSlots.has(key)) && <div className="p-8 text-center text-slate-500">O organizador bloqueou todos os períodos desta votação.</div>}
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 border-t flex items-center gap-6 text-sm">
+              <div className="p-4 bg-slate-50 border-t flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-slate-100 rounded border"></div><span className="text-slate-600">Indisponível</span></div>
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center"><Icon name="Check" className="w-3 h-3 text-white" /></div><span className="text-slate-600">Disponível</span></div>
-                {organizerPreparation && <div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-100 border-2 border-red-300 rounded flex items-center justify-center"><Icon name="Ban" className="w-3 h-3 text-red-700" /></div><span className="text-slate-600">Bloqueado</span></div>}
+                <div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-100 border-2 border-red-300 rounded flex items-center justify-center"><Icon name="Ban" className="w-3 h-3 text-red-700" /></div><span className="text-slate-600">Bloqueado pelo organizador</span></div>
                 <div className="flex items-center gap-2 ml-auto"><div className="w-6 h-1 bg-red-400"></div><span className="text-slate-600">Divisão período</span></div>
               </div>
             </Card>

@@ -1,6 +1,6 @@
 # Validação do Consenso
 
-28 testes automatizados aprovados com `node --test tests/core.test.js tests/flows.test.js`. Os testes de fluxos executam funções reais da página em um ambiente isolado, com armazenamento e nuvem simulados. Incluem 500 identidades diferentes; não são testes de carga do Firebase.
+31 testes automatizados aprovados com `node --test tests/core.test.js tests/flows.test.js`. Os testes de fluxos executam funções reais da página em um ambiente isolado, com armazenamento e nuvem simulados. Incluem 500 identidades diferentes; não são testes de carga do Firebase.
 
 Não foi possível validar visualmente o navegador, login Google ou Firebase real neste ambiente. As alterações estão locais, sem publicação. Publicar também firestore.rules para aplicar as proteções de convidados no servidor; regras não foram testadas em emulador.
 
@@ -12,3 +12,5 @@ Limitações encontradas:
 Campo adicional: testes cobrem obrigatoriedade (incluindo espaços), limite de 300 caracteres, edição, cancelamento e gravação somente no voto privado. O rótulo é livre (até 80 caracteres); a resposta é textual, sem validação específica de CPF ou endereço. As regras precisam ser publicadas junto com a página.
 
 Até quatro informações adicionais: configuração em lista numerada com adicionar/remover e contador; votação e painel em grade responsiva de duas colunas (uma no celular). Compatibilidade preservada com eventos antigos de campo único. Testes incluem obrigatoriedade dos quatro campos, edição, limites e ausência das respostas nos recibos/comentários públicos. Ainda sem validação visual ou emulador Firebase.
+
+Correção da confirmação da grade: preparação retorna antes de montar dados do voto, impedindo acesso a respostas ainda vazias. Regressões cobrem quatro campos vazios e falha de abertura. Grade completa permanece visível mesmo com todos os horários bloqueados, com legenda, título acessível e botões desabilitados nos bloqueios. Cache atualizado para v12.

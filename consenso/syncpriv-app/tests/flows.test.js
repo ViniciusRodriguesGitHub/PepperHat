@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
-function declaration(name) {
- const start = html.indexOf('    const ' + name + ' =');
+function declaration(name, after = 0) {
+ const start = html.indexOf('    const ' + name + ' =', after);
  assert.ok(start >= 0, name);
  const indent = html.slice(html.lastIndexOf('\n', start) + 1, html.indexOf('const ' + name + ' =', start));
  const closing = '\n' + indent + '};';
@@ -114,4 +114,22 @@ test('limite de quatro respostas e 300 caracteres por campo',async()=>{
 test('evento novo somente com nome dispensa respostas adicionais',async()=>{
  const c=storageContext();const events=JSON.parse(c.localStorage.getItem('events'));events.e.config.requiredInfoLabels=[];c.localStorage.setItem('events',JSON.stringify(events));
  await c.submitVote('e',{userId:'u',timeSlots:[]});assert.equal(c.getEvent('e').votes.length,1);
+});
+
+function preparationContext(fail = false) {
+ const state={toasts:[],votes:0};
+ const c={organizerPreparation:true,eventId:'e',eventData:{config:{requiredInfoLabels:['CPF','Endereço','Apartamento','Telefone']}},requiredInfo:[],blockedSlots:new Set(['2026-10-20|day']),getRequiredInfoLabels:config=>config.requiredInfoLabels,setRequiredInfoError:()=>{},setNameError:()=>{},setIsSubmitting:value=>state.submitting=value,activateEventVoting:async(id,blocked)=>{if(fail)throw Error('offline');state.opened={id,blocked};},addToast:message=>state.toasts.push(message),getEvent:()=>({config:{id:'e',votingOpened:true}}),onPreparationComplete:event=>state.completed=event,submitVote:async()=>state.votes++,console:{error:()=>{}}};
+ vm.runInNewContext(declaration('handleSubmit',html.indexOf('const VotingInterface')),c);
+ return {c,state};
+}
+test('confirmar grade com quatro campos ainda vazios abre votação sem montar nem enviar voto',async()=>{
+ const {c,state}=preparationContext();await c.handleSubmit();assert.equal(state.opened.id,'e');assert.deepEqual(Array.from(state.opened.blocked),['2026-10-20|day']);assert.equal(state.completed.config.votingOpened,true);assert.equal(state.votes,0);assert.equal(state.submitting,false);assert.match(state.toasts[0],/Grade confirmada/);
+});
+test('falha ao confirmar grade mantém etapa e informa erro de grade',async()=>{
+ const {c,state}=preparationContext(true);await c.handleSubmit();assert.equal(state.completed,undefined);assert.equal(state.votes,0);assert.equal(state.submitting,false);assert.match(state.toasts[0],/confirmar a grade/);
+});
+test('votação preserva dias e horários mesmo quando todos estão bloqueados',()=>{
+ const declarations=['displayDates','displayTimeSlots'].map(name=>html.match(new RegExp('const '+name+' = [^;]+;'))[0]).join('\n');
+ const c={dates:['2026-10-20','2026-10-21'],timeSlots:['morning','afternoon'],organizerPreparation:false,blockedSlots:new Set(['2026-10-20|morning','2026-10-20|afternoon','2026-10-21|morning','2026-10-21|afternoon']),getSlotKey:(date,time)=>date+'|'+time};
+ vm.runInNewContext(declarations+'\nglobalThis.visible={dates:displayDates,times:displayTimeSlots};',c);assert.equal(c.visible.dates.length,2);assert.equal(c.visible.times.length,2);
 });
