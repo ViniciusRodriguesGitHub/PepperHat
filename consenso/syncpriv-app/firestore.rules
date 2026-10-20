@@ -57,6 +57,7 @@ service cloud.firestore {
             || request.resource.data.get('requiredInfo', '').matches('.*[^\\s].*'))
           && request.resource.data.userName is string
           && request.resource.data.userName.size() <= 120
+          && request.resource.data.userName.matches("[\\p{L}\\p{M}][\\p{L}\\p{M}’'.-]*( [\\p{L}\\p{M}][\\p{L}\\p{M}’'.-]*)+")
           && request.resource.data.timeSlots is list
           && request.resource.data.preferredSlots is list
           && request.resource.data.timeSlots.hasAll(request.resource.data.preferredSlots)

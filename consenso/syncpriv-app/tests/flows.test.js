@@ -31,12 +31,12 @@ test('confirmar grade segue diretamente ao próprio voto', () => {
 function storageContext(){
  const data={events:JSON.stringify({e:{config:{startDate:'2026-10-20',endDate:'2026-10-21',createdAt:'2026-10-20',votingOpened:true},votes:[]}})};
  const context={STORAGE_KEY:'events',localStorage:{getItem:k=>data[k],setItem:(k,v)=>data[k]=v},consensoFirestoreReady:()=>false, Date};
- vm.createContext(context); for(const name of ['getRequiredInfoLabels','getRequiredInfoAnswers','getEvent','submitVote','activateEventVoting'])vm.runInContext(declaration(name),context);
+ vm.createContext(context); for(const name of ['normalizeFullName','isValidFullName','getRequiredInfoLabels','getRequiredInfoAnswers','getEvent','submitVote','activateEventVoting'])vm.runInContext(declaration(name),context);
  return context;
 }
 test('muitas pessoas anônimas mantêm votos distintos e edição substitui apenas o próprio', async () => {
- const c=storageContext(); for(let i=0;i<500;i++)await c.submitVote('e',{userId:'u'+i,timeSlots:['2026-10-20|day']});
- await c.submitVote('e',{userId:'u12',timeSlots:[]});const votes=c.getEvent('e').votes;
+ const c=storageContext(); for(let i=0;i<500;i++)await c.submitVote('e',{userName:'Ana Silva',userId:'u'+i,timeSlots:['2026-10-20|day']});
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u12',timeSlots:[]});const votes=c.getEvent('e').votes;
  assert.equal(votes.length,500);assert.equal(votes.find(v=>v.userId==='u12').timeSlots.length,0);assert.equal(votes.find(v=>v.userId==='u13').timeSlots.length,1);
 });
 test('falha na nuvem não confirma abertura da votação localmente', async()=>{
@@ -47,7 +47,7 @@ test('falha na nuvem não confirma abertura da votação localmente', async()=>{
 
 test('edição direta carrega o voto salvo antes de permitir alterações', () => {
  const state={};const event={config:{blockedSlots:['blocked']}};
- const c={getEvent:()=>event,setEventData:()=>{},getConsensoVoterUser:()=>({id:'u'}),setBlockedSlots:()=>{},hasUserVoted:()=>true,setHasVoted:()=>{},editingChoicesRef:{current:true},selectionInitializedRef:{current:false},getUserVote:()=>({timeSlots:['allowed','blocked'],comment:'nota',commentVisibility:'organizer'}),setSelectedSlots:v=>state.slots=Array.from(v),getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.requiredInfo=v,setComment:v=>state.comment=v,setCommentVisibility:()=>{},eventId:'e'};
+ const c={getEvent:()=>event,setEventData:()=>{},getConsensoVoterUser:()=>({id:'u'}),setBlockedSlots:()=>{},hasUserVoted:()=>true,setHasVoted:()=>{},editingChoicesRef:{current:true},selectionInitializedRef:{current:false},getUserVote:()=>({timeSlots:['allowed','blocked'],comment:'nota',commentVisibility:'organizer'}),setLocalUserName:()=>{},setSelectedSlots:v=>state.slots=Array.from(v),getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.requiredInfo=v,setComment:v=>state.comment=v,setCommentVisibility:()=>{},eventId:'e'};
  vm.runInNewContext(declaration('applyLocalState')+'\napplyLocalState();',c);
  assert.deepEqual(state.slots,['allowed']);assert.equal(state.comment,'nota');assert.equal(c.selectionInitializedRef.current,true);
 });
@@ -59,35 +59,35 @@ test('identidade local cadastrada é reutilizada ao editar voto',()=>{
 
 test('não salva voto após encerramento nem em horários bloqueados',async()=>{
  const c=storageContext();const events=JSON.parse(c.localStorage.getItem('events'));events.e.config.finalized=true;c.localStorage.setItem('events',JSON.stringify(events));
- await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[]}),/aberta/);
+ await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[]}),/aberta/);
  events.e.config.finalized=false;events.e.config.blockedSlots=['blocked'];c.localStorage.setItem('events',JSON.stringify(events));
- await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:['blocked']}),/bloqueados/);
+ await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:['blocked']}),/bloqueados/);
  assert.equal(c.getEvent('e').votes.length,0);
 });
 test('evento em nuvem não confirma voto apenas local quando sincronização indisponível',async()=>{
  const c=storageContext();const events=JSON.parse(c.localStorage.getItem('events'));events.e.config.firebaseOwnerUid='owner';c.localStorage.setItem('events',JSON.stringify(events));
- await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[]}),/sincronização/);assert.equal(c.getEvent('e').votes.length,0);
+ await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[]}),/sincronização/);assert.equal(c.getEvent('e').votes.length,0);
 });
 
 test('campo adicional obrigatório rejeita ausência e espaços e aceita resposta',async()=>{
  const c=storageContext();const events=JSON.parse(c.localStorage.getItem('events'));events.e.config.requiredInfoLabel='Nº apartamento';c.localStorage.setItem('events',JSON.stringify(events));
- for(const requiredInfo of [undefined,'','   '])await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[],requiredInfo}),/Nº apartamento/);
+ for(const requiredInfo of [undefined,'','   '])await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfo}),/Nº apartamento/);
  assert.equal(c.getEvent('e').votes.length,0);
- await c.submitVote('e',{userId:'u',userName:'Ana',timeSlots:[],requiredInfo:'Bloco B, 203'});
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfo:'Bloco B, 203'});
  assert.equal(c.getEvent('e').votes[0].requiredInfo,'Bloco B, 203');
- await c.submitVote('e',{userId:'u',userName:'Ana',timeSlots:[],requiredInfo:'204'});
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfo:'204'});
  assert.equal(c.getEvent('e').votes.length,1);assert.equal(c.getEvent('e').votes[0].requiredInfo,'204');
 });
 test('campo adicional limita resposta sem impor formato de CPF ou apartamento',async()=>{
  const c=storageContext();
- await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[],requiredInfo:'x'.repeat(301)}),/300/);
- await c.submitVote('e',{userId:'u',timeSlots:[],requiredInfo:'Rua A, nº 100 — apto 02'});
+ await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfo:'x'.repeat(301)}),/300/);
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfo:'Rua A, nº 100 — apto 02'});
  assert.equal(c.getEvent('e').votes[0].requiredInfo,'Rua A, nº 100 — apto 02');
 });
 test('resposta adicional vai ao voto privado e não a recibos ou comentários públicos',async()=>{
  const writes=[];const c={CONSENSO_FB_APP_ID:'app',consensoFirestoreReady:()=>true,consensoPublicCommentsColRef:()=> 'public_comments',window:{consensoDb:{},consensoFsDoc:(...parts)=>parts,consensoFsSetDoc:async(ref,data)=>writes.push({ref,data})},console};
  vm.runInNewContext(declaration('consensoCloudPushVote'),c);
- await c.consensoCloudPushVote('owner','e',{userId:'u',userName:'Ana',timeSlots:[],requiredInfo:'CPF privado',requiredInfoAnswers:['CPF privado','Rua A','02','999'],comment:'Olá',commentVisibility:'everyone',votedAt:'2026-10-20'});
+ await c.consensoCloudPushVote('owner','e',{userId:'u',timeSlots:[],requiredInfo:'CPF privado',requiredInfoAnswers:['CPF privado','Rua A','02','999'],comment:'Olá',commentVisibility:'everyone',votedAt:'2026-10-20'});
  assert.equal(writes.length,3);assert.equal(writes[0].data.requiredInfo,'CPF privado');
  assert.equal(writes[0].data.requiredInfoAnswers.length,4);
  assert.equal(writes[1].data.requiredInfo,undefined);assert.equal(writes[2].data.requiredInfo,undefined);
@@ -95,25 +95,25 @@ test('resposta adicional vai ao voto privado e não a recibos ou comentários p�
 });
 
 test('cancelar edição restaura resposta adicional salva',()=>{
- const state={};const c={eventId:'e',getConsensoVoterUser:()=>({id:'u'}),getUserVote:()=>({timeSlots:[],requiredInfo:'203'}),setSelectedSlots:()=>{},getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.value=v,setRequiredInfoError:v=>state.error=v,setComment:()=>{},setCommentVisibility:()=>{},setEditingChoices:v=>state.editing=v};
+ const state={};const c={eventId:'e',getConsensoVoterUser:()=>({id:'u'}),getUserVote:()=>({timeSlots:[],requiredInfo:'203'}),setSelectedSlots:()=>{},setLocalUserName:()=>{},setNameError:()=>{},getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.value=v,setRequiredInfoError:v=>state.error=v,setComment:()=>{},setCommentVisibility:()=>{},setEditingChoices:v=>state.editing=v};
  vm.runInNewContext(declaration('handleCancelEditChoices')+'\nhandleCancelEditChoices();',c);assert.deepEqual(Array.from(state.value),['203']);assert.equal(state.error,false);assert.equal(state.editing,false);
 });
 
 test('quatro informações são obrigatórias e editáveis por participante',async()=>{
  const c=storageContext();const events=JSON.parse(c.localStorage.getItem('events'));events.e.config.requiredInfoLabels=['CPF','Endereço','Apartamento','Telefone'];c.localStorage.setItem('events',JSON.stringify(events));
- for(const requiredInfoAnswers of [[],['123'],['123','Rua A',' ','999']])await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[],requiredInfoAnswers}),/Informe/);
- await c.submitVote('e',{userId:'u',timeSlots:[],requiredInfoAnswers:['123','Rua A','02','999']});
- await c.submitVote('e',{userId:'u',timeSlots:[],requiredInfoAnswers:['123','Rua B','03','888']});
+ for(const requiredInfoAnswers of [[],['123'],['123','Rua A',' ','999']])await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfoAnswers}),/Informe/);
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfoAnswers:['123','Rua A','02','999']});
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfoAnswers:['123','Rua B','03','888']});
  assert.equal(c.getEvent('e').votes.length,1);assert.deepEqual(Array.from(c.getEvent('e').votes[0].requiredInfoAnswers),['123','Rua B','03','888']);
 });
 test('limite de quatro respostas e 300 caracteres por campo',async()=>{
- const c=storageContext();await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[],requiredInfoAnswers:['a','b','c','d','e']}),/4/);
- await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[],requiredInfoAnswers:['x'.repeat(301)]}),/300/);
- await assert.rejects(c.submitVote('e',{userId:'u',timeSlots:[],requiredInfoAnswers:'texto'}),/inválidas/);
+ const c=storageContext();await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfoAnswers:['a','b','c','d','e']}),/4/);
+ await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfoAnswers:['x'.repeat(301)]}),/300/);
+ await assert.rejects(c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[],requiredInfoAnswers:'texto'}),/inválidas/);
 });
 test('evento novo somente com nome dispensa respostas adicionais',async()=>{
  const c=storageContext();const events=JSON.parse(c.localStorage.getItem('events'));events.e.config.requiredInfoLabels=[];c.localStorage.setItem('events',JSON.stringify(events));
- await c.submitVote('e',{userId:'u',timeSlots:[]});assert.equal(c.getEvent('e').votes.length,1);
+ await c.submitVote('e',{userName:'Ana Silva',userId:'u',timeSlots:[]});assert.equal(c.getEvent('e').votes.length,1);
 });
 
 function preparationContext(fail = false) {
@@ -155,4 +155,21 @@ test('sincronização preserva bloqueios, quatro campos e respostas salvas',()=>
 });
 test('grade diária inclui sábado e domingo bloqueados entre sexta e segunda',()=>{
  const c={};vm.runInNewContext(declaration('getDatesInRange'),c);const dates=c.getDatesInRange(new Date(2026,9,23),new Date(2026,9,26));assert.equal(dates.length,4);assert.deepEqual(Array.from(dates,date=>date.getDate()),[23,24,25,26]);
+});
+
+test('nome completo é obrigatório em todo voto, com ou sem cadastro',async()=>{
+ const c=storageContext();
+ for(const userName of [undefined,'','   ','Ana','123 456','Ana '+'x'.repeat(120)])await assert.rejects(c.submitVote('e',{userId:'guest',userName,timeSlots:[]}),/nome completo/);
+ assert.equal(c.getEvent('e').votes.length,0);
+ for(const userName of ['Ana Silva','João d’Ávila','Li Na','张 三'])await c.submitVote('e',{userId:'guest',userName,timeSlots:[]});
+ assert.equal(c.getEvent('e').votes.length,1);
+ await c.submitVote('e',{userId:'registered',userName:'  Ana   Maria Silva  ',timeSlots:[]});
+ assert.equal(c.getEvent('e').votes.find(v=>v.userId==='registered').userName,'Ana Maria Silva');
+});
+test('formulário destaca nome incompleto e impede envio para convidados com e sem login',async()=>{
+ for(const loggedIn of [false,true]){
+ const {c,state}=preparationContext();c.organizerPreparation=false;c.localUserName='Ana';c.topBar={registeredUser:loggedIn?{id:'u'}:null};c.setNameError=value=>state.nameError=value;c.nameInputRef={current:{focus:()=>state.focused=true}};c.setTimeout=fn=>fn();
+ vm.runInNewContext(declaration('normalizeFullName')+'\n'+declaration('isValidFullName'),c);
+ await c.handleSubmit();assert.equal(state.nameError,true);assert.equal(state.focused,true);assert.equal(state.votes,0);assert.equal(state.opened,undefined);assert.match(state.toasts[0],/nome completo/);
+ }
 });

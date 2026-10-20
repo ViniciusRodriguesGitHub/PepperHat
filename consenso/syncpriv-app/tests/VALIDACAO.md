@@ -10,7 +10,7 @@ Após a publicação, 15 verificações reais passaram: criação de evento temp
 
 ## Testes locais
 
-38 testes automatizados: `npm test`.
+40 testes automatizados: `npm test`.
 
 Cobrem consenso, rotas do organizador, bloqueios visíveis (incluindo sábado e domingo entre sexta e segunda), quatro informações obrigatórias, edição/cancelamento, autenticação restaurada, configuração atual da nuvem e atualização do cache.
 
@@ -33,3 +33,9 @@ Commit/push da página no GitHub Pages não publica regras no Firebase. Compare 
 A verificação de produção foi feita pela API real do Firebase. Não houve teste visual no navegador nem login interativo Google; a conta autenticada temporária usa o provedor de senha. As regras de votos não distinguem o provedor, apenas o uid autenticado.
 
 Sem nuvem, votos de aparelhos distintos não são consolidados. Sem cadastro, editar exige o mesmo navegador/perfil e aparelho, preservando dados do site. Compartilhar o mesmo perfil de navegador compartilha a identidade; autenticação anônima não garante uma pessoa por voto. A simulação local de 500 identidades não mede capacidade ou quotas do Firebase.
+
+## Nome completo obrigatório — 20/10/2026
+
+O formulário não oculta mais o nome para usuários com nome salvo ou com login. O campo “Nome completo — obrigatório” permanece visível ao votar/editar. A validação exige nome e sobrenome (ao menos duas palavras com letras), aceita acentos/apóstrofos/hífens e outros alfabetos, normaliza espaços e limita a 120 caracteres. O nome do voto salvo é restaurado na edição e ao cancelar. O nome não conta nas quatro informações adicionais.
+
+Regras publicadas: projects/pepperhatapps/rulesets/bbd5f9f1-5b67-4cb0-af72-0b952843bb5e. O teste real foi ampliado para 21 verificações e passou, incluindo recusa de nome vazio ou único para convidados com e sem conta, e aceitação de nomes completos em diferentes alfabetos. Dados temporários removidos. Os 40 testes locais passaram.

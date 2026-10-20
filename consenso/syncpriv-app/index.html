@@ -849,10 +849,20 @@
       return Array.isArray(vote.requiredInfoAnswers) ? vote.requiredInfoAnswers : (vote.requiredInfo ? [vote.requiredInfo] : []);
     };
 
+    const normalizeFullName = (value) => {
+      return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+    };
+    const isValidFullName = (value) => {
+      const name = normalizeFullName(value);
+      return name.length <= 120 && /^[\p{L}\p{M}][\p{L}\p{M}’'.-]*( [\p{L}\p{M}][\p{L}\p{M}’'.-]*)+$/u.test(name);
+    };
+
     const submitVote = async (eventId, vote) => {
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       const event = events[eventId];
       if (!event) throw new Error('Event not found');
+      if (!isValidFullName(vote.userName)) throw new Error('Informe seu nome completo (nome e sobrenome), com até 120 caracteres.');
+      vote = { ...vote, userName: normalizeFullName(vote.userName) };
       if (event.config.finalized || event.config.votingOpened === false) throw new Error('A votação não está aberta.');
       if ((vote.timeSlots || []).some((slot) => (event.config.blockedSlots || []).includes(slot))) throw new Error('O voto contém horários bloqueados.');
       if (event.config.firebaseOwnerUid && !consensoFirestoreReady()) throw new Error('A sincronização está indisponível. Tente novamente com conexão.');
@@ -2159,10 +2169,10 @@
 
                 <div className="border rounded-xl p-4 space-y-3">
                   <h2 className="font-semibold text-slate-900">Informações para votar</h2>
-                  <p className="text-sm text-slate-600">O nome é sempre obrigatório. Adicione até 4 informações obrigatórias, se necessário.</p>
+                  <p className="text-sm text-slate-600">O nome completo é sempre obrigatório. Adicione até 4 informações obrigatórias, se necessário.</p>
                   <div className="space-y-3">{requiredInfoLabels.map((label, index) => <div key={index} className="rounded-lg border bg-slate-50 p-3"><Label htmlFor={'required-label-' + index}>Informação {index + 1}</Label><div className="flex items-center gap-2 mt-1"><Input id={'required-label-' + index} value={label} onChange={(e) => setRequiredInfoLabels((current) => current.map((item, i) => i === index ? e.target.value : item))} maxLength={80} placeholder="Ex.: CPF, endereço ou nº do apartamento" required /><Button variant="outline" onClick={() => setRequiredInfoLabels((current) => current.filter((_, i) => i !== index))} aria-label={'Remover informação ' + (index + 1)}>Remover</Button></div></div>)}</div>
                   <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" disabled={requiredInfoLabels.length >= 4} onClick={() => setRequiredInfoLabels((current) => current.length < 4 ? [...current, ''] : current)}>Adicionar informação</Button><span className="text-sm text-slate-500">{requiredInfoLabels.length}/4 informações adicionais</span></div>
-                  <p className="text-xs text-slate-500">{requiredInfoLabels.length ? 'As respostas são privadas para o participante e o organizador. Solicite apenas o necessário.' : 'Somente o nome será solicitado.'}</p>
+                  <p className="text-xs text-slate-500">{requiredInfoLabels.length ? 'As respostas são privadas para o participante e o organizador. Solicite apenas o necessário.' : 'Somente o nome completo será solicitado.'}</p>
                 </div>
 
                 <div>
@@ -2329,7 +2339,6 @@
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [nameError, setNameError] = useState(false);
       const [hasVoted, setHasVoted] = useState(false);
-      const [showNameInput, setShowNameInput] = useState(!userName);
       const [editingChoices, setEditingChoices] = useState(() => !organizerPreparation && new URLSearchParams(window.location.hash.split('?')[1] || '').has('voter'));
       const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
       const editingChoicesRef = useRef(false);
@@ -2360,6 +2369,7 @@
             const existingVote = getUserVote(eventId, voter.id);
             if (existingVote) {
               setSelectedSlots(new Set(existingVote.timeSlots.filter((slot) => !configuredBlocked.has(slot))));
+              setLocalUserName(existingVote.userName || '');
               setRequiredInfo(getRequiredInfoAnswers(existingVote));
               setComment(existingVote.comment || '');
               setCommentVisibility(existingVote.commentVisibility || 'organizer');
@@ -2507,6 +2517,8 @@
         const existing = getUserVote(eventId, voter.id);
         if (existing) {
           setSelectedSlots(new Set(existing.timeSlots));
+          setLocalUserName(existing.userName || '');
+          setNameError(false);
           setRequiredInfo(getRequiredInfoAnswers(existing));
           setRequiredInfoError(false);
           setComment(existing.comment || '');
@@ -2516,7 +2528,7 @@
       };
 
       const handleMouseDown = (slotKey) => {
-        if (hasVoted && !showNameInput && !editingChoices) return;
+        if (hasVoted && !editingChoices) return;
         setIsDragging(true);
         const nextState = organizerPreparation ? (blockedSlots.has(slotKey) ? 'unblocked' : 'blocked') : !selectedSlots.has(slotKey);
         setDragValue(nextState);
@@ -2542,9 +2554,9 @@
 
       const handleSubmit = async (skipPrompt = false) => {
         if (!organizerPreparation && !eventData.config.votingOpened && eventData.config.votingOpened !== undefined) { addToast('A votação ainda não foi aberta pelo organizador.', 'error'); return; }
-        if (!organizerPreparation && !localUserName.trim()) {
+        if (!organizerPreparation && !isValidFullName(localUserName)) {
           setNameError(true);
-          addToast('Informe seu nome no campo destacado para confirmar o voto.', 'error');
+          addToast('Informe seu nome completo (nome e sobrenome) no campo destacado.', 'error');
           setTimeout(() => nameInputRef.current?.focus(), 0);
           return;
         }
@@ -2582,10 +2594,10 @@
             }
           }
 
-          onSetUserName(localUserName);
+          onSetUserName(normalizeFullName(localUserName));
           const votePayload = {
               userId: user.id,
-              userName: localUserName.trim(),
+              userName: normalizeFullName(localUserName),
               ...(requiredLabels.length ? { requiredInfoAnswers: requiredLabels.map((label, index) => requiredInfo[index].trim()), ...(eventData.config.requiredInfoLabel && !eventData.config.requiredInfoLabels ? { requiredInfo: requiredInfo[0].trim() } : {}) } : {}),
               timeSlots: Array.from(selectedSlots).filter((slot) => !blockedSlots.has(slot)),
               preferredSlots: [],
@@ -2597,7 +2609,6 @@
           trackParticipatedEvent(eventId);
           addToast(hasVoted ? 'Voto atualizado!' : 'Voto registrado!', 'success');
           setHasVoted(true);
-          setShowNameInput(false);
           setEditingChoices(false);
           setEventData(getEvent(eventId));
           const evCloud = getEvent(eventId);
@@ -2660,7 +2671,7 @@
       const resultsAvailable = canViewResults(eventData, false);
       const managerViewing = organizerPreparation || Boolean(topBar?.adminSession && canManageEventId(eventId));
 
-      const slotsInteractive = !eventData.config.finalized && (organizerPreparation || eventData.config.votingOpened !== false) && (!hasVoted || showNameInput || editingChoices || organizerPreparation);
+      const slotsInteractive = !eventData.config.finalized && (organizerPreparation || eventData.config.votingOpened !== false) && (!hasVoted || editingChoices || organizerPreparation);
 
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -2821,7 +2832,7 @@
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
               {eventData.config.finalized ? (
                 <div className="w-full flex justify-end"><Button onClick={onViewResults}><Icon name="Eye" className="w-4 h-4 mr-2" />Consultar resultado final</Button></div>
-              ) : hasVoted && !showNameInput && !editingChoices ? (
+              ) : hasVoted && !editingChoices ? (
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:ml-auto">
                   <Button variant="outline" onClick={() => setEditingChoices(true)} className="justify-center">
                     <Icon name="Pencil" className="w-4 h-4 mr-2" />Editar minhas escolhas
@@ -2838,20 +2849,25 @@
                     {organizerPreparation ? 'Revise os bloqueios: após abrir, convidados poderão votar e a grade ficará fixa.' : editingChoices ? 'Desmarque os períodos indisponíveis e salve.' : 'Dica: clique e arraste para marcar ou desmarcar vários períodos'}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end w-full max-w-2xl">
-                    {!organizerPreparation && showNameInput && (
+                    {!organizerPreparation && (
                       <div className={`rounded-lg p-1 transition-all ${nameError ? 'bg-red-50 ring-2 ring-red-500' : ''}`}>
                         <Label htmlFor="voter-name" className={`mb-1 block text-xs ${nameError ? 'text-red-700 font-semibold' : ''}`}>
-                          <Icon name="User" className="w-4 h-4 inline mr-1" />Seu nome {nameError && '— obrigatório'}
+                          <Icon name="User" className="w-4 h-4 inline mr-1" />Nome completo — obrigatório
                         </Label>
                         <Input
                           ref={nameInputRef}
                           id="voter-name"
                           value={localUserName}
-                          onChange={(e) => { setLocalUserName(e.target.value); if (e.target.value.trim()) setNameError(false); }}
-                          placeholder="Digite seu nome"
+                          onChange={(e) => { setLocalUserName(e.target.value); if (isValidFullName(e.target.value)) setNameError(false); }}
+                          placeholder="Digite seu nome e sobrenome"
+                          autoComplete="name"
+                          maxLength={120}
+                          required
+                          aria-describedby="voter-name-help"
                           aria-invalid={nameError}
                           className={nameError ? 'border-red-500 focus:ring-red-500' : ''}
                         />
+                        <p id="voter-name-help" className={nameError ? 'text-xs text-red-700 mt-1' : 'text-xs text-slate-500 mt-1'}>Informe nome e sobrenome, mesmo se já estiver conectado.</p>
                       </div>
                     )}
                     {!organizerPreparation && getRequiredInfoLabels(eventData.config).length > 0 && (

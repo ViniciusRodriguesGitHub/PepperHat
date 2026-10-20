@@ -1,5 +1,5 @@
 // Consenso - Service Worker
-const CACHE_NAME = 'consenso-v13';
+const CACHE_NAME = 'consenso-v14';
 const STATIC_ASSETS = [
   './',
   './index.html',

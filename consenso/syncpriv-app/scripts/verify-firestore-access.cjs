@@ -47,10 +47,14 @@ async function main() {
     await expect(votePath, 'PATCH', first.idToken, vote, 200, 'Convidado grava voto com campo obrigatório');
     await expect(votePath, 'PATCH', first.idToken, { ...vote, requiredInfoAnswers: ['13'] }, 200, 'Convidado edita o próprio voto');
     await expect(votePath, 'GET', first.idToken, null, 200, 'Convidado lê o próprio voto');
+    for (const userName of ['', 'Ana']) await expect(votePath, 'PATCH', first.idToken, { ...vote, userName }, 403, 'Sem cadastro: nome vazio ou incompleto é recusado');
+    await expect(votePath, 'PATCH', first.idToken, { ...vote, userName: 'João d’Ávila' }, 200, 'Nome completo com acento e apóstrofo é aceito');
     const registeredPath = eventPath + '/votes/' + registered.localId;
     const registeredVote = { ...vote, userId: registered.localId };
     await expect(registeredPath, 'PATCH', registered.idToken, registeredVote, 200, 'Convidado com login grava voto com campo obrigatório');
     await expect(registeredPath, 'PATCH', registered.idToken, { ...registeredVote, requiredInfoAnswers: ['14'] }, 200, 'Convidado com login edita o próprio voto');
+    for (const userName of ['', 'Ana']) await expect(registeredPath, 'PATCH', registered.idToken, { ...registeredVote, userName }, 403, 'Com login: nome vazio ou incompleto é recusado');
+    await expect(registeredPath, 'PATCH', registered.idToken, { ...registeredVote, userName: '张 三' }, 200, 'Nome completo em outro alfabeto é aceito');
     await expect(votePath, 'GET', second.idToken, null, 403, 'Outro convidado não lê o voto privado');
     await expect(votePath, 'PATCH', second.idToken, vote, 403, 'Outro convidado não altera o voto');
     await expect(votePath, 'PATCH', first.idToken, { ...vote, requiredInfoAnswers: [] }, 403, 'Campo obrigatório ausente é recusado');
