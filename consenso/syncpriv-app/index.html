@@ -222,8 +222,11 @@
     window.consensoSignInAnonymously = () => signInAnonymously(auth);
     window.linkConsensoFirebaseWithGoogleJwt = (jwt) => signInWithCredential(auth, GoogleAuthProvider.credential(jwt));
 
+    let resolveAuthReady;
+    window.consensoFirebaseAuthReady = new Promise((resolve) => { resolveAuthReady = resolve; });
     onAuthStateChanged(auth, (user) => {
       window.consensoFirebaseUser = user;
+      resolveAuthReady(user);
       window.dispatchEvent(new CustomEvent('consenso-firebase-auth', { detail: user }));
     });
   </script>
@@ -236,9 +239,10 @@
     // Register Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
           .then((registration) => {
             console.log('[PWA] Service Worker registered:', registration.scope);
+            registration.update().catch(() => {});
           })
           .catch((error) => {
             console.log('[PWA] Service Worker registration failed:', error);
@@ -995,14 +999,22 @@
     };
 
     const ensureConsensoGuestFirebase = async () => {
-      if (!window.consensoSignInAnonymously) return;
-      if (window.consensoFirebaseUser) return;
-      try {
-        const credential = await window.consensoSignInAnonymously();
-        if (credential?.user) window.consensoFirebaseUser = credential.user;
-      } catch (e) {
-        console.error('[Consenso] signInAnonymously', e);
+      for (let attempt = 0; !window.consensoFirebaseAuthReady && attempt < 100; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 80));
       }
+      if (!window.consensoFirebaseAuthReady) throw new Error('A autenticação não carregou. Atualize a página e tente novamente.');
+      let authTimeout;
+      try {
+        await Promise.race([
+          window.consensoFirebaseAuthReady,
+          new Promise((_, reject) => { authTimeout = setTimeout(() => reject(new Error('A autenticação demorou para responder. Tente novamente.')), 8000); }),
+        ]);
+      } finally { clearTimeout(authTimeout); }
+      if (window.consensoFirebaseUser?.uid) return window.consensoFirebaseUser;
+      const credential = await window.consensoSignInAnonymously();
+      if (!credential?.user?.uid) throw new Error('Não foi possível autenticar sua participação.');
+      window.consensoFirebaseUser = credential.user;
+      return credential.user;
     };
 
     const waitForConsensoFirebaseUser = async (expectedUid, timeoutMs = 8000) => {
@@ -1046,7 +1058,7 @@
       }
     };
 
-    const consensoSubscribeRemoteEvent = (ownerUid, eventId, onMerged) => {
+    const consensoSubscribeRemoteEvent = (ownerUid, eventId, onMerged, onError) => {
       if (!consensoFirestoreReady()) return () => {};
       const evRef = consensoEventDocRef(ownerUid, eventId);
       const votesRef = consensoVotesColRef(ownerUid, eventId);
@@ -1065,6 +1077,8 @@
           return {
             userId: v.userId,
             userName: v.userName,
+            ...(Array.isArray(v.requiredInfoAnswers) ? { requiredInfoAnswers: v.requiredInfoAnswers } : {}),
+            ...(typeof v.requiredInfo === 'string' ? { requiredInfo: v.requiredInfo } : {}),
             timeSlots: v.timeSlots || [],
             preferredSlots: v.preferredSlots || [],
             comment: v.comment || '',
@@ -1089,6 +1103,7 @@
         flush();
       }, (error) => {
         console.error('[Consenso] Falha ao acompanhar a reunião', error);
+        if (onError) onError(error);
       });
       const ownVoteRef = currentUid ? window.consensoFsDoc(votesRef, currentUid) : null;
       const u2 = !currentUid ? () => {} : window.consensoFsOnSnapshot(canReadAllVotes ? votesRef : ownVoteRef, (snap) => {
@@ -1139,7 +1154,7 @@
           const vs = await window.consensoFsGetDocs(vcol);
           const votes = vs.docs.map((x) => {
             const v = x.data();
-            return { userId: v.userId, userName: v.userName, timeSlots: v.timeSlots || [], preferredSlots: v.preferredSlots || [], comment: v.comment || '', commentVisibility: v.commentVisibility || 'organizer', votedAt: isoVote(v.votedAt) };
+            return { userId: v.userId, userName: v.userName, ...(Array.isArray(v.requiredInfoAnswers) ? { requiredInfoAnswers: v.requiredInfoAnswers } : {}), ...(typeof v.requiredInfo === 'string' ? { requiredInfo: v.requiredInfo } : {}), timeSlots: v.timeSlots || [], preferredSlots: v.preferredSlots || [], comment: v.comment || '', commentVisibility: v.commentVisibility || 'organizer', votedAt: isoVote(v.votedAt) };
           });
           // Migra reuniões anteriores ao contador privado, sem copiar nomes ou horários.
           const participantsCol = window.consensoFsCollection(d.ref, 'participants');
@@ -2409,14 +2424,21 @@
             setLoadFailed(true);
             return;
           }
-          applyLocalState();
+          if (!ev.config?.firebaseOwnerUid) applyLocalState();
           if (ev.config?.firebaseOwnerUid) {
+            try {
+              await ensureConsensoGuestFirebase();
+            } catch (error) {
+              if (!cancelled) { setLoadFailed(true); addToast(error.message, 'error'); }
+              return;
+            }
+            if (cancelled) return;
             const o = ev.config.firebaseOwnerUid;
             if (!unsub) {
               unsub = consensoSubscribeRemoteEvent(o, eventId, () => {
                 if (cancelled) return;
                 applyLocalState();
-              });
+              }, () => { if (!cancelled) setLoadFailed(true); });
             }
           }
         };
@@ -2590,7 +2612,7 @@
           console.error('[Consenso] Falha ao salvar voto', error);
           addToast(organizerPreparation
             ? (error?.code === 'permission-denied' ? 'Não foi possível abrir a votação: acesso do organizador recusado. Entre novamente e tente outra vez.' : 'Não foi possível confirmar a grade. Verifique a conexão e tente novamente.')
-            : (error?.code === 'permission-denied' ? 'Voto recusado pelo Firebase. Publique as regras mais recentes e tente novamente.' : 'Erro ao registrar voto. Verifique a conexão e tente novamente.'), 'error');
+            : (error?.code === 'permission-denied' ? 'Não foi possível salvar seu voto por uma restrição de acesso. Suas escolhas foram mantidas nesta tela. Avise o organizador para verificar a configuração da votação.' : 'Erro ao registrar voto. Verifique a conexão e tente novamente.'), 'error');
         } finally {
           setIsSubmitting(false);
         }

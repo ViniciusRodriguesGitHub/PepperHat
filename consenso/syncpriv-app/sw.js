@@ -1,5 +1,5 @@
 // Consenso - Service Worker
-const CACHE_NAME = 'consenso-v12';
+const CACHE_NAME = 'consenso-v13';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -43,7 +43,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((name) => name !== CACHE_NAME)
+            .filter((name) => name.startsWith('consenso-') && name !== CACHE_NAME)
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
@@ -69,6 +69,27 @@ self.addEventListener('fetch', (event) => {
 
   // Skip external requests (CDNs, APIs)
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Sempre tente carregar a página e o código atuais antes de usar o cache offline.
+  if (request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/core.js')) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, response.clone());
+          return response;
+        }
+        const cached = await caches.match(request);
+        return cached || response;
+      } catch (error) {
+        const cached = await caches.match(request) || (request.mode === 'navigate' ? await caches.match(new URL('./index.html', self.registration.scope).href) : undefined);
+        if (cached) return cached;
+        throw error;
+      }
+    })());
     return;
   }
 

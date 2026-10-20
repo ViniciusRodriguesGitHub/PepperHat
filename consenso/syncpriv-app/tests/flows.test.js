@@ -133,3 +133,26 @@ test('votação preserva dias e horários mesmo quando todos estão bloqueados',
  const c={dates:['2026-10-20','2026-10-21'],timeSlots:['morning','afternoon'],organizerPreparation:false,blockedSlots:new Set(['2026-10-20|morning','2026-10-20|afternoon','2026-10-21|morning','2026-10-21|afternoon']),getSlotKey:(date,time)=>date+'|'+time};
  vm.runInNewContext(declarations+'\nglobalThis.visible={dates:displayDates,times:displayTimeSlots};',c);assert.equal(c.visible.dates.length,2);assert.equal(c.visible.times.length,2);
 });
+
+test('sessão Google restaurada é aguardada antes de tentar login anônimo',async()=>{
+ let resolveAuth;let anonymousCalls=0;const c={window:{consensoFirebaseAuthReady:new Promise(resolve=>resolveAuth=resolve),consensoSignInAnonymously:async()=>{anonymousCalls++;}},setTimeout,clearTimeout};
+ vm.runInNewContext(declaration('ensureConsensoGuestFirebase'),c);const result=c.ensureConsensoGuestFirebase();c.window.consensoFirebaseUser={uid:'google-user'};resolveAuth();assert.equal((await result).uid,'google-user');assert.equal(anonymousCalls,0);
+});
+test('convidado sem sessão recebe uid anônimo e falha de autenticação não é escondida',async()=>{
+ const c={window:{consensoFirebaseAuthReady:Promise.resolve(),consensoSignInAnonymously:async()=>({user:{uid:'guest'}})},setTimeout,clearTimeout};vm.runInNewContext(declaration('ensureConsensoGuestFirebase'),c);assert.equal((await c.ensureConsensoGuestFirebase()).uid,'guest');
+ c.window.consensoFirebaseUser=null;c.window.consensoSignInAnonymously=async()=>{throw Error('auth indisponível')};await assert.rejects(c.ensureConsensoGuestFirebase(),/auth indisponível/);
+});
+test('evento em cache só aparece após autenticação e configuração atual da nuvem',async()=>{
+ const order=[];let remoteCallback;const c={eventId:'e',cancelled:false,unsub:null,setLoadFailed:()=>{},setTimezone:()=>{},getTimezoneDisplay:()=>'',tryHydrateEventFromInviteHash:()=>{},getEvent:()=>({config:{firebaseOwnerUid:'owner'}}),ensureConsensoGuestFirebase:async()=>order.push('auth'),consensoSubscribeRemoteEvent:(owner,id,callback)=>{order.push('subscribe');remoteCallback=callback;return ()=>{}},applyLocalState:()=>order.push('render'),addToast:()=>{}};
+ vm.runInNewContext(declaration('boot',html.indexOf('const VotingInterface')),c);await c.boot();assert.deepEqual(order,['auth','subscribe']);remoteCallback();assert.deepEqual(order,['auth','subscribe','render']);
+});
+test('sincronização preserva bloqueios, quatro campos e respostas salvas',()=>{
+ let merged;const callbacks=new Map();const c={window:{consensoFirebaseUser:{uid:'guest'},consensoFsDoc:()=> 'own',consensoFsOnSnapshot:(ref,callback)=>{callbacks.set(ref,callback);return ()=>{}}},consensoFirestoreReady:()=>true,consensoEventDocRef:()=> 'event',consensoVotesColRef:()=> 'votes',consensoParticipantsColRef:()=> 'participants',consensoPublicCommentsColRef:()=> 'comments',consensoConfigFromFs:v=>v,isoVote:v=>v,getEvent:()=>({}),mergeHydratedEvent:(id,payload)=>merged=payload};
+ vm.runInNewContext(declaration('consensoSubscribeRemoteEvent'),c);c.consensoSubscribeRemoteEvent('owner','e');
+ callbacks.get('event')({exists:()=>true,data:()=>({config:{id:'e',blockedSlots:['2026-10-24|day'],requiredInfoLabels:['CPF','Rua','Apto','Telefone']}})});
+ callbacks.get('own')({exists:()=>true,data:()=>({userId:'guest',requiredInfoAnswers:['123','Rua A','12','999'],timeSlots:[],votedAt:'2026-10-20'})});
+ assert.equal(merged.config.blockedSlots[0],'2026-10-24|day');assert.equal(merged.config.requiredInfoLabels.length,4);assert.equal(merged.votes[0].requiredInfoAnswers[2],'12');
+});
+test('grade diária inclui sábado e domingo bloqueados entre sexta e segunda',()=>{
+ const c={};vm.runInNewContext(declaration('getDatesInRange'),c);const dates=c.getDatesInRange(new Date(2026,9,23),new Date(2026,9,26));assert.equal(dates.length,4);assert.deepEqual(Array.from(dates,date=>date.getDate()),[23,24,25,26]);
+});
