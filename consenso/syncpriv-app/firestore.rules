@@ -27,14 +27,34 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null && request.auth.uid == ownerUid;
 
+      function validRequiredAnswers() {
+        let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
+        let labels = config.get('requiredInfoLabels', []);
+        let answers = request.resource.data.get('requiredInfoAnswers', []);
+        return labels is list && labels.size() <= 4 && answers is list && answers.size() <= 4
+          && (!('requiredInfoLabels' in config) || answers.size() == labels.size())
+          && (answers.size() < 1 || (answers[0] is string && answers[0].size() <= 300 && answers[0].matches('.*[^\\s].*')))
+          && (answers.size() < 2 || (answers[1] is string && answers[1].size() <= 300 && answers[1].matches('.*[^\\s].*')))
+          && (answers.size() < 3 || (answers[2] is string && answers[2].size() <= 300 && answers[2].matches('.*[^\\s].*')))
+          && (answers.size() < 4 || (answers[3] is string && answers[3].size() <= 300 && answers[3].matches('.*[^\\s].*')));
+      }
+
       match /votes/{voteUid} {
         allow read: if request.auth != null && (
           request.auth.uid == ownerUid || request.auth.uid == voteUid
         );
         allow create, update: if request.auth != null
           && request.auth.uid == voteUid
+          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('votingOpened', true) == true
+          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('finalized', false) == false
+          && !request.resource.data.timeSlots.hasAny(get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('blockedSlots', []))
           && request.resource.data.userId == voteUid
-          && request.resource.data.keys().hasOnly(['userId', 'userName', 'timeSlots', 'preferredSlots', 'comment', 'commentVisibility', 'votedAt'])
+          && request.resource.data.keys().hasOnly(['userId', 'userName', 'timeSlots', 'preferredSlots', 'comment', 'commentVisibility', 'votedAt', 'requiredInfo', 'requiredInfoAnswers'])
+          && validRequiredAnswers()
+          && request.resource.data.get('requiredInfo', '') is string
+          && request.resource.data.get('requiredInfo', '').size() <= 300
+          && (get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('requiredInfoLabel', '') == ''
+            || request.resource.data.get('requiredInfo', '').matches('.*[^\\s].*'))
           && request.resource.data.userName is string
           && request.resource.data.userName.size() <= 120
           && request.resource.data.timeSlots is list

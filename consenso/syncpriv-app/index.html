@@ -745,6 +745,8 @@
       const voteData = {
         userId: vote.userId,
         userName: vote.userName,
+        ...(Array.isArray(vote.requiredInfoAnswers) ? { requiredInfoAnswers: vote.requiredInfoAnswers } : {}),
+        ...(typeof vote.requiredInfo === 'string' ? { requiredInfo: vote.requiredInfo } : {}),
         timeSlots: vote.timeSlots,
         preferredSlots: vote.preferredSlots || [],
         comment: vote.comment || '',
@@ -800,6 +802,7 @@
     };
     
     const createEvent = async (config) => {
+      if (config.requiredInfoLabels !== undefined && (!Array.isArray(config.requiredInfoLabels) || config.requiredInfoLabels.length > 4 || config.requiredInfoLabels.some((label) => typeof label !== 'string' || !label.trim() || label.length > 80))) throw new Error('Defina até 4 informações com títulos de até 80 caracteres.');
       const admin = getAdminSession();
       const ak = adminKey(admin);
       if (!ak) throw new Error('Organizador não autenticado');
@@ -835,10 +838,28 @@
       };
     };
     
+    const getRequiredInfoLabels = (config) => {
+      return Array.isArray(config.requiredInfoLabels) ? config.requiredInfoLabels.slice(0, 4) : (config.requiredInfoLabel ? [config.requiredInfoLabel] : []);
+    };
+    const getRequiredInfoAnswers = (vote) => {
+      return Array.isArray(vote.requiredInfoAnswers) ? vote.requiredInfoAnswers : (vote.requiredInfo ? [vote.requiredInfo] : []);
+    };
+
     const submitVote = async (eventId, vote) => {
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       const event = events[eventId];
       if (!event) throw new Error('Event not found');
+      if (event.config.finalized || event.config.votingOpened === false) throw new Error('A votação não está aberta.');
+      if ((vote.timeSlots || []).some((slot) => (event.config.blockedSlots || []).includes(slot))) throw new Error('O voto contém horários bloqueados.');
+      if (event.config.firebaseOwnerUid && !consensoFirestoreReady()) throw new Error('A sincronização está indisponível. Tente novamente com conexão.');
+      if (vote.requiredInfoAnswers !== undefined && !Array.isArray(vote.requiredInfoAnswers)) throw new Error('Respostas inválidas.');
+      const labels = getRequiredInfoLabels(event.config);
+      const answers = getRequiredInfoAnswers(vote);
+      if (Array.isArray(event.config.requiredInfoLabels) && answers.length > labels.length) throw new Error('As respostas não correspondem aos campos solicitados.');
+      if (answers.length > 4 || answers.some((answer) => typeof answer !== 'string' || answer.length > 300)) throw new Error('Informe até 4 respostas com até 300 caracteres.');
+      const missing = labels.findIndex((label, index) => !answers[index]?.trim());
+      if (missing >= 0) throw new Error(`Informe ${labels[missing]} para votar.`);
+      if (vote.requiredInfo !== undefined && (typeof vote.requiredInfo !== 'string' || vote.requiredInfo.length > 300)) throw new Error('A informação adicional deve ter até 300 caracteres.');
       const votedAt = new Date().toISOString();
       const { removePublicComment, ...storedVote } = vote;
       const owner = event.config?.firebaseOwnerUid;
@@ -1150,7 +1171,7 @@
       if (ev?.config?.firebaseOwnerUid && fb?.uid) {
         return { id: fb.uid, name: local.name || '', isAnonymous: !!fb.isAnonymous };
       }
-      return local;
+      return getRegisteredUser() || local;
     };
 
     /** Lê ?d= da hash #event/ID ou #manage/ID e repõe a reunião no storage. */
@@ -2016,6 +2037,7 @@
       const [quorum, setQuorum] = useState(5);
       const [quorumInput, setQuorumInput] = useState('5');
       const [managerMode, setManagerMode] = useState('participant');
+      const [requiredInfoLabels, setRequiredInfoLabels] = useState([]);
       const [isSubmitting, setIsSubmitting] = useState(false);
 
       const handleQuorumSliderChange = (value) => { setQuorum(value[0]); setQuorumInput(value[0].toString()); };
@@ -2024,6 +2046,7 @@
       const handleSubmit = async () => {
         if (!getAdminSession()) { addToast('Faça login como organizador para criar uma reunião', 'error'); return; }
         if (!title.trim()) { addToast('Por favor, informe o nome do evento', 'error'); return; }
+        if (requiredInfoLabels.some((label) => !label.trim())) { addToast('Informe qual informação será obrigatória para votar.', 'error'); return; }
         const start = parseLocalDate(startDate), end = parseLocalDate(endDate);
         if (!startDate || !endDate || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { addToast('Informe datas de início e fim válidas.', 'error'); return; }
         if (start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
@@ -2032,7 +2055,7 @@
         setIsSubmitting(true);
         try {
           const user = getCurrentUser();
-          const config = await createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, earlyRevelation: false, creatorId: user.id });
+          const config = await createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, requiredInfoLabels: requiredInfoLabels.slice(0, 4).map((label) => label.trim().slice(0, 80)), earlyRevelation: false, creatorId: user.id });
           addToast('Reunião criada com sucesso!', 'success');
           onCreate(config);
         } catch (error) {
@@ -2117,6 +2140,14 @@
                       <p className="text-xs text-slate-500">Resultados só no fim</p>
                     </div>
                   </div>
+                </div>
+
+                <div className="border rounded-xl p-4 space-y-3">
+                  <h2 className="font-semibold text-slate-900">Informações para votar</h2>
+                  <p className="text-sm text-slate-600">O nome é sempre obrigatório. Adicione até 4 informações obrigatórias, se necessário.</p>
+                  <div className="space-y-3">{requiredInfoLabels.map((label, index) => <div key={index} className="rounded-lg border bg-slate-50 p-3"><Label htmlFor={'required-label-' + index}>Informação {index + 1}</Label><div className="flex items-center gap-2 mt-1"><Input id={'required-label-' + index} value={label} onChange={(e) => setRequiredInfoLabels((current) => current.map((item, i) => i === index ? e.target.value : item))} maxLength={80} placeholder="Ex.: CPF, endereço ou nº do apartamento" required /><Button variant="outline" onClick={() => setRequiredInfoLabels((current) => current.filter((_, i) => i !== index))} aria-label={'Remover informação ' + (index + 1)}>Remover</Button></div></div>)}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" disabled={requiredInfoLabels.length >= 4} onClick={() => setRequiredInfoLabels((current) => current.length < 4 ? [...current, ''] : current)}>Adicionar informação</Button><span className="text-sm text-slate-500">{requiredInfoLabels.length}/4 informações adicionais</span></div>
+                  <p className="text-xs text-slate-500">{requiredInfoLabels.length ? 'As respostas são privadas para o participante e o organizador. Solicite apenas o necessário.' : 'Somente o nome será solicitado.'}</p>
                 </div>
 
                 <div>
@@ -2273,6 +2304,9 @@
       const [eventData, setEventData] = useState(null);
       const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
+      const [requiredInfo, setRequiredInfo] = useState([]);
+      const [requiredInfoError, setRequiredInfoError] = useState(false);
+      const requiredInfoRef = useRef(null);
       const [selectedSlots, setSelectedSlots] = useState(new Set());
       const [blockedSlots, setBlockedSlots] = useState(new Set());
       const [comment, setComment] = useState('');
@@ -2281,7 +2315,7 @@
       const [nameError, setNameError] = useState(false);
       const [hasVoted, setHasVoted] = useState(false);
       const [showNameInput, setShowNameInput] = useState(!userName);
-      const [editingChoices, setEditingChoices] = useState(false);
+      const [editingChoices, setEditingChoices] = useState(() => !organizerPreparation && new URLSearchParams(window.location.hash.split('?')[1] || '').has('voter'));
       const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
       const editingChoicesRef = useRef(false);
       const selectionInitializedRef = useRef(false);
@@ -2307,10 +2341,11 @@
           setBlockedSlots(configuredBlocked);
           const voted = hasUserVoted(eventId, voter.id);
           setHasVoted(voted);
-          if (voted && !editingChoicesRef.current) {
+          if (voted && (!selectionInitializedRef.current || !editingChoicesRef.current)) {
             const existingVote = getUserVote(eventId, voter.id);
             if (existingVote) {
               setSelectedSlots(new Set(existingVote.timeSlots.filter((slot) => !configuredBlocked.has(slot))));
+              setRequiredInfo(getRequiredInfoAnswers(existingVote));
               setComment(existingVote.comment || '');
               setCommentVisibility(existingVote.commentVisibility || 'organizer');
               selectionInitializedRef.current = true;
@@ -2450,6 +2485,8 @@
         const existing = getUserVote(eventId, voter.id);
         if (existing) {
           setSelectedSlots(new Set(existing.timeSlots));
+          setRequiredInfo(getRequiredInfoAnswers(existing));
+          setRequiredInfoError(false);
           setComment(existing.comment || '');
           setCommentVisibility(existing.commentVisibility || 'organizer');
         }
@@ -2489,6 +2526,15 @@
           setTimeout(() => nameInputRef.current?.focus(), 0);
           return;
         }
+        const requiredLabels = getRequiredInfoLabels(eventData.config);
+        const missingInfoIndex = requiredLabels.findIndex((label, index) => !requiredInfo[index]?.trim());
+        if (!organizerPreparation && missingInfoIndex >= 0) {
+          setRequiredInfoError(true);
+          addToast(`Informe ${requiredLabels[missingInfoIndex]} para confirmar o voto.`, 'error');
+          setTimeout(() => requiredInfoRef.current?.querySelector('input[aria-invalid="true"]')?.focus(), 0);
+          return;
+        }
+        setRequiredInfoError(false);
         setNameError(false);
         setIsSubmitting(true);
         try {
@@ -2512,11 +2558,12 @@
           const votePayload = {
               userId: user.id,
               userName: localUserName.trim(),
+              ...(requiredLabels.length ? { requiredInfoAnswers: requiredLabels.map((label, index) => requiredInfo[index].trim()), ...(eventData.config.requiredInfoLabel && !eventData.config.requiredInfoLabels ? { requiredInfo: requiredInfo[0].trim() } : {}) } : {}),
               timeSlots: Array.from(selectedSlots).filter((slot) => !blockedSlots.has(slot)),
               preferredSlots: [],
               comment: comment.trim().slice(0, 1000),
               commentVisibility,
-              removePublicComment: getUserVote(eventId, user.id)?.commentVisibility === 'everyone' && commentVisibility !== 'everyone',
+              removePublicComment: getUserVote(eventId, user.id)?.commentVisibility === 'everyone' && (commentVisibility !== 'everyone' || !comment.trim()),
             };
           if (organizerPreparation) {
             await activateEventVoting(eventId, Array.from(blockedSlots));
@@ -2598,7 +2645,9 @@
             secondaryRow={
               <div className="max-w-7xl mx-auto px-4 py-3 w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="min-w-0">
+                  <div className={`inline-flex rounded-full px-3 py-1 mb-2 text-sm font-bold ${organizerPreparation ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'}`}>{organizerPreparation ? 'Etapa 1 · Configurar grade de votação' : managerViewing ? 'Etapa 2 · Meu voto como organizador' : 'Meu voto'}</div>
                   <h1 className="text-lg font-bold text-slate-900 truncate">{eventData.config.title}</h1>
+                  <p className="text-sm text-slate-600 mt-1">{organizerPreparation ? 'Bloqueie os horários que ninguém poderá escolher. Isso não registra seu voto.' : 'Marque sua disponibilidade pessoal entre as opções permitidas.'}</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 mt-1">
                     <span className="flex items-center gap-1"><Icon name="Calendar" className="w-4 h-4" />{displayDates.length} dias disponíveis</span>
                     <span className="flex items-center gap-1"><Icon name="Globe" className="w-4 h-4" />{timezone}</span>
@@ -2618,17 +2667,17 @@
           />
 
           <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
-            <div className="privacy-shield rounded-xl p-6 mb-6 text-white">
+            <div className={`${organizerPreparation ? 'bg-amber-700' : 'privacy-shield'} rounded-xl p-6 mb-6 text-white`}>
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
                   <Icon name="ShieldCheck" className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold mb-2">Suas escolhas não são exibidas ao grupo</h2>
+                  <h2 className="text-lg font-bold mb-2">{organizerPreparation ? 'Configuração para todos os participantes' : 'Suas escolhas não são exibidas ao grupo'}</h2>
                   <ul className="space-y-1 text-sm text-blue-100">
                     <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Outros convidados não acessam sua grade individual</li>
                     <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />O link do convite nunca inclui votos</li>
-                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Desmarque apenas os períodos indisponíveis</li>
+                    <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />{organizerPreparation ? 'Os bloqueios valem para todos; seu voto vem na próxima etapa' : 'Desmarque apenas os períodos indisponíveis'}</li>
                     <li className="flex items-center gap-2"><Icon name="Check" className="w-4 h-4" />Apenas o consenso final será revelado</li>
                   </ul>
                 </div>
@@ -2639,7 +2688,7 @@
               <CardHeader className="flex items-center justify-between bg-slate-50">
                 <div>
                   <h2 className="font-semibold flex items-center gap-2"><Icon name="Clock" className="w-5 h-5" />{organizerPreparation ? 'Etapa 1: bloqueie as opções impossíveis' : 'Desmarque quando você não estiver disponível'}</h2>
-                  <p className="text-xs text-slate-500 mt-1">{organizerPreparation ? 'Nesta etapa você não está votando. Ao concluir, seguirá para o painel do organizador.' : 'Todos os períodos permitidos começam disponíveis.'}</p>
+                  <p className="text-xs text-slate-500 mt-1">{organizerPreparation ? 'Nesta etapa você define a grade para todos. Ao concluir, abrirá o painel para registrar seu próprio voto.' : 'Todos os períodos permitidos começam disponíveis.'}</p>
                 </div>
                 <span className="text-sm text-slate-500">{organizerPreparation ? `${blockedSlots.size} bloqueado${blockedSlots.size === 1 ? '' : 's'}` : `${selectedSlots.size} ${selectedSlots.size === 1 ? 'horário disponível' : 'horários disponíveis'}`}</span>
               </CardHeader>
@@ -2762,7 +2811,7 @@
                   <div className="text-sm text-slate-500">
                     {organizerPreparation ? 'Revise os bloqueios: após abrir, convidados poderão votar e a grade ficará fixa.' : editingChoices ? 'Desmarque os períodos indisponíveis e salve.' : 'Dica: clique e arraste para marcar ou desmarcar vários períodos'}
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end w-full max-w-2xl">
                     {!organizerPreparation && showNameInput && (
                       <div className={`rounded-lg p-1 transition-all ${nameError ? 'bg-red-50 ring-2 ring-red-500' : ''}`}>
                         <Label htmlFor="voter-name" className={`mb-1 block text-xs ${nameError ? 'text-red-700 font-semibold' : ''}`}>
@@ -2779,6 +2828,13 @@
                         />
                       </div>
                     )}
+                    {!organizerPreparation && getRequiredInfoLabels(eventData.config).length > 0 && (
+                      <fieldset ref={requiredInfoRef} className="w-full rounded-xl border p-4 sm:col-span-2">
+                        <legend className="px-1 text-sm font-semibold">Informações obrigatórias</legend>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{getRequiredInfoLabels(eventData.config).map((label, index) => <div key={index}><Label htmlFor={'voter-info-' + index} className="mb-1 block text-xs break-words">{index + 1}. {label} — obrigatório</Label><Input id={'voter-info-' + index} value={requiredInfo[index] || ''} onChange={(e) => { const value = e.target.value; setRequiredInfo((current) => { const next = [...current]; next[index] = value; return next; }); }} maxLength={300} required aria-invalid={requiredInfoError && !requiredInfo[index]?.trim()} className={requiredInfoError && !requiredInfo[index]?.trim() ? 'border-red-500' : ''} /></div>)}</div>
+                        <p className="text-xs text-slate-500 mt-3">Respostas visíveis apenas para você e o organizador.</p>
+                      </fieldset>
+                    )}
                     {editingChoices && (
                       <Button variant="ghost" onClick={handleCancelEditChoices} className="order-2 sm:order-1">
                         Cancelar
@@ -2789,7 +2845,7 @@
                       disabled={isSubmitting}
                       className="order-1 sm:order-2"
                     >
-                      {isSubmitting ? 'Enviando...' : organizerPreparation ? 'Confirmar grade e abrir votação' : hasVoted ? (editingChoices ? 'Salvar alterações' : 'Atualizar voto') : 'Confirmar Voto'}
+                      {isSubmitting ? 'Enviando...' : organizerPreparation ? 'Confirmar grade e ir votar' : hasVoted ? (editingChoices ? 'Salvar alterações' : 'Atualizar voto') : 'Confirmar Voto'}
                     </Button>
                   </div>
                 </>
@@ -2802,6 +2858,7 @@
 
     const VoteSuccessScreen = ({ registeredUser, onUserRegistered, addToast, topBar, onGoHome }) => {
       const [showRegistration, setShowRegistration] = useState(false);
+      const isLoggedIn = Boolean(registeredUser || topBar?.adminSession || (window.consensoFirebaseUser && !window.consensoFirebaseUser.isAnonymous));
 
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -2813,8 +2870,9 @@
               </div>
               <h1 className="text-2xl font-bold text-slate-900 mb-2">Voto feito com sucesso!</h1>
               <p className="text-slate-600">Suas escolhas foram enviadas ao gerenciador.</p>
+              {!isLoggedIn && <p className="mt-4 text-sm text-slate-600">Para alterar seu voto, abra o mesmo link do convite neste mesmo navegador e aparelho. Não apague os dados do site. Em janela anônima ou outro navegador/aparelho, você será identificado como outro participante.</p>}
 
-              {!registeredUser && !showRegistration && (
+              {!isLoggedIn && !showRegistration && (
                 <div className="mt-8 p-5 rounded-xl bg-blue-50 border border-blue-200">
                   <h2 className="font-semibold text-slate-900 mb-2">Que tal usar o Consenso gratuitamente?</h2>
                   <p className="text-sm text-slate-600 mb-4">Crie sua conta grátis para organizar reuniões e acompanhar suas convocações em um só lugar.</p>
@@ -2822,7 +2880,7 @@
                 </div>
               )}
 
-              {!registeredUser && showRegistration && (
+              {!isLoggedIn && showRegistration && (
                 <div className="mt-8 text-left border-t pt-6">
                   <h2 className="text-lg font-semibold text-center mb-4">Crie sua conta grátis</h2>
                   <GuestRegistrationForm
@@ -3176,6 +3234,11 @@
               </CardContent>
             </Card>
 
+            {getRequiredInfoLabels(eventData.config).length > 0 && <Card className="mb-6">
+              <CardHeader><CardTitle>Identificação dos participantes</CardTitle><p className="text-sm text-slate-500">Respostas privadas para o organizador.</p></CardHeader>
+              <CardContent><div className="space-y-4 max-h-96 overflow-y-auto">{eventData.votes.length ? eventData.votes.map((vote) => <div key={vote.userId} className="border rounded-xl p-4"><p className="font-semibold text-sm mb-3">{vote.userName || 'Participante'}</p><dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">{getRequiredInfoLabels(eventData.config).map((label, index) => <div key={index} className="min-w-0"><dt className="text-xs text-slate-500 break-words">{label}</dt><dd className="text-sm text-slate-800 whitespace-pre-wrap break-words mt-1">{getRequiredInfoAnswers(vote)[index] || 'Não informado'}</dd></div>)}</dl></div>) : <p className="text-sm text-slate-500">Nenhum voto recebido.</p>}</div></CardContent>
+            </Card>}
+
             <Card className="mb-6">
               <CardHeader><CardTitle className="flex items-center gap-2"><Icon name="MessageCircle" className="w-5 h-5 text-blue-600" />Comentários dos participantes ({voterComments.length})</CardTitle></CardHeader>
               <CardContent>
@@ -3316,8 +3379,9 @@
           if (canManageEventId(id)) {
             const voter = getConsensoVoterUser(id);
             const voted = hasUserVoted(id, voter.id);
-            if (!voted) {
-              setIsManager(false);
+            const wantsToVote = new URLSearchParams(raw.split('?')[1] || '').has('voter');
+            if (!voted || wantsToVote || getEvent(id)?.config?.votingOpened === false) {
+              setIsManager(true);
               setCurrentView('vote');
             } else {
               setIsManager(true);
@@ -3433,11 +3497,14 @@
       const handlePreparationComplete = (eventData) => {
         setCurrentEvent(eventData.config);
         setIsManager(true);
-        setCurrentView('manage');
-        window.location.hash = `manage/${eventData.config.id}`;
+        setCurrentView('vote');
+        setVoteHashFromInviteLink(eventData.config.id, true);
       };
 
-      const handleVoteComplete = () => setCurrentView(isManager ? 'results' : 'vote-success');
+      const handleVoteComplete = () => {
+        if (isManager) handleBackToManage();
+        else setCurrentView('vote-success');
+      };
       const handleViewResults = () => setCurrentView('results');
       const handleBackToManage = () => {
         setCurrentView('manage');
@@ -3528,7 +3595,7 @@
           case 'share':
             return currentEvent && <ShareScreen event={currentEvent} onComplete={handleShareComplete} onBack={() => { window.location.hash = ''; setCurrentView('create'); }} addToast={addToast} topBar={topBarNavigation} />;
           case 'vote':
-            return <VotingInterface eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} onUserRegistered={handleUserRegistered} organizerPreparation={isManager && getEvent(eventId)?.config?.votingOpened === false} onPreparationComplete={handlePreparationComplete} />;
+            return <VotingInterface key={`${eventId}-${isManager && getEvent(eventId)?.config?.votingOpened === false ? 'prepare' : 'vote'}`} eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} onUserRegistered={handleUserRegistered} organizerPreparation={isManager && getEvent(eventId)?.config?.votingOpened === false} onPreparationComplete={handlePreparationComplete} />;
           case 'vote-success':
             return <VoteSuccessScreen registeredUser={registeredUser} onUserRegistered={handleUserRegistered} addToast={addToast} topBar={topBarNavigation} onGoHome={goHome} />;
           case 'results':
