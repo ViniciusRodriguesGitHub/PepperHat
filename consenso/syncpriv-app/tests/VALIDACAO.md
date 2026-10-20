@@ -1,22 +1,35 @@
 # Validação do Consenso
 
-38 testes automatizados aprovados com `node --test tests/core.test.js tests/flows.test.js tests/sw.test.js`. Os testes de fluxos executam funções reais da página em um ambiente isolado, com armazenamento e nuvem simulados. Incluem 500 identidades diferentes; não são testes de carga do Firebase.
+## Correção em produção — 20/10/2026
 
-Não foi possível validar visualmente o navegador, login Google ou Firebase real neste ambiente. As alterações estão locais, sem publicação. Publicar também firestore.rules para aplicar as proteções de convidados no servidor; regras não foram testadas em emulador.
+O evento maso1s39y73fyyf082io estava aberto, sem finalização, e exigia a informação “nº”. As regras ativas no Firebase eram de 08/08/2026 e não permitiam requiredInfoAnswers no voto. Isso causava HTTP 403 para convidados, mesmo autenticados. O proprietário conseguia escrever por uma permissão própria mais ampla, ocultando o problema nos testes feitos apenas com o organizador.
 
-Limitações encontradas:
-- Sem nuvem, votos ficam no navegador de cada participante e não são consolidados entre aparelhos. Use eventos sincronizados para convites reais.
-- Sem cadastro, editar requer o mesmo navegador/perfil e aparelho, preservando os dados do site. Outro aparelho ou dados apagados geram outra identidade. Pessoas que compartilham o mesmo perfil de navegador compartilham essa identidade.
-- Identidades anônimas distintas permitem participantes distintos, mas não garantem uma pessoa por voto. Não foi medida a capacidade ou quota do Firebase.
+O teste de integração reproduziu HTTP 403 antes da publicação. As regras atuais de firestore.rules foram compiladas e publicadas no projeto pepperhatapps, preservando as regras das outras aplicações. Release ativo: projects/pepperhatapps/rulesets/97a52f3c-563d-4347-997f-5250719b7fc1.
 
-Campo adicional: testes cobrem obrigatoriedade (incluindo espaços), limite de 300 caracteres, edição, cancelamento e gravação somente no voto privado. O rótulo é livre (até 80 caracteres); a resposta é textual, sem validação específica de CPF ou endereço. As regras precisam ser publicadas junto com a página.
+Após a publicação, 15 verificações reais passaram: criação de evento temporário, voto e edição anônimos, leitura do próprio voto, voto e edição com conta autenticada, privacidade entre convidados, rejeição de respostas ausentes ou em branco, rejeição de horários bloqueados, envio de quatro respostas e rejeição após encerramento. O evento e as três identidades temporárias foram removidos ao final. Nenhum voto do evento do usuário foi alterado.
 
-Até quatro informações adicionais: configuração em lista numerada com adicionar/remover e contador; votação e painel em grade responsiva de duas colunas (uma no celular). Compatibilidade preservada com eventos antigos de campo único. Testes incluem obrigatoriedade dos quatro campos, edição, limites e ausência das respostas nos recibos/comentários públicos. Ainda sem validação visual ou emulador Firebase.
+## Testes locais
 
-Correção da confirmação da grade: preparação retorna antes de montar dados do voto, impedindo acesso a respostas ainda vazias. Regressões cobrem quatro campos vazios e falha de abertura. Grade completa permanece visível mesmo com todos os horários bloqueados, com legenda, título acessível e botões desabilitados nos bloqueios. Cache atualizado para v12.
+38 testes automatizados: `npm test`.
 
-Convidados com reunião em cache: autenticação é aguardada antes da assinatura remota e a tela só recebe a configuração da nuvem; respostas adicionais são preservadas nas duas rotinas de leitura. Service worker v13 usa rede primeiro para página/core e limpa apenas caches do Consenso. Testes cobrem restauração Google, sessão anônima, falha de autenticação, reunião em cache, campos privados e navegação online/offline.
+Cobrem consenso, rotas do organizador, bloqueios visíveis (incluindo sábado e domingo entre sexta e segunda), quatro informações obrigatórias, edição/cancelamento, autenticação restaurada, configuração atual da nuvem e atualização do cache.
 
-O evento informado foi https://viniciusrodriguesgithub.github.io/PepperHat/consenso/syncpriv-app/#event/ex4kmp8vnfqhgp9htjhjli. Acesso HTTP indisponível e nenhum navegador conectado: não foi possível inspecionar produção nem confirmar as regras atualmente ativas. Firebase CLI não instalado neste ambiente. A causa exata de permission-denied em produção não foi confirmada. Não foi feito deploy.
+## Repetir o teste real
 
-Para aplicar as regras deste projeto pelo Firebase CLI autenticado, na pasta consenso/syncpriv-app: `firebase deploy --only firestore:rules --project pepperhatapps --config firebase.consenso.json`. Esse arquivo publica o conjunto compartilhado de regras em firestore.rules: revisar o diff com as regras ativas antes de publicar, para preservar regras de outros aplicativos. A página e sw.js também precisam chegar ao GitHub Pages.
+Use uma sessão autenticada do Firebase CLI com acesso ao projeto. O teste cria exclusivamente dados temporários e os remove em finally; não registra tokens ou credenciais.
+
+`npm run test:firestore:live -- --firebase-tools-root CAMINHO_DO_PACOTE_FIREBASE_TOOLS`
+
+O diretório informado é a raiz do pacote oficial firebase-tools (contendo lib/api.js). O teste usa a sessão em ~/.config/configstore/firebase-tools.json e mantém os tokens apenas na memória. A conta autenticada temporária usa senha aleatória e email example.invalid; nenhuma mensagem é enviada.
+
+## Publicar regras
+
+`npx --yes firebase-tools deploy --only firestore:rules --project pepperhatapps --config firebase.consenso.json --non-interactive`
+
+Commit/push da página no GitHub Pages não publica regras no Firebase. Compare firestore.rules com o conjunto ativo antes de futuras publicações, porque o projeto é compartilhado com outros aplicativos.
+
+## Limites da validação
+
+A verificação de produção foi feita pela API real do Firebase. Não houve teste visual no navegador nem login interativo Google; a conta autenticada temporária usa o provedor de senha. As regras de votos não distinguem o provedor, apenas o uid autenticado.
+
+Sem nuvem, votos de aparelhos distintos não são consolidados. Sem cadastro, editar exige o mesmo navegador/perfil e aparelho, preservando dados do site. Compartilhar o mesmo perfil de navegador compartilha a identidade; autenticação anônima não garante uma pessoa por voto. A simulação local de 500 identidades não mede capacidade ou quotas do Firebase.

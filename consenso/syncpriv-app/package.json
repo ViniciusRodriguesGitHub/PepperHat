@@ -1,1 +1,8 @@
-{"name":"consenso","private":true,"scripts":{"test":"node --test tests/*.test.js"}}
+{
+  "name": "consenso",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:firestore:live": "node scripts/verify-firestore-access.cjs"
+  }
+}
