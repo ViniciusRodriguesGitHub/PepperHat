@@ -14,6 +14,8 @@ O e-mail é um campo próprio, fora das quatro informações adicionais, nos mod
 
 O serviço SMTP ainda precisa ser configurado. Sem configuração, a página não promete envio nem exige coleta de e-mail. Para ativar:
 
+**Caminho gratuito mais simples neste computador:** siga [CONFIGURAR-EMAIL.md](CONFIGURAR-EMAIL.md). O assistente `scripts/configurar-email.ps1` usa Gmail, testa o envio, salva a senha de app com segurança e publica as funções. A configuração depende de uma ação do titular da conta Google; ainda não está ativada.
+
 1. Configurar um remetente verificado e um provedor SMTP.
 2. Definir no ambiente de functions: CONSENSO_SMTP_HOST, CONSENSO_SMTP_PORT, CONSENSO_SMTP_USER e CONSENSO_EMAIL_FROM. Não versionar arquivos .env.
 3. Salvar a senha/token com Firebase Secret Manager como CONSENSO_SMTP_PASSWORD, sem colocá-la no código ou em mensagens.
