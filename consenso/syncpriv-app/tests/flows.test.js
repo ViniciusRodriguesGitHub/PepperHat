@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const core = require('../core.js');
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
 function declaration(name, after = 0) {
  const start = html.indexOf('    const ' + name + ' =', after);
@@ -30,7 +31,7 @@ test('confirmar grade segue diretamente ao próprio voto', () => {
 });
 function storageContext(){
  const data={events:JSON.stringify({e:{config:{startDate:'2026-10-20',endDate:'2026-10-21',createdAt:'2026-10-20',votingOpened:true},votes:[]}})};
- const context={STORAGE_KEY:'events',localStorage:{getItem:k=>data[k],setItem:(k,v)=>data[k]=v},consensoFirestoreReady:()=>false, Date};
+ const context={...core,STORAGE_KEY:'events',localStorage:{getItem:k=>data[k],setItem:(k,v)=>data[k]=v},consensoFirestoreReady:()=>false, Date};
  vm.createContext(context); for(const name of ['normalizeFullName','isValidFullName','getRequiredInfoLabels','getRequiredInfoAnswers','getEvent','submitVote','activateEventVoting'])vm.runInContext(declaration(name),context);
  return context;
 }
@@ -47,7 +48,7 @@ test('falha na nuvem não confirma abertura da votação localmente', async()=>{
 
 test('edição direta carrega o voto salvo antes de permitir alterações', () => {
  const state={};const event={config:{blockedSlots:['blocked']}};
- const c={getEvent:()=>event,setEventData:()=>{},getConsensoVoterUser:()=>({id:'u'}),setBlockedSlots:()=>{},hasUserVoted:()=>true,setHasVoted:()=>{},editingChoicesRef:{current:true},selectionInitializedRef:{current:false},getUserVote:()=>({timeSlots:['allowed','blocked'],comment:'nota',commentVisibility:'organizer'}),setLocalUserName:()=>{},setSelectedSlots:v=>state.slots=Array.from(v),getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.requiredInfo=v,setComment:v=>state.comment=v,setCommentVisibility:()=>{},eventId:'e'};
+ const c={getEvent:()=>event,setEventData:()=>{},getConsensoVoterUser:()=>({id:'u'}),setBlockedSlots:()=>{},hasUserVoted:()=>true,setHasVoted:()=>{},editingChoicesRef:{current:true},selectionInitializedRef:{current:false},getUserVote:()=>({timeSlots:['allowed','blocked'],comment:'nota',commentVisibility:'organizer'}),setNotificationEmail:()=>{},setEmailError:()=>{},setLocalUserName:()=>{},setSelectedSlots:v=>state.slots=Array.from(v),getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.requiredInfo=v,setComment:v=>state.comment=v,setCommentVisibility:()=>{},eventId:'e'};
  vm.runInNewContext(declaration('applyLocalState')+'\napplyLocalState();',c);
  assert.deepEqual(state.slots,['allowed']);assert.equal(state.comment,'nota');assert.equal(c.selectionInitializedRef.current,true);
 });
@@ -95,7 +96,7 @@ test('resposta adicional vai ao voto privado e não a recibos ou comentários p�
 });
 
 test('cancelar edição restaura resposta adicional salva',()=>{
- const state={};const c={eventId:'e',getConsensoVoterUser:()=>({id:'u'}),getUserVote:()=>({timeSlots:[],requiredInfo:'203'}),setSelectedSlots:()=>{},setLocalUserName:()=>{},setNameError:()=>{},getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.value=v,setRequiredInfoError:v=>state.error=v,setComment:()=>{},setCommentVisibility:()=>{},setEditingChoices:v=>state.editing=v};
+ const state={};const c={eventId:'e',getConsensoVoterUser:()=>({id:'u'}),getUserVote:()=>({timeSlots:[],requiredInfo:'203'}),setSelectedSlots:()=>{},setNotificationEmail:()=>{},setEmailError:()=>{},setLocalUserName:()=>{},setNameError:()=>{},getRequiredInfoAnswers:v=>v.requiredInfoAnswers || (v.requiredInfo ? [v.requiredInfo] : []),setRequiredInfo:v=>state.value=v,setRequiredInfoError:v=>state.error=v,setComment:()=>{},setCommentVisibility:()=>{},setEditingChoices:v=>state.editing=v};
  vm.runInNewContext(declaration('handleCancelEditChoices')+'\nhandleCancelEditChoices();',c);assert.deepEqual(Array.from(state.value),['203']);assert.equal(state.error,false);assert.equal(state.editing,false);
 });
 
@@ -118,7 +119,7 @@ test('evento novo somente com nome dispensa respostas adicionais',async()=>{
 
 function preparationContext(fail = false) {
  const state={toasts:[],votes:0};
- const c={organizerPreparation:true,eventId:'e',eventData:{config:{requiredInfoLabels:['CPF','Endereço','Apartamento','Telefone']}},requiredInfo:[],blockedSlots:new Set(['2026-10-20|day']),getRequiredInfoLabels:config=>config.requiredInfoLabels,setRequiredInfoError:()=>{},setNameError:()=>{},setIsSubmitting:value=>state.submitting=value,activateEventVoting:async(id,blocked)=>{if(fail)throw Error('offline');state.opened={id,blocked};},addToast:message=>state.toasts.push(message),getEvent:()=>({config:{id:'e',votingOpened:true}}),onPreparationComplete:event=>state.completed=event,submitVote:async()=>state.votes++,console:{error:()=>{}}};
+ const c={...core,setEmailError:()=>{},organizerPreparation:true,eventId:'e',eventData:{config:{requiredInfoLabels:['CPF','Endereço','Apartamento','Telefone']}},requiredInfo:[],blockedSlots:new Set(['2026-10-20|day']),getRequiredInfoLabels:config=>config.requiredInfoLabels,setRequiredInfoError:()=>{},setNameError:()=>{},setIsSubmitting:value=>state.submitting=value,activateEventVoting:async(id,blocked)=>{if(fail)throw Error('offline');state.opened={id,blocked};},addToast:message=>state.toasts.push(message),getEvent:()=>({config:{id:'e',votingOpened:true}}),onPreparationComplete:event=>state.completed=event,submitVote:async()=>state.votes++,console:{error:()=>{}}};
  vm.runInNewContext(declaration('handleSubmit',html.indexOf('const VotingInterface')),c);
  return {c,state};
 }

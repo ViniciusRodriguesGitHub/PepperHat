@@ -25,7 +25,37 @@ service cloud.firestore {
 
     match /artifacts/{appId}/users/{ownerUid}/consenso_v1/{eventId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && request.auth.uid == ownerUid;
+      allow create: if request.auth != null && request.auth.uid == ownerUid
+        && request.resource.data.config.get('finalized', false) == false
+        && request.resource.data.config.get('votingClosed', false) == false;
+      allow update: if request.auth != null && request.auth.uid == ownerUid
+        && !request.resource.data.config.diff(resource.data.config).affectedKeys().hasAny(['finalized', 'votingClosed', 'tallyOpenedAt', 'finalResult', 'finalizedAt', 'selectedFinalSlot', 'tallyEarly']);
+      allow delete: if request.auth != null && request.auth.uid == ownerUid;
+      function voteIsOpen() {
+        let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
+        return config.get('votingOpened', true) == true && config.get('finalized', false) == false
+          && config.get('votingClosed', false) == false
+          && (config.get('votingDeadline', null) == null || request.time < timestamp.value(config.votingDeadline));
+      }
+      function validNotificationEmail() {
+        let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
+        let email = request.resource.data.get('notificationEmail', '');
+        return email is string && email.size() <= 254
+          && ((email == '' && config.get('emailMode', 'none') != 'required') || email.matches('^[^@ \\t\\r\\n]+@[^@ \\t\\r\\n]+[.][^@ \\t\\r\\n]+$'));
+      }
+      match /participant_details/{voteUid} {
+        allow read: if request.auth != null && (request.auth.uid == ownerUid || request.auth.uid == voteUid);
+        allow write: if false;
+      }
+      match /organizer_results/{summaryId} {
+        allow read: if request.auth != null && request.auth.uid == ownerUid
+          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('tallyOpenedAt', null) != null;
+        allow write: if false;
+      }
+      match /notification_jobs/{jobId} {
+        allow read: if request.auth != null && request.auth.uid == ownerUid;
+        allow write: if false;
+      }
 
       function validRequiredAnswers() {
         let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
@@ -40,16 +70,16 @@ service cloud.firestore {
       }
 
       match /votes/{voteUid} {
-        allow read: if request.auth != null && (
-          request.auth.uid == ownerUid || request.auth.uid == voteUid
-        );
+        allow read: if request.auth != null && request.auth.uid == voteUid;
         allow create, update: if request.auth != null
           && request.auth.uid == voteUid
+          && voteIsOpen()
+          && validNotificationEmail()
           && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('votingOpened', true) == true
           && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('finalized', false) == false
           && !request.resource.data.timeSlots.hasAny(get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('blockedSlots', []))
           && request.resource.data.userId == voteUid
-          && request.resource.data.keys().hasOnly(['userId', 'userName', 'timeSlots', 'preferredSlots', 'comment', 'commentVisibility', 'votedAt', 'requiredInfo', 'requiredInfoAnswers'])
+          && request.resource.data.keys().hasOnly(['userId', 'userName', 'timeSlots', 'preferredSlots', 'comment', 'commentVisibility', 'votedAt', 'requiredInfo', 'requiredInfoAnswers', 'notificationEmail'])
           && validRequiredAnswers()
           && request.resource.data.get('requiredInfo', '') is string
           && request.resource.data.get('requiredInfo', '').size() <= 300
@@ -64,7 +94,7 @@ service cloud.firestore {
           && request.resource.data.comment is string
           && request.resource.data.comment.size() <= 1000
           && request.resource.data.commentVisibility in ['organizer', 'everyone'];
-        allow delete: if request.auth != null && request.auth.uid == ownerUid;
+        allow delete: if false;
       }
 
       // Recibos de participação alimentam apenas o contador e nunca contêm horários.
@@ -95,8 +125,8 @@ service cloud.firestore {
     }
 
     // Generic private user workspace (Kanban and other tools).
-    match /artifacts/{appId}/users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /artifacts/{appId}/users/{userId}/{workspaceCollection}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId && workspaceCollection != 'consenso_v1';
     }
   }
 }

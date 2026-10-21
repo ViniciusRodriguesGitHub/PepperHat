@@ -39,3 +39,9 @@ Sem nuvem, votos de aparelhos distintos não são consolidados. Sem cadastro, ed
 O formulário não oculta mais o nome para usuários com nome salvo ou com login. O campo “Nome completo — obrigatório” permanece visível ao votar/editar. A validação exige nome e sobrenome (ao menos duas palavras com letras), aceita acentos/apóstrofos/hífens e outros alfabetos, normaliza espaços e limita a 120 caracteres. O nome do voto salvo é restaurado na edição e ao cancelar. O nome não conta nas quatro informações adicionais.
 
 Regras publicadas: projects/pepperhatapps/rulesets/bbd5f9f1-5b67-4cb0-af72-0b952843bb5e. O teste real foi ampliado para 21 verificações e passou, incluindo recusa de nome vazio ou único para convidados com e sem conta, e aceitação de nomes completos em diferentes alfabetos. Dados temporários removidos. Os 40 testes locais passaram.
+
+## Apuração protegida e prazos — 21/10/2026
+
+55 testes locais aprovados. A página foi compilada em JSX clássico e testada em navegador isolado em dimensões de computador e celular, com dados fictícios: convite em destaque, ocultação das opções, cancelamento da confirmação, encerramento irreversível, opções agregadas, orientações, nome/e-mail obrigatórios e criação com quatro campos. O compilador Babel foi fixado na versão 7.28.5 para evitar mudança automática incompatível do runtime JSX.
+
+Foi adicionado backend Firebase (codebase consenso) para abertura da apuração, finalização manual, agendador de prazo, metadados sem horários individuais e fila privada de notificações. Os detalhes de operação e configuração ficam em AUTOMACAO.md. O envio real de e-mail continua dependente de configurar um remetente/provedor SMTP; as opções de coleta ficam desabilitadas enquanto isso não estiver disponível. As retentativas de envio são limitadas a três, sem política de repetição por sete dias.

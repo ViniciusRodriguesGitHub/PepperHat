@@ -1,0 +1,1 @@
+const fs=require('node:fs');const path=require('node:path');fs.copyFileSync(path.join(__dirname,'../core.js'),path.join(__dirname,'../functions/consenso-core.cjs'));console.log('Core do Consenso sincronizado com as funções.');

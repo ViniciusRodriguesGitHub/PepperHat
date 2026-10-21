@@ -173,10 +173,10 @@
   <!-- Scripts -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.28.5/babel.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
-  <script src="core.js?v=7"></script>
+  <script src="core.js?v=8"></script>
 </head>
 <body class="bg-slate-50 safe-area-top safe-area-bottom">
   <!-- PWA Install Prompt Container -->
@@ -194,6 +194,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithCredential, GoogleAuthProvider, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js';
     import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc, getDocs, writeBatch, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -209,6 +210,8 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+    const functions = getFunctions(app, 'southamerica-east1');
+    window.consensoCall = async (name, data = {}) => (await httpsCallable(functions, name)(data)).data;
     window.consensoDb = db;
     window.consensoAuth = auth;
     window.consensoFsDoc = doc;
@@ -749,6 +752,7 @@
       const voteData = {
         userId: vote.userId,
         userName: vote.userName,
+        ...(vote.notificationEmail ? { notificationEmail: vote.notificationEmail } : {}),
         ...(Array.isArray(vote.requiredInfoAnswers) ? { requiredInfoAnswers: vote.requiredInfoAnswers } : {}),
         ...(typeof vote.requiredInfo === 'string' ? { requiredInfo: vote.requiredInfo } : {}),
         timeSlots: vote.timeSlots,
@@ -810,6 +814,9 @@
       const admin = getAdminSession();
       const ak = adminKey(admin);
       if (!ak) throw new Error('Organizador não autenticado');
+      if ((config.emailMode && config.emailMode !== 'none' || config.votingDeadline) && !admin?.firebaseUid) throw new Error('Entre com Google para usar prazo automático ou e-mail.');
+      if (config.meetingInstructions && (typeof config.meetingInstructions !== 'string' || config.meetingInstructions.length > 2000)) throw new Error('As orientações devem ter até 2000 caracteres.');
+      if (config.votingDeadline && (!Number.isFinite(new Date(config.votingDeadline).getTime()) || new Date(config.votingDeadline).getTime() <= Date.now())) throw new Error('Escolha um prazo futuro.');
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       const newConfig = {
         ...config,
@@ -838,7 +845,8 @@
       if (!event) return null;
       return {
         config: { ...event.config, startDate: new Date(event.config.startDate), endDate: new Date(event.config.endDate), createdAt: new Date(event.config.createdAt) },
-        votes: event.votes.map(v => ({ ...v, votedAt: new Date(v.votedAt) }))
+        votes: event.votes.map(v => ({ ...v, votedAt: new Date(v.votedAt) })),
+        organizerSummary: event.organizerSummary || null
       };
     };
     
@@ -863,9 +871,12 @@
       if (!event) throw new Error('Event not found');
       if (!isValidFullName(vote.userName)) throw new Error('Informe seu nome completo (nome e sobrenome), com até 120 caracteres.');
       vote = { ...vote, userName: normalizeFullName(vote.userName) };
-      if (event.config.finalized || event.config.votingOpened === false) throw new Error('A votação não está aberta.');
+      if (isVotingClosed(event.config) || event.config.votingOpened === false) throw new Error('A votação não está aberta.');
       if ((vote.timeSlots || []).some((slot) => (event.config.blockedSlots || []).includes(slot))) throw new Error('O voto contém horários bloqueados.');
       if (event.config.firebaseOwnerUid && !consensoFirestoreReady()) throw new Error('A sincronização está indisponível. Tente novamente com conexão.');
+      const notificationEmail = String(vote.notificationEmail || '').trim();
+      if (event.config.emailMode === 'required' && !notificationEmail) throw new Error('Informe seu e-mail para receber o resultado.');
+      if (notificationEmail && !isValidNotificationEmail(notificationEmail)) throw new Error('Informe um e-mail válido.');
       if (vote.requiredInfoAnswers !== undefined && !Array.isArray(vote.requiredInfoAnswers)) throw new Error('Respostas inválidas.');
       const labels = getRequiredInfoLabels(event.config);
       const answers = getRequiredInfoAnswers(vote);
@@ -895,31 +906,48 @@
       return event ? event.votes.find(v => v.userId === userId) || null : null;
     };
     
-    const unlockResults = async (eventId, selectedSlotKey) => {
-      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      if (events[eventId]) {
-        const finalizedAt = new Date().toISOString();
-        const hydrated = getEvent(eventId);
-        const rankedSlots = rankConsensusSlots(hydrated);
-        const chosenSlot = rankedSlots.find((slot) => slot.key === selectedSlotKey);
-        if (!chosenSlot) throw new Error('Selecione uma opção válida do consenso.');
-        const verdict = {
-          type: chosenSlot.votes === hydrated.votes.length ? 'unanimous' : 'majority',
-          slots: [chosenSlot],
-          totalVotes: hydrated.votes.length,
-          quorum: hydrated.config.quorum,
-        };
-        const finalResult = {
-          ...verdict,
-          slots: verdict.slots.map((slot) => ({ ...slot, date: formatDate(slot.date) })),
-        };
-        const owner = events[eventId].config?.firebaseOwnerUid;
-        if (owner && consensoFirestoreReady()) {
-          await consensoCloudMergeConfig(owner, eventId, { resultsUnlocked: true, finalized: true, finalizedAt, finalResult, selectedFinalSlot: selectedSlotKey });
-        }
-        events[eventId].config = { ...events[eventId].config, resultsUnlocked: true, finalized: true, finalizedAt, finalResult, selectedFinalSlot: selectedSlotKey };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    const refreshCloudEventAfterAction = async (ownerUid, eventId) => {
+      const ref = consensoEventDocRef(ownerUid, eventId);
+      const snap = await window.consensoFsGetDoc(ref);
+      if (!snap.exists()) throw new Error('Reunião não encontrada.');
+      const config = consensoConfigFromFs(snap.data().config);
+      let organizerSummary = null;
+      if (config.tallyOpenedAt) { const summary = await window.consensoFsGetDoc(window.consensoFsDoc(ref, 'organizer_results', 'summary')); if (summary.exists()) organizerSummary = summary.data(); }
+      mergeHydratedEvent(eventId, { config, votes: [], organizerSummary });
+      return getEvent(eventId);
+    };
+    const openEventTally = async (eventId, earlyConfirmed) => {
+      const event = getEvent(eventId);
+      if (!event || !canManageEventId(eventId)) throw new Error('Acesso restrito ao organizador.');
+      if (event.config.firebaseOwnerUid) {
+        await waitForConsensoFirebaseUser(event.config.firebaseOwnerUid);
+        await window.consensoCall('consensoOpenTally', { ownerUid: event.config.firebaseOwnerUid, eventId, earlyConfirmed });
+        return refreshCloudEventAfterAction(event.config.firebaseOwnerUid, eventId);
       }
+      if (isVotingClosed(event.config) || !event.votes.length) throw new Error('A votação não pode ser aberta para apuração agora.');
+      const early = !hasStrictMajority(event);
+      if (early && !earlyConfirmed) throw new Error('Confirme a antecipação.');
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      events[eventId].config = { ...events[eventId].config, votingClosed: true, tallyOpenedAt: new Date().toISOString(), tallyEarly: early };
+      events[eventId].organizerSummary = { slots: rankConsensusSlots(event).map((slot) => ({ ...slot, date: formatDate(slot.date) })), totalVotes: event.votes.length };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      return getEvent(eventId);
+    };
+    const unlockResults = async (eventId, selectedSlotKey) => {
+      const event = getEvent(eventId);
+      if (!event || !canManageEventId(eventId)) throw new Error('Acesso restrito ao organizador.');
+      if (!canChooseFinalResult(event)) throw new Error('Abra a apuração antes de escolher o resultado.');
+      if (event.config.firebaseOwnerUid) {
+        await waitForConsensoFirebaseUser(event.config.firebaseOwnerUid);
+        await window.consensoCall('consensoFinalize', { ownerUid: event.config.firebaseOwnerUid, eventId, selectedSlotKey });
+        return refreshCloudEventAfterAction(event.config.firebaseOwnerUid, eventId);
+      }
+      const chosen = rankConsensusSlots(event).find((slot) => slot.key === selectedSlotKey);
+      if (!chosen) throw new Error('Selecione uma opção válida do consenso.');
+      const finalResult = { type: chosen.votes === event.votes.length ? 'unanimous' : 'majority', slots: [{ ...chosen, date: formatDate(chosen.date) }], totalVotes: event.votes.length, quorum: event.config.quorum };
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      events[eventId].config = { ...events[eventId].config, finalized: true, resultsUnlocked: true, votingClosed: true, finalizedAt: new Date().toISOString(), finalResult, selectedFinalSlot: selectedSlotKey };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     };
 
     /** Exclui reunião: primeiro Firestore (se houver), depois localStorage — assim não apagamos o local se a nuvem falhar. */
@@ -934,23 +962,8 @@
 
       if (ownerUid && session?.firebaseUid === ownerUid && consensoFirestoreReady() && window.consensoFsDeleteDoc) {
         try {
-          const votesCol = consensoVotesColRef(ownerUid, eventId);
-          const participantsCol = consensoParticipantsColRef(ownerUid, eventId);
-          const publicCommentsCol = consensoPublicCommentsColRef(ownerUid, eventId);
-          const vs = await window.consensoFsGetDocs(votesCol);
-          for (let i = 0; i < vs.docs.length; i++) {
-            await window.consensoFsDeleteDoc(vs.docs[i].ref);
-          }
-          const ps = await window.consensoFsGetDocs(participantsCol);
-          for (let i = 0; i < ps.docs.length; i++) {
-            await window.consensoFsDeleteDoc(ps.docs[i].ref);
-          }
-          const cs = await window.consensoFsGetDocs(publicCommentsCol);
-          for (let i = 0; i < cs.docs.length; i++) {
-            await window.consensoFsDeleteDoc(cs.docs[i].ref);
-          }
-          await window.consensoFsDeleteDoc(consensoEventDocRef(ownerUid, eventId));
-          await window.consensoFsDeleteDoc(consensoLookupDocRef(eventId));
+          await waitForConsensoFirebaseUser(ownerUid);
+          await window.consensoCall('consensoDeleteEvent', { ownerUid, eventId });
         } catch (e) {
           console.error('[Consenso] Firestore delete', e);
           throw new Error('Não foi possível excluir na nuvem. Verifique a conexão e tente de novo.');
@@ -991,7 +1004,7 @@
       const incomingVotes = (payload.votes || []).map((v) => ({ ...v, votedAt: isoVote(v.votedAt) }));
 
       if (!events[eventId]) {
-        events[eventId] = { config: cfg, votes: incomingVotes, publicComments: payload.publicComments || [] };
+        events[eventId] = { config: cfg, votes: incomingVotes, publicComments: payload.publicComments || [], organizerSummary: payload.organizerSummary || null };
       } else {
         const byUser = new Map();
         [...(replaceVotes ? [] : (events[eventId].votes || [])), ...incomingVotes].forEach((v) => {
@@ -1002,6 +1015,7 @@
           config: { ...events[eventId].config, ...cfg },
           votes: Array.from(byUser.values()),
           publicComments: payload.publicComments || events[eventId].publicComments || [],
+          organizerSummary: Object.prototype.hasOwnProperty.call(payload, 'organizerSummary') ? payload.organizerSummary : events[eventId].organizerSummary || null,
         };
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -1070,81 +1084,34 @@
 
     const consensoSubscribeRemoteEvent = (ownerUid, eventId, onMerged, onError) => {
       if (!consensoFirestoreReady()) return () => {};
-      const evRef = consensoEventDocRef(ownerUid, eventId);
-      const votesRef = consensoVotesColRef(ownerUid, eventId);
-      const participantsRef = consensoParticipantsColRef(ownerUid, eventId);
-      const publicCommentsRef = consensoPublicCommentsColRef(ownerUid, eventId);
+      const ref = consensoEventDocRef(ownerUid, eventId);
       const currentUid = window.consensoFirebaseUser?.uid;
-      const canReadAllVotes = currentUid === ownerUid;
-      let lastCfg = null;
-      let lastVoteDocs = [];
-      let participantCount = 0;
-      let publicComments = [];
+      const isOwner = currentUid === ownerUid;
+      let cfg = null, ownVote = null, details = [], participantCount = 0, publicComments = [], organizerSummary = null;
+      let summaryUnsub = null;
       const flush = () => {
-        if (!lastCfg) return;
-        const votes = lastVoteDocs.map((d) => {
-          const v = d.data();
-          return {
-            userId: v.userId,
-            userName: v.userName,
-            ...(Array.isArray(v.requiredInfoAnswers) ? { requiredInfoAnswers: v.requiredInfoAnswers } : {}),
-            ...(typeof v.requiredInfo === 'string' ? { requiredInfo: v.requiredInfo } : {}),
-            timeSlots: v.timeSlots || [],
-            preferredSlots: v.preferredSlots || [],
-            comment: v.comment || '',
-            commentVisibility: v.commentVisibility || 'organizer',
-            votedAt: isoVote(v.votedAt),
-          };
-        });
+        if (!cfg) return;
+        const votes = isOwner ? details.filter((vote) => vote.userId !== currentUid) : [];
+        if (ownVote) votes.push(ownVote);
+        else if (isOwner) { const mine = details.find((vote) => vote.userId === currentUid); if (mine) votes.push(mine); }
         const hadLocal = !!getEvent(eventId);
-        mergeHydratedEvent(
-          eventId,
-          { config: { ...consensoConfigFromFs(lastCfg), voteCount: participantCount }, votes, publicComments },
-          { replaceVotes: !canReadAllVotes }
-        );
+        mergeHydratedEvent(eventId, { config: { ...consensoConfigFromFs(cfg), voteCount: participantCount }, votes, publicComments, organizerSummary }, { replaceVotes: true });
         if (onMerged) onMerged();
-        if (!hadLocal && getEvent(eventId)) {
-          window.dispatchEvent(new CustomEvent('consenso-remote-hydrated', { detail: { eventId } }));
-        }
+        if (!hadLocal) window.dispatchEvent(new CustomEvent('consenso-remote-hydrated', { detail: { eventId } }));
       };
-      const u1 = window.consensoFsOnSnapshot(evRef, (snap) => {
+      const report = (error) => { console.error('[Consenso] Sincronização indisponível', error); if (onError) onError(error); };
+      const unsubscribers = [];
+      unsubscribers.push(window.consensoFsOnSnapshot(ref, (snap) => {
         if (!snap.exists()) return;
-        lastCfg = snap.data().config;
+        cfg = snap.data().config;
+        if (isOwner && cfg.tallyOpenedAt && !summaryUnsub) summaryUnsub = window.consensoFsOnSnapshot(window.consensoFsDoc(ref, 'organizer_results', 'summary'), (summary) => { organizerSummary = summary.exists() ? summary.data() : null; flush(); }, report);
         flush();
-      }, (error) => {
-        console.error('[Consenso] Falha ao acompanhar a reunião', error);
-        if (onError) onError(error);
-      });
-      const ownVoteRef = currentUid ? window.consensoFsDoc(votesRef, currentUid) : null;
-      const u2 = !currentUid ? () => {} : window.consensoFsOnSnapshot(canReadAllVotes ? votesRef : ownVoteRef, (snap) => {
-          if (!canReadAllVotes) {
-            lastVoteDocs = snap.exists() ? [snap] : [];
-            flush();
-            return;
-          }
-          lastVoteDocs = snap.docs;
-          flush();
-        }, (error) => {
-          console.error('[Consenso] Falha ao acompanhar o voto', error);
-        });
-      const u3 = window.consensoFsOnSnapshot(participantsRef, (snap) => {
-        participantCount = snap.size;
-        flush();
-      }, (error) => {
-        console.warn('[Consenso] Contador de participantes indisponível', error);
-      });
-      const u4 = window.consensoFsOnSnapshot(publicCommentsRef, (snap) => {
-        publicComments = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-        flush();
-      }, (error) => {
-        console.warn('[Consenso] Comentários públicos indisponíveis', error);
-      });
-      return () => {
-        u1();
-        u2();
-        u3();
-        u4();
-      };
+      }, report));
+      if (currentUid) unsubscribers.push(window.consensoFsOnSnapshot(window.consensoFsDoc(consensoVotesColRef(ownerUid, eventId), currentUid), (snap) => { ownVote = snap.exists() ? snap.data() : null; flush(); }, report));
+      if (isOwner) unsubscribers.push(window.consensoFsOnSnapshot(window.consensoFsCollection(ref, 'participant_details'), (snap) => { details = snap.docs.map((doc) => ({ ...doc.data(), timeSlots: [], preferredSlots: [] })); flush(); }, report));
+      unsubscribers.push(window.consensoFsOnSnapshot(consensoParticipantsColRef(ownerUid, eventId), (snap) => { participantCount = snap.size; flush(); }, report));
+      unsubscribers.push(window.consensoFsOnSnapshot(consensoPublicCommentsColRef(ownerUid, eventId), (snap) => { publicComments = snap.docs.map((doc) => doc.data()); flush(); }, report));
+      return () => { unsubscribers.forEach((unsubscribe) => unsubscribe()); if (summaryUnsub) summaryUnsub(); };
     };
 
     const consensoSyncOrganizerEventsFromFirestore = async () => {
@@ -1160,27 +1127,9 @@
         for (const d of snap.docs) {
           const eventId = d.id;
           const cfg = consensoConfigFromFs(d.data().config || {});
-          const vcol = window.consensoFsCollection(d.ref, 'votes');
-          const vs = await window.consensoFsGetDocs(vcol);
-          const votes = vs.docs.map((x) => {
-            const v = x.data();
-            return { userId: v.userId, userName: v.userName, ...(Array.isArray(v.requiredInfoAnswers) ? { requiredInfoAnswers: v.requiredInfoAnswers } : {}), ...(typeof v.requiredInfo === 'string' ? { requiredInfo: v.requiredInfo } : {}), timeSlots: v.timeSlots || [], preferredSlots: v.preferredSlots || [], comment: v.comment || '', commentVisibility: v.commentVisibility || 'organizer', votedAt: isoVote(v.votedAt) };
-          });
-          // Migra reuniões anteriores ao contador privado, sem copiar nomes ou horários.
-          const participantsCol = window.consensoFsCollection(d.ref, 'participants');
-          const participants = await window.consensoFsGetDocs(participantsCol);
-          const participantIds = new Set(participants.docs.map((x) => x.id));
-          const missingReceipts = votes.filter((vote) => vote.userId && !participantIds.has(vote.userId));
-          if (missingReceipts.length) {
-            const batch = window.consensoFsWriteBatch(window.consensoDb);
-            missingReceipts.forEach((vote) => {
-              batch.set(window.consensoFsDoc(participantsCol, vote.userId), {
-                userId: vote.userId,
-                votedAt: isoVote(vote.votedAt),
-              });
-            });
-            await batch.commit();
-          }
+          await window.consensoCall('consensoPrepareOrganizerPanel', { ownerUid: uid, eventId });
+          const details = await window.consensoFsGetDocs(window.consensoFsCollection(d.ref, 'participant_details'));
+          const votes = details.docs.map((doc) => ({ ...doc.data(), timeSlots: [], preferredSlots: [] }));
           mergeHydratedEvent(eventId, { config: cfg, votes });
         }
       } catch (e) {
@@ -1265,6 +1214,7 @@
     };
 
     const {
+      hasStrictMajority, isVotingClosed, canChooseFinalResult, isValidNotificationEmail, chooseAutomaticResult,
       calculateConsensus,
       canRevealResults,
       hasReachedQuorum,
@@ -2009,7 +1959,7 @@
               
               <p className="text-base text-slate-500 mb-8 max-w-xl mx-auto">
                 Vote com tranquilidade em TODOS os horários disponíveis. 
-                O resultado só é revelado quando todos concordam.
+                O resultado é definido pelo organizador ou automaticamente no prazo informado.
               </p>
 
               <Button size="lg" onClick={onCreate} className="px-8 mb-12">
@@ -2062,6 +2012,11 @@
       const [quorum, setQuorum] = useState(5);
       const [quorumInput, setQuorumInput] = useState('5');
       const [managerMode, setManagerMode] = useState('participant');
+      const [meetingInstructions, setMeetingInstructions] = useState('');
+      const [emailMode, setEmailMode] = useState('none');
+      const [votingDeadline, setVotingDeadline] = useState('');
+      const [automationStatus, setAutomationStatus] = useState({ deadlineReady: false, emailReady: false });
+      useEffect(() => { let active = true; if (getAdminSession()?.firebaseUid) (async () => { try { await ensureConsensoGuestFirebase(); const status = await window.consensoCall('consensoAutomationStatus'); if (active) setAutomationStatus(status); } catch (error) { console.warn('[Consenso] Automação indisponível', error); } })(); return () => { active = false; }; }, []);
       const [requiredInfoLabels, setRequiredInfoLabels] = useState([]);
       const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -2075,12 +2030,14 @@
         const start = parseLocalDate(startDate), end = parseLocalDate(endDate);
         if (!startDate || !endDate || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { addToast('Informe datas de início e fim válidas.', 'error'); return; }
         if (start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
+        if (votingDeadline && (!automationStatus.deadlineReady || new Date(votingDeadline).getTime() <= Date.now())) { addToast('Escolha um prazo futuro com a automação disponível.', 'error'); return; }
+        if (emailMode !== 'none' && !automationStatus.emailReady) { addToast('O envio automático de e-mails ainda precisa ser configurado.', 'error'); return; }
         if (quorum < 2) { addToast('Quórum mínimo de 2 participantes', 'error'); return; }
 
         setIsSubmitting(true);
         try {
           const user = getCurrentUser();
-          const config = await createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, requiredInfoLabels: requiredInfoLabels.slice(0, 4).map((label) => label.trim().slice(0, 80)), earlyRevelation: false, creatorId: user.id });
+          const config = await createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, meetingInstructions: meetingInstructions.trim(), emailMode, votingDeadline: votingDeadline ? new Date(votingDeadline).toISOString() : null, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, automationVersion: 2, requiredInfoLabels: requiredInfoLabels.slice(0, 4).map((label) => label.trim().slice(0, 80)), earlyRevelation: false, creatorId: user.id });
           addToast('Reunião criada com sucesso!', 'success');
           onCreate(config);
         } catch (error) {
@@ -2147,7 +2104,7 @@
                 <div>
                   <Label className="flex items-center gap-2">
                     <Icon name="Users" className="w-4 h-4" />
-                    Quórum Necessário
+                    Total esperado de participantes
                   </Label>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm text-slate-500">
@@ -2167,6 +2124,25 @@
                   </div>
                 </div>
 
+                <div className="space-y-3">
+                  <Label htmlFor="meeting-instructions">Informações e orientações da reunião (opcional)</Label>
+                  <textarea id="meeting-instructions" rows="4" maxLength={2000} value={meetingInstructions} onChange={(e) => setMeetingInstructions(e.target.value)} placeholder="Ex.: local, objetivo, documentos necessários ou instruções para os convidados." className="w-full border rounded-lg p-3 text-sm" />
+                  <p className="text-xs text-slate-500">Este texto aparece para todos os convidados e para você, na página de votação.</p>
+                </div>
+                <div className="rounded-xl border p-4 space-y-3">
+                  <Label htmlFor="event-deadline">Prazo final para votar e definir o resultado (opcional)</Label>
+                  <Input id="event-deadline" type="datetime-local" value={votingDeadline} disabled={!automationStatus.deadlineReady} onChange={(e) => setVotingDeadline(e.target.value)} min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16)} />
+                  <p className="text-xs text-slate-500">{automationStatus.deadlineReady ? 'No prazo, os votos serão encerrados e o servidor escolherá o horário futuro com mais disponíveis; em empate, o mais próximo. Se não houver votos ou opções futuras, o resultado informará isso. Fuso: ' + Intl.DateTimeFormat().resolvedOptions().timeZone : 'O prazo automático requer login Google e conexão com o servidor. Sem prazo, você decide quando encerrar.'}</p>
+                </div>
+                <div className="rounded-xl border p-4 space-y-3">
+                  <Label htmlFor="event-email-mode">E-mail para receber o resultado</Label>
+                  <select id="event-email-mode" className="w-full border rounded-lg p-3 text-sm" value={emailMode} onChange={(e) => setEmailMode(e.target.value)}>
+                    <option value="none">Não solicitar e-mail — votação rápida</option>
+                    <option value="optional" disabled={!automationStatus.emailReady}>E-mail opcional para receber o resultado</option>
+                    <option value="required" disabled={!automationStatus.emailReady}>E-mail obrigatório para receber o resultado</option>
+                  </select>
+                  <p className="text-xs text-slate-500">{automationStatus.emailReady ? 'O Consenso enviará o resultado após a finalização. As respostas serão direcionadas ao e-mail do organizador. O e-mail não usa nenhum dos quatro campos adicionais.' : 'As opções de e-mail serão liberadas após configurar o remetente automático do Consenso. O resultado permanece disponível pelo link.'}</p>
+                </div>
                 <div className="border rounded-xl p-4 space-y-3">
                   <h2 className="font-semibold text-slate-900">Informações para votar</h2>
                   <p className="text-sm text-slate-600">O nome completo é sempre obrigatório. Adicione até 4 informações obrigatórias, se necessário.</p>
@@ -2198,7 +2174,7 @@
                   <div className="flex items-start gap-3">
                     <div>
                       <Label className="text-blue-900 font-medium">Finalização controlada</Label>
-                      <p className="text-sm text-blue-700">O resultado permanecerá oculto até você revisar os comentários e finalizar a votação no painel.</p>
+                      <p className="text-sm text-blue-700">O resultado fica oculto até a finalização. Se você definir um prazo, a apuração será automática ao término dele.</p>
                     </div>
                   </div>
                 </div>
@@ -2329,6 +2305,11 @@
       const [eventData, setEventData] = useState(null);
       const [loadFailed, setLoadFailed] = useState(false);
       const [localUserName, setLocalUserName] = useState(userName);
+      const [notificationEmail, setNotificationEmail] = useState('');
+      const [emailError, setEmailError] = useState(false);
+      const emailInputRef = useRef(null);
+      const [, refreshClock] = useState(0);
+      useEffect(() => { const timer = setInterval(() => refreshClock((value) => value + 1), 15000); return () => clearInterval(timer); }, []);
       const [requiredInfo, setRequiredInfo] = useState([]);
       const [requiredInfoError, setRequiredInfoError] = useState(false);
       const requiredInfoRef = useRef(null);
@@ -2370,6 +2351,7 @@
             if (existingVote) {
               setSelectedSlots(new Set(existingVote.timeSlots.filter((slot) => !configuredBlocked.has(slot))));
               setLocalUserName(existingVote.userName || '');
+              setNotificationEmail(existingVote.notificationEmail || '');
               setRequiredInfo(getRequiredInfoAnswers(existingVote));
               setComment(existingVote.comment || '');
               setCommentVisibility(existingVote.commentVisibility || 'organizer');
@@ -2518,6 +2500,8 @@
         if (existing) {
           setSelectedSlots(new Set(existing.timeSlots));
           setLocalUserName(existing.userName || '');
+          setNotificationEmail(existing.notificationEmail || '');
+          setEmailError(false);
           setNameError(false);
           setRequiredInfo(getRequiredInfoAnswers(existing));
           setRequiredInfoError(false);
@@ -2560,6 +2544,9 @@
           setTimeout(() => nameInputRef.current?.focus(), 0);
           return;
         }
+        if (!organizerPreparation && isVotingClosed(eventData.config)) { addToast('A votação já foi encerrada para apuração.', 'error'); return; }
+        if (!organizerPreparation && ((eventData.config.emailMode === 'required' && !notificationEmail.trim()) || (notificationEmail.trim() && !isValidNotificationEmail(notificationEmail.trim())))) { setEmailError(true); addToast('Informe um e-mail válido para receber o resultado.', 'error'); setTimeout(() => emailInputRef.current?.focus(), 0); return; }
+        setEmailError(false);
         const requiredLabels = getRequiredInfoLabels(eventData.config);
         const missingInfoIndex = requiredLabels.findIndex((label, index) => !requiredInfo[index]?.trim());
         if (!organizerPreparation && missingInfoIndex >= 0) {
@@ -2598,6 +2585,7 @@
           const votePayload = {
               userId: user.id,
               userName: normalizeFullName(localUserName),
+              ...(['optional', 'required'].includes(eventData.config.emailMode) && notificationEmail.trim() ? { notificationEmail: notificationEmail.trim() } : {}),
               ...(requiredLabels.length ? { requiredInfoAnswers: requiredLabels.map((label, index) => requiredInfo[index].trim()), ...(eventData.config.requiredInfoLabel && !eventData.config.requiredInfoLabels ? { requiredInfo: requiredInfo[0].trim() } : {}) } : {}),
               timeSlots: Array.from(selectedSlots).filter((slot) => !blockedSlots.has(slot)),
               preferredSlots: [],
@@ -2671,7 +2659,7 @@
       const resultsAvailable = canViewResults(eventData, false);
       const managerViewing = organizerPreparation || Boolean(topBar?.adminSession && canManageEventId(eventId));
 
-      const slotsInteractive = !eventData.config.finalized && (organizerPreparation || eventData.config.votingOpened !== false) && (!hasVoted || editingChoices || organizerPreparation);
+      const slotsInteractive = !isVotingClosed(eventData.config) && (organizerPreparation || eventData.config.votingOpened !== false) && (!hasVoted || editingChoices || organizerPreparation);
 
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -2702,6 +2690,9 @@
           />
 
           <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+            {eventData.config.meetingInstructions && <Card className="mb-6 p-5 border-blue-200"><h2 className="font-semibold text-slate-900 mb-2">Orientações da reunião</h2><p className="text-sm text-slate-700 whitespace-pre-wrap break-words">{eventData.config.meetingInstructions}</p></Card>}
+            {eventData.config.votingDeadline && <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Prazo para votar: <strong>{new Date(eventData.config.votingDeadline).toLocaleString('pt-BR', { timeZone: eventData.config.timeZone || 'America/Sao_Paulo' })}</strong> ({eventData.config.timeZone || 'America/Sao_Paulo'}). O resultado será definido automaticamente após esse horário.</p>}
+            {!organizerPreparation && isVotingClosed(eventData.config) && !eventData.config.finalized && <p className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">Votos encerrados. {eventData.config.tallyOpenedAt ? 'O organizador está escolhendo o resultado final.' : 'O prazo terminou e o servidor fará a apuração automática; isso pode levar até um minuto.'}</p>}
             <div className={`${organizerPreparation ? 'bg-amber-700' : 'privacy-shield'} rounded-xl p-6 mb-6 text-white`}>
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -2832,7 +2823,7 @@
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
               {eventData.config.finalized ? (
                 <div className="w-full flex justify-end"><Button onClick={onViewResults}><Icon name="Eye" className="w-4 h-4 mr-2" />Consultar resultado final</Button></div>
-              ) : hasVoted && !editingChoices ? (
+              ) : !organizerPreparation && isVotingClosed(eventData.config) ? (<p className="text-sm text-slate-600">Não é possível votar ou alterar respostas após o encerramento. Acompanhe o resultado por este link.</p>) : hasVoted && !editingChoices ? (
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:ml-auto">
                   <Button variant="outline" onClick={() => setEditingChoices(true)} className="justify-center">
                     <Icon name="Pencil" className="w-4 h-4 mr-2" />Editar minhas escolhas
@@ -2870,6 +2861,7 @@
                         <p id="voter-name-help" className={nameError ? 'text-xs text-red-700 mt-1' : 'text-xs text-slate-500 mt-1'}>Informe nome e sobrenome, mesmo se já estiver conectado.</p>
                       </div>
                     )}
+                    {!organizerPreparation && ['optional', 'required'].includes(eventData.config.emailMode) && <div className="rounded-lg p-1"><Label htmlFor="voter-email" className="mb-1 block text-xs">E-mail para receber o resultado {eventData.config.emailMode === 'required' ? '— obrigatório' : '(opcional)'}</Label><Input ref={emailInputRef} id="voter-email" type="email" autoComplete="email" maxLength={254} required={eventData.config.emailMode === 'required'} value={notificationEmail} onChange={(e) => { setNotificationEmail(e.target.value); setEmailError(false); }} aria-invalid={emailError} className={emailError ? 'border-red-500' : ''} /><p className="mt-1 text-xs text-slate-500">Usado para enviar o resultado desta reunião. Não é exibido aos outros convidados.</p></div>}
                     {!organizerPreparation && getRequiredInfoLabels(eventData.config).length > 0 && (
                       <fieldset ref={requiredInfoRef} className="w-full rounded-xl border p-4 sm:col-span-2">
                         <legend className="px-1 text-sm font-semibold">Informações obrigatórias</legend>
@@ -2898,7 +2890,7 @@
       );
     };
 
-    const VoteSuccessScreen = ({ registeredUser, onUserRegistered, addToast, topBar, onGoHome }) => {
+    const VoteSuccessScreen = ({ registeredUser, onUserRegistered, addToast, topBar, onGoHome, onFollowResult }) => {
       const [showRegistration, setShowRegistration] = useState(false);
       const isLoggedIn = Boolean(registeredUser || topBar?.adminSession || (window.consensoFirebaseUser && !window.consensoFirebaseUser.isAnonymous));
 
@@ -2937,7 +2929,8 @@
                 </div>
               )}
 
-              <Button variant="ghost" onClick={onGoHome} className="mt-6">Ir para o início</Button>
+              <Button onClick={onFollowResult} className="mt-6 w-full">Acompanhar resultado</Button>
+              <Button variant="ghost" onClick={onGoHome} className="mt-3">Ir para o início</Button>
             </Card>
           </main>
         </div>
@@ -2949,13 +2942,17 @@
       const [verdict, setVerdict] = useState(null);
 
       useEffect(() => {
-        tryHydrateEventFromInviteHash();
-        const event = getEvent(eventId);
-        if (event) {
+        let cancelled = false, unsubscribe = null;
+        const apply = () => {
+          const event = getEvent(eventId); if (!event || cancelled) return;
           const saved = event.config.finalResult;
           setEventData(event);
-          setVerdict(saved ? { ...saved, slots: (saved.slots || []).map((slot) => ({ ...slot, date: parseLocalDate(slot.date) })) } : calculateConsensus(event));
-        }
+          setVerdict(saved ? { ...saved, slots: (saved.slots || []).map((slot) => ({ ...slot, date: parseLocalDate(slot.date) })) } : { type: 'none', slots: [], totalVotes: getVoteCount(event), quorum: event.config.quorum });
+        };
+        tryHydrateEventFromInviteHash(); apply();
+        const ownerUid = getEvent(eventId)?.config?.firebaseOwnerUid;
+        if (ownerUid) (async () => { try { await ensureConsensoGuestFirebase(); if (!cancelled) unsubscribe = consensoSubscribeRemoteEvent(ownerUid, eventId, apply); } catch (error) { if (!cancelled) addToast('Atualize a página para acompanhar o resultado.', 'error'); } })();
+        return () => { cancelled = true; if (unsubscribe) unsubscribe(); };
       }, [eventId]);
 
       const handleExportICal = (slot) => {
@@ -2994,7 +2991,7 @@
             <main className="max-w-2xl mx-auto px-4 py-12 text-center flex-1 w-full">
               <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="Lock" className="w-10 h-10 text-amber-600" /></div>
               <h1 className="text-2xl font-bold mb-2">Consenso em Andamento</h1>
-              <p className="text-slate-600 mb-2">Os resultados serão revelados somente depois que o organizador revisar os comentários e finalizar a votação.</p>
+              <p className="text-slate-600 mb-2">O resultado será revelado após a definição pelo organizador ou a apuração automática no prazo informado.</p>
               {isManager && <p className="text-sm text-slate-500 mb-6">Progresso atual: <strong>{getVoteCount(eventData)}/{eventData.config.quorum} participantes</strong></p>}
 
               {isManager && <Card className="p-6 mb-6">
@@ -3023,7 +3020,7 @@
             {...topBar}
             secondaryRow={
               <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
-                <h1 className="text-base font-semibold text-slate-800">Consenso alcançado</h1>
+                <h1 className="text-base font-semibold text-slate-800">{verdict.slots.length ? 'Resultado do Consenso' : 'Votação encerrada sem data definida'}</h1>
                 <Button variant="ghost" size="sm" onClick={onBack}>
                   <Icon name="ArrowLeft" className="w-4 h-4 mr-2" />{isManager ? 'Painel' : 'Votação'}
                 </Button>
@@ -3045,11 +3042,11 @@
                 </div>
               ) : verdict.type === 'majority' ? (
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                  <Icon name="Users" className="w-4 h-4" />Maioria Alcançada
+                  <Icon name="Users" className="w-4 h-4" />Data definida sem unanimidade
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
-                  <Icon name="Clock" className="w-4 h-4" />Aguardando votos
+                  <Icon name="Clock" className="w-4 h-4" />Votação encerrada
                 </div>
               )}
             </div>
@@ -3057,7 +3054,7 @@
             {verdict.slots.length > 0 ? (
               <div className="space-y-4 mb-8">
                 <h2 className="text-lg font-semibold text-center">
-                  {verdict.type === 'unanimous' ? 'Horários com 100% de concordância:' : 'Melhor horário para o grupo:'}
+                  {verdict.type === 'unanimous' ? 'Horário com 100% de concordância:' : verdict.reason === 'deadline' ? 'Horário definido automaticamente:' : 'Horário definido pelo organizador:'}
                 </h2>
                 {verdict.slots.map((slot, index) => (
                   <Card key={index} className={index === 0 ? 'border-green-400 ring-2 ring-green-100' : ''}>
@@ -3087,7 +3084,7 @@
               <div className="text-center py-12 bg-white rounded-xl border mb-8">
                 <Icon name="Clock" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">Nenhum horário selecionado</h3>
-                <p className="text-slate-600">Aguarde mais participantes votarem.</p>
+                <p className="text-slate-600">{verdict.reason === 'no-votes' ? 'O prazo terminou sem votos registrados. Nenhuma data foi definida.' : 'Não houve disponibilidade futura entre os votos recebidos. Combine uma nova votação com o organizador.'}</p>
               </div>
             )}
 
@@ -3110,7 +3107,7 @@
             <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-800 text-center">
                 <Icon name="ShieldCheck" className="w-4 h-4 inline mr-1" />
-                O consenso foi alcançado mantendo a privacidade de todos.
+                {verdict.slots.length ? 'O resultado foi definido sem exibir grades individuais aos participantes.' : 'A votação foi encerrada sem definir uma data.'}
               </p>
             </div>
           </main>
@@ -3123,6 +3120,7 @@
       const [copied, setCopied] = useState(false);
       const [commentsReviewed, setCommentsReviewed] = useState(false);
       const [selectedFinalSlot, setSelectedFinalSlot] = useState('');
+      const [openingTally, setOpeningTally] = useState(false);
 
       useEffect(() => { loadEventData(); }, [eventId]);
 
@@ -3147,14 +3145,18 @@
       }, [eventId]);
 
       useEffect(() => {
-        const ev = getEvent(eventId);
-        const owner = ev?.config?.firebaseOwnerUid;
-        if (!owner || !consensoFirestoreReady()) return undefined;
-        const unsub = consensoSubscribeRemoteEvent(owner, eventId, () => {
-          const next = getEvent(eventId);
-          if (next) setEventData(next);
-        });
-        return unsub;
+        let cancelled = false, unsubscribe = null;
+        (async () => {
+          const ownerUid = getEvent(eventId)?.config?.firebaseOwnerUid;
+          if (!ownerUid || !consensoFirestoreReady()) return;
+          try {
+            await waitForConsensoFirebaseUser(ownerUid);
+            await window.consensoCall('consensoPrepareOrganizerPanel', { ownerUid, eventId });
+            if (cancelled) return;
+            unsubscribe = consensoSubscribeRemoteEvent(ownerUid, eventId, () => { if (!cancelled) setEventData(getEvent(eventId)); });
+          } catch (error) { if (!cancelled) addToast('Não foi possível sincronizar o painel. Atualize a página e tente novamente.', 'error'); }
+        })();
+        return () => { cancelled = true; if (unsubscribe) unsubscribe(); };
       }, [eventId]);
 
       const loadEventData = () => {
@@ -3175,10 +3177,22 @@
         catch { addToast('Erro ao copiar', 'error'); }
       };
 
+      const handleOpenTally = async () => {
+        const early = !hasStrictMajority(eventData);
+        const warning = (early ? 'Você está antecipando a apuração antes de mais da metade dos participantes votar. ' : '') + 'Esta ação encerra a votação definitivamente. Ninguém poderá votar ou editar respostas depois. Você verá as opções e poderá escolher o resultado final. Não é possível voltar atrás. Deseja continuar?';
+        if (!window.confirm(warning)) return;
+        setOpeningTally(true);
+        try { await openEventTally(eventId, early); loadEventData(); addToast('Votos encerrados. Escolha agora o resultado final.', 'success'); }
+        catch (error) { addToast(error.message || 'Não foi possível abrir a apuração.', 'error'); }
+        finally { setOpeningTally(false); }
+      };
       const handleUnlockResults = async () => {
         if (!commentsReviewed) { addToast('Confirme que você revisou os comentários.', 'error'); return; }
         if (getVoteCount(eventData) === 0) { addToast('Aguarde pelo menos um voto antes de finalizar.', 'error'); return; }
         if (!selectedFinalSlot) { addToast('Escolha a data e o horário que serão definidos como resultado final.', 'error'); return; }
+        const option = consensusOptions.find((slot) => slot.key === selectedFinalSlot);
+        const voters = eventData.organizerSummary?.totalVotes || getVoteCount(eventData);
+        if (option && option.votes < voters && !window.confirm(`Esse horário atende ${option.votes} de ${voters} participantes que votaram. Parte do grupo não estará disponível. Deseja publicar esse resultado definitivo?`)) return;
         try {
           await unlockResults(eventId, selectedFinalSlot);
           loadEventData();
@@ -3207,7 +3221,15 @@
       const progressPercent = getVoteProgressPercentage(eventData);
       const quorumReached = hasReachedQuorum(eventData);
       const voterComments = eventData.votes.filter((vote) => vote.comment && vote.comment.trim());
-      const consensusOptions = rankConsensusSlots(eventData);
+      const tallyReady = canChooseFinalResult(eventData);
+      const majorityReached = hasStrictMajority(eventData);
+      const consensusOptions = tallyReady ? (eventData.organizerSummary?.slots || (!eventData.config.firebaseOwnerUid ? rankConsensusSlots(eventData) : [])) : [];
+      const optionIsPast = (slot) => {
+        const zone = eventData.config.timeZone || 'America/Sao_Paulo';
+        const dateStr = slot.key.split('|')[0];
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        return slot.time === 'day' ? dateStr < today : window.ConsensoCore.zonedSlotTime(dateStr, slot.time, zone) < Date.now();
+      };
       const formatConsensusOption = (slot) => {
         const date = formatDisplayDateFull(slot.date);
         if (slot.time === 'day') return date;
@@ -3237,6 +3259,14 @@
               <p className="text-slate-600">{formatDisplayDateFull(eventData.config.startDate)} - {formatDisplayDateFull(eventData.config.endDate)}</p>
             </div>
 
+            {eventData.config.votingOpened !== false && <section className="mb-8 rounded-2xl border-2 border-blue-500 bg-blue-50 p-6 shadow-sm" aria-labelledby="invite-highlight-title">
+              <div className="flex items-center gap-2 text-blue-900 mb-2"><Icon name="Send" className="w-6 h-6" /><h2 id="invite-highlight-title" className="text-xl font-bold">{isVotingClosed(eventData.config) ? 'Link da reunião e do resultado' : 'Agora convide os participantes'}</h2></div>
+              <p className="text-slate-700 mb-4">{isVotingClosed(eventData.config) ? 'Os votos estão encerrados. Copie o link para compartilhar e acompanhar o resultado desta reunião.' : 'Basta copiar este link e enviar aos convidados pelo WhatsApp, e-mail ou onde preferir. Eles abrirão o link para informar sua disponibilidade no Consenso.'}</p>
+              <Label htmlFor="organizer-invite-link">Link do convite da reunião</Label>
+              <div className="flex flex-col sm:flex-row gap-3 mt-2"><Input id="organizer-invite-link" value={buildInviteLink(eventId)} readOnly className="bg-white text-sm flex-1" onFocus={(e) => e.target.select()} /><Button size="lg" onClick={handleCopyLink}><Icon name={copied ? 'Check' : 'Copy'} className="w-5 h-5 mr-2" />{copied ? 'Link copiado!' : isVotingClosed(eventData.config) ? 'Copiar link da reunião' : 'Copiar link e convidar'}</Button></div>
+              {eventData.config.votingClosed && <p className="mt-3 text-sm text-amber-800">Os votos já estão encerrados; este link serve agora para acompanhar o resultado.</p>}
+            </section>}
+            {eventData.config.votingDeadline && <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Prazo final: <strong>{new Date(eventData.config.votingDeadline).toLocaleString('pt-BR', { timeZone: eventData.config.timeZone || 'America/Sao_Paulo' })}</strong>. Se você não definir o resultado antes, o servidor encerrará e escolherá automaticamente a opção futura com mais disponíveis, desempatando pela mais próxima.</p>}
             <Card className="mb-6 border-blue-200">
               <CardContent className="p-4 bg-blue-50">
                 <div className="flex items-start gap-3">
@@ -3258,7 +3288,7 @@
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-bold text-blue-600">{progressPercent}%</div>
-                    <div className="text-sm text-slate-500">do quórum</div>
+                    <div className="text-sm text-slate-500">do total esperado</div>
                   </div>
                 </div>
                 <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden mb-4">
@@ -3266,11 +3296,11 @@
                 </div>
                 {quorumReached ? (
                   <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
-                    <Icon name="CheckCircle" className="w-5 h-5" /><span className="font-medium">Quórum alcançado. Revise os comentários e finalize quando estiver pronto.</span>
+                    <Icon name="CheckCircle" className="w-5 h-5" /><span className="font-medium">Total esperado alcançado. Encerre os votos para abrir as opções e escolher o resultado.</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
-                    <Icon name="Lock" className="w-5 h-5" /><span className="font-medium">Aguardando consenso do grupo</span>
+                    <Icon name="Lock" className="w-5 h-5" /><span className="font-medium">{isVotingClosed(eventData.config) ? 'Votos encerrados. Acompanhe a definição do resultado.' : 'Aguardando os votos dos participantes.'}</span>
                   </div>
                 )}
               </CardContent>
@@ -3304,20 +3334,20 @@
               </CardContent>
             </Card>
 
-            {!eventData.config.finalized && (
+            {!eventData.config.finalized && tallyReady && (
               <Card className="mb-6">
                 <CardHeader><CardTitle className="flex items-center gap-2"><Icon name="CalendarCheck" className="w-5 h-5 text-blue-600" />Escolha do resultado final</CardTitle></CardHeader>
                 <CardContent>
-                  <p className="text-sm text-slate-600 mb-4">Todas as datas e horários escolhidos por pelo menos um participante aparecem abaixo, ordenados pela maior quantidade de votos. Selecione uma opção para definir o resultado que será revelado.</p>
+                  <p className="text-sm text-slate-600 mb-4">Todas as datas e horários escolhidos por pelo menos um participante aparecem abaixo, ordenados pela maior quantidade de votos. Selecione uma opção futura para definir o resultado que será revelado. Os votos já estão encerrados e não podem ser alterados.</p>
                   {consensusOptions.length ? (
                     <div className="space-y-2 max-h-80 overflow-y-auto">
                       {consensusOptions.map((slot) => (
                         <label key={slot.key} className={`flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${selectedFinalSlot === slot.key ? 'border-blue-500 bg-blue-50' : 'hover:bg-slate-50'}`}>
                           <span className="flex items-center gap-3 min-w-0">
-                            <input type="radio" name="selectedFinalSlot" value={slot.key} checked={selectedFinalSlot === slot.key} onChange={() => setSelectedFinalSlot(slot.key)} />
-                            <span className="text-sm font-medium">{formatConsensusOption(slot)}</span>
+                            <input type="radio" name="selectedFinalSlot" value={slot.key} disabled={optionIsPast(slot)} checked={selectedFinalSlot === slot.key} onChange={() => setSelectedFinalSlot(slot.key)} />
+                            <span className="text-sm font-medium">{formatConsensusOption(slot)}{optionIsPast(slot) && <span className="text-xs text-slate-500 ml-2">(horário já passou)</span>}</span>
                           </span>
-                          <span className="text-xs font-semibold whitespace-nowrap px-2 py-1 rounded-full bg-slate-100 text-slate-700">{slot.votes}/{getVoteCount(eventData)} votos</span>
+                          <span className="text-xs font-semibold whitespace-nowrap px-2 py-1 rounded-full bg-slate-100 text-slate-700">{slot.votes}/{eventData.organizerSummary?.totalVotes || getVoteCount(eventData)} votos</span>
                         </label>
                       ))}
                     </div>
@@ -3326,13 +3356,19 @@
               </Card>
             )}
 
+            {!eventData.config.finalized && !tallyReady && <Card className="mb-6 border-amber-200"><CardHeader><CardTitle className="flex items-center gap-2"><Icon name="Lock" className="w-5 h-5" />Apuração protegida</CardTitle></CardHeader><CardContent>
+              <p className="text-sm text-slate-600 mb-3">{majorityReached ? 'Mais da metade dos participantes já votou. Você pode encerrar os votos e abrir as opções, ou aguardar os demais.' : 'As datas e os horários escolhidos ficam ocultos até mais da metade do total esperado votar. Se necessário, você pode antecipar a apuração.'}</p>
+              <p className="text-sm text-amber-900 mb-4"><strong>Sem volta:</strong> abrir a apuração encerra novos votos e alterações. Só depois disso as opções ficam visíveis.</p>
+              <Button variant={majorityReached ? 'primary' : 'outline'} onClick={handleOpenTally} disabled={openingTally || getVoteCount(eventData) === 0 || isVotingClosed(eventData.config)}>{openingTally ? 'Encerrando votos...' : majorityReached ? 'Encerrar votos e abrir apuração' : 'Antecipar apuração e encerrar votos'}</Button>
+              {getVoteCount(eventData) === 0 && <p className="text-xs text-slate-500 mt-2">Aguarde pelo menos um voto.</p>}
+            </CardContent></Card>}
             <Card className={`mb-6 ${eventData.config.finalized ? 'border-green-300 bg-green-50' : 'border-blue-300 bg-blue-50'}`}>
               <CardContent className="p-6">
                 {eventData.config.finalized ? (
                   <div><div className="flex items-center gap-2 text-green-800 font-semibold mb-3"><Icon name="CheckCircle" className="w-5 h-5" />Votação finalizada</div><Button onClick={onViewResults} className="w-full"><Icon name="Eye" className="w-4 h-4 mr-2" />Consultar resultado final</Button></div>
-                ) : (
+                ) : tallyReady ? (
                   <div><h3 className="font-semibold mb-1">Finalizar votação e revelar resultado</h3><p className="text-sm text-slate-600 mb-4">O resultado continua oculto mesmo após o quórum. Escolha uma opção acima e finalize apenas depois de conferir os comentários.</p><Button onClick={handleUnlockResults} disabled={!commentsReviewed || !selectedFinalSlot || getVoteCount(eventData) === 0} className="w-full"><Icon name="Flag" className="w-4 h-4 mr-2" />Finalizar e revelar resultado escolhido</Button></div>
-                )}
+                ) : <p className="text-sm text-slate-600">A escolha do resultado será liberada depois que você encerrar os votos e abrir a apuração.</p>}
               </CardContent>
             </Card>
 
@@ -3359,9 +3395,9 @@
                   {eventData.config.votingOpened === false ? (
                     <Button onClick={onEditVote} className="w-full"><Icon name="Settings" className="w-4 h-4 mr-2" />Configurar grade e abrir votação</Button>
                   ) : (
-                    <><Button variant="outline" onClick={handleCopyLink} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name={copied ? 'Check' : 'Copy'} className="w-4 h-4" />Copiar Link</span></Button>{!eventData.config.finalized && <Button variant="outline" onClick={onEditVote} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name="Pencil" className="w-4 h-4" />Editar meu voto</span></Button>}</>
+                    <><Button variant="outline" onClick={handleCopyLink} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name={copied ? 'Check' : 'Copy'} className="w-4 h-4" />Copiar Link</span></Button>{!isVotingClosed(eventData.config) && <Button variant="outline" onClick={onEditVote} className="w-full justify-between"><span className="flex items-center gap-2"><Icon name="Pencil" className="w-4 h-4" />Editar meu voto</span></Button>}</>
                   )}
-                  {eventData.config.votingOpened !== false && !quorumReached && (
+                  {eventData.config.votingOpened !== false && !quorumReached && !isVotingClosed(eventData.config) && (
                     <Button variant="outline" onClick={handleCopyReminder} className="w-full justify-between">
                       <span className="flex items-center gap-2"><Icon name="MessageCircle" className="w-4 h-4" />Copiar Lembrete</span>
                     </Button>
@@ -3639,7 +3675,7 @@
           case 'vote':
             return <VotingInterface key={`${eventId}-${isManager && getEvent(eventId)?.config?.votingOpened === false ? 'prepare' : 'vote'}`} eventId={eventId} userName={userName} onSetUserName={handleSetUserName} onComplete={handleVoteComplete} onViewResults={handleViewResults} addToast={addToast} topBar={topBarNavigation} onUserRegistered={handleUserRegistered} organizerPreparation={isManager && getEvent(eventId)?.config?.votingOpened === false} onPreparationComplete={handlePreparationComplete} />;
           case 'vote-success':
-            return <VoteSuccessScreen registeredUser={registeredUser} onUserRegistered={handleUserRegistered} addToast={addToast} topBar={topBarNavigation} onGoHome={goHome} />;
+            return <VoteSuccessScreen onFollowResult={handleViewResults} registeredUser={registeredUser} onUserRegistered={handleUserRegistered} addToast={addToast} topBar={topBarNavigation} onGoHome={goHome} />;
           case 'results':
             return <ResultsScreen eventId={eventId} isManager={isManager} onBack={handleBackFromResults} addToast={addToast} topBar={topBarNavigation} />;
           case 'manage':

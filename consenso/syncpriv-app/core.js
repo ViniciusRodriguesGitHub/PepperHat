@@ -64,7 +64,44 @@
   const hasReachedQuorum = (event) => getVoteCount(event) >= event.config.quorum;
   const canRevealResults = (event) => Boolean(event && event.config && event.config.finalized);
   const hasReachedEarlyRevelationThreshold = (event) => Boolean(event.config.earlyRevelation) && getVoteCount(event) >= Math.ceil(event.config.quorum * 0.5);
+  const hasStrictMajority = (event) => getVoteCount(event) > Number(event.config.quorum) / 2;
+  const isVotingClosed = (config, now = new Date()) => Boolean(config.finalized || config.votingClosed || (config.votingDeadline && new Date(config.votingDeadline).getTime() <= new Date(now).getTime()));
+  const canOpenTally = (event) => !event.config.finalized && getVoteCount(event) > 0;
+  const canChooseFinalResult = (event) => Boolean(event.config.tallyOpenedAt || event.config.finalized);
+  const isValidNotificationEmail = (value) => typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const zonedSlotTime = (dateStr, time, timeZone = 'America/Sao_Paulo') => {
+    const hour = { morning: 6, afternoon: 12, evening: 18, day: 0 }[time];
+    const clock = hour !== undefined ? [hour, 0] : String(time).split(':').map(Number);
+    const parts = String(dateStr).split('-').map(Number);
+    if (parts.length !== 3 || clock.length !== 2 || parts.some((n) => !Number.isFinite(n)) || clock.some((n) => !Number.isFinite(n))) return NaN;
+    const target = Date.UTC(parts[0], parts[1] - 1, parts[2], clock[0], clock[1]);
+    let instant = target;
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+    for (let i = 0; i < 3; i++) {
+      const formatted = Object.fromEntries(formatter.formatToParts(new Date(instant)).filter((part) => part.type !== 'literal').map((part) => [part.type, Number(part.value)]));
+      const represented = Date.UTC(formatted.year, formatted.month - 1, formatted.day, formatted.hour, formatted.minute, formatted.second);
+      instant += target - represented;
+    }
+    return instant;
+  };
+  const chooseAutomaticResult = (event, now = new Date()) => {
+    const instant = new Date(now).getTime();
+    const zone = event.config.timeZone || 'America/Sao_Paulo';
+    const localToday = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(instant));
+    const ranked = rankConsensusSlots(event).map((slot) => {
+      const dateStr = slot.key.split('|')[0];
+      return { ...slot, dateStr, timestamp: zonedSlotTime(dateStr, slot.time, zone) };
+    }).filter((slot) => slot.time === 'day' ? slot.dateStr >= localToday : slot.timestamp >= instant)
+      .sort((a, b) => b.votes - a.votes || a.timestamp - b.timestamp);
+    const chosen = ranked[0];
+    return {
+      type: chosen ? (chosen.votes === event.votes.length ? 'unanimous' : 'majority') : 'none',
+      slots: chosen ? [{ key: chosen.key, date: chosen.dateStr, time: chosen.time, votes: chosen.votes }] : [],
+      totalVotes: event.votes.length, quorum: event.config.quorum,
+      reason: chosen ? 'deadline' : event.votes.length ? 'no-future-availability' : 'no-votes',
+    };
+  };
   const getMissingVotesCount = (event) => Math.max(0, event.config.quorum - getVoteCount(event));
   const getVoteProgressPercentage = (event) => event.config.quorum > 0 ? Math.min(100, Math.round((getVoteCount(event) / event.config.quorum) * 100)) : 0;
-  return { calculateConsensus, canRevealResults, formatLocalDate, getMissingVotesCount, getVoteCount, getVoteProgressPercentage, hasReachedEarlyRevelationThreshold, hasReachedQuorum, parseLocalDate, rankConsensusSlots, sanitizeInvitePayload };
+  return { hasStrictMajority, isVotingClosed, canOpenTally, canChooseFinalResult, isValidNotificationEmail, zonedSlotTime, chooseAutomaticResult, calculateConsensus, canRevealResults, formatLocalDate, getMissingVotesCount, getVoteCount, getVoteProgressPercentage, hasReachedEarlyRevelationThreshold, hasReachedQuorum, parseLocalDate, rankConsensusSlots, sanitizeInvitePayload };
 });

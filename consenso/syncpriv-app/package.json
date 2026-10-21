@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:firestore:live": "node scripts/verify-firestore-access.cjs"
+    "test:firestore:live": "node scripts/verify-firestore-access.cjs",
+    "test:automation:live": "node scripts/verify-automation-live.cjs"
   }
 }
