@@ -56,3 +56,10 @@ A listagem e a autorização da gestão passaram a usar firebaseOwnerUid/UID aut
 11 verificações reais no Firebase aprovadas por scripts/verify-account-sync-live.cjs: dois logins independentes da mesma conta, criação sem chave local, listagem compartilhada, atualização entre sessões, coleção independente de outra conta, recusa de escrita por outra conta e exclusão refletida na segunda sessão. Reunião e duas identidades temporárias removidas. O provedor usado no teste real foi senha; não houve login interativo em conta Google pessoal.
 
 Interface testada em Edge headless com contextos separados de computador (1360x1000) e celular (390x844), dados fictícios e camada Firebase simulada: mesma reunião com cache de eventos vazio, atualização remota de criação/exclusão e troca de conta cancelando a assinatura antiga, sem erros JavaScript. Esse teste verifica comportamento funcional; não valida OAuth Google interativo nem entrega de rede Firebase no navegador.
+## Proteções de segurança — 26/10/2026
+
+72 testes locais e 15 testes de regras no emulador aprovados. O emulador usa somente demo-consenso. Instalações reproduzidas com npm ci e auditorias sem vulnerabilidades reportadas no pacote de funções e nas ferramentas de teste. Atualizados body-parser 2.4.0 e gRPC dos testes. JSX compilado; confirmados os ícones utilizados na versão fixa do Lucide.
+
+Funções e regras publicadas com sucesso no projeto existente, após comparar as regras ativas com o commit anterior. Passaram 27 verificações reais de votos/permissões, 11 de sincronização entre sessões e 31 de automação/apuração/prazo. Incluem recusa de enumeração de reuniões/convites, horários malformados/duplicados e recibos sem voto. Eventos e identidades temporários removidos. Nenhuma reunião real alterada. SMTP não configurado; envio real não exercitado.
+
+Compatibilidade do Kanban público e privado validada no emulador. Limitações e próximas etapas em SEGURANCA.md. Nenhuma contratação, plano ou faturamento alterado. CI configurado para runner padrão gratuito somente em repositório público, sem credenciais de produção.

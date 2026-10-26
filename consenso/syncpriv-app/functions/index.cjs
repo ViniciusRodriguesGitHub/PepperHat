@@ -8,11 +8,12 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const core = require('./consenso-core.cjs');
+const security = require('./security.cjs');
 initializeApp();
 const db = getFirestore();
 const region = 'southamerica-east1';
 const options = { region, maxInstances: 3, cors: ['https://viniciusrodriguesgithub.github.io', new RegExp('^http://localhost(:[0-9]+)?$')] };
-const eventPattern = 'artifacts/{appId}/users/{ownerUid}/consenso_v1/{eventId}';
+const eventPattern = 'artifacts/pepperhatapps/users/{ownerUid}/consenso_v1/{eventId}';
 const smtpReady = () => Boolean(process.env.CONSENSO_SMTP_HOST && process.env.CONSENSO_EMAIL_FROM);
 const smtpPassword = process.env.CONSENSO_SMTP_HOST ? defineSecret('CONSENSO_SMTP_PASSWORD') : { value: () => '' };
 const mailOptions = { region, maxInstances: 2, retry: false, ...(process.env.CONSENSO_SMTP_HOST ? { secrets: [smtpPassword] } : {}) };
@@ -29,7 +30,11 @@ function privateDetails(vote) {
 }
 function snapshotEvent(snap, votes) {
   if (!snap.exists) throw new HttpsError('not-found', 'Reunião não encontrada.');
-  return { config: snap.data().config, votes: votes.docs.map(doc => doc.data()) };
+  const config = snap.data().config;
+  return { config, votes: votes.docs.map(doc => {
+    const vote = doc.data();
+    return { ...vote, timeSlots: Array.from(new Set((Array.isArray(vote.timeSlots) ? vote.timeSlots : []).filter(slot => security.validSlot(config,slot)))) };
+  }) };
 }
 function serializeOptions(event) {
   return core.rankConsensusSlots(event).map(slot => ({ key: slot.key, date: slot.key.split('|')[0], time: slot.time, votes: slot.votes }));
@@ -98,23 +103,26 @@ exports.consensoPrepareOrganizerPanel = onCall(options, async request => {
 });
 exports.consensoSyncVoteDetails = onDocumentWritten({ region, maxInstances: 3, document: eventPattern + '/votes/{voteUid}' }, async event => {
   const ref = event.data.after.ref.parent.parent;
+  if (!security.eventIdentity(ref.path)) return;
   const detailsRef = ref.collection('participant_details').doc(event.params.voteUid);
   const receiptRef = ref.collection('participants').doc(event.params.voteUid);
   await db.runTransaction(async tx => {
     const parent = await tx.get(ref);
-    if (!event.data.after.exists || !parent.exists) { tx.delete(detailsRef); tx.delete(receiptRef); return; }
-    tx.set(detailsRef, privateDetails(event.data.after.data()));
-    tx.set(receiptRef, { userId: event.params.voteUid, votedAt: event.data.after.data().votedAt || new Date().toISOString() });
+    const current = await tx.get(event.data.after.ref);
+    if (!current.exists || !parent.exists) { tx.delete(detailsRef); tx.delete(receiptRef); return; }
+    tx.set(detailsRef, privateDetails(current.data()));
+    tx.set(receiptRef, { userId: event.params.voteUid, votedAt: current.data().votedAt || new Date().toISOString() });
   });
 });
 exports.consensoFinalizeDeadlines = onSchedule({ region, schedule: 'every 1 minutes', timeZone: 'UTC', maxInstances: 1, timeoutSeconds: 120 }, async () => {
   const now = new Date();
   const events = await db.collectionGroup('consenso_v1').where('config.finalized', '==', false).where('config.votingDeadline', '<=', now.toISOString()).limit(100).get();
-  const settled = await Promise.allSettled(events.docs.map(doc => finalize(doc.ref, null, true, now)));
+  const settled = await Promise.allSettled(events.docs.filter(doc => security.eventIdentity(doc.ref.path)).map(doc => finalize(doc.ref, null, true, now)));
   const failures = settled.filter(item => item.status === 'rejected');
   if (failures.length) { logger.error('Falha em apuração automática', { count: failures.length }); throw Error('Uma ou mais reuniões precisam de nova tentativa.'); }
 });
 async function queueResultEmails(ref) {
+  if (!security.eventIdentity(ref.path)) return;
   if (!smtpReady()) { await ref.update({ 'config.notificationStatus': 'configuration-required' }); return; }
   const attempt = await db.runTransaction(async tx => {
     const snap = await tx.get(ref); if (!snap.exists) return 0; const config = snap.data().config;
@@ -141,6 +149,9 @@ exports.consensoQueueResultEmails = onDocumentUpdated({ region, maxInstances: 2,
   return queueResultEmails(event.data.after.ref);
 });
 async function deliverResultEmail(jobRef, params) {
+  const identity = security.jobIdentity(jobRef.path);
+  if (!identity) return;
+  params = identity;
   const eventRef = jobRef.parent.parent;
   if (!smtpReady()) { await jobRef.update({ status: 'configuration-required' }); return; }
   const claimed = await db.runTransaction(async tx => {
@@ -153,6 +164,10 @@ async function deliverResultEmail(jobRef, params) {
   if (!claimed) return;
   try {
     const config = (await eventRef.get()).data().config; const result = config.finalResult;
+    const vote = await eventRef.collection('votes').doc(params.voteUid).get();
+    if (!config.finalized || !['optional','required'].includes(config.emailMode) || !vote.exists || String(vote.data().notificationEmail || '').trim().toLowerCase() !== claimed.email || !core.isValidNotificationEmail(claimed.email)) {
+      await jobRef.update({status:'failed',reason:'invalid-source'}); return;
+    }
     const owner = await getAuth().getUser(params.ownerUid); const slot = result.slots?.[0];
     const description = slot ? slot.date + (slot.time === 'day' ? ' (dia inteiro)' : ' — ' + ({ morning:'manhã', afternoon:'tarde', evening:'noite' }[slot.time] || slot.time)) : 'Não houve disponibilidade futura para definir uma data.';
     const body = ['Olá, ' + claimed.userName + '.', '', 'Resultado da reunião: ' + config.title, description, 'Fuso horário: ' + (config.timeZone || 'America/Sao_Paulo'), slot ? 'Disponibilidade: ' + slot.votes + ' de ' + result.totalVotes + ' participantes que votaram.' : '', config.meetingInstructions ? '\nOrientações: ' + config.meetingInstructions : '', '\nConfira o resultado: https://viniciusrodriguesgithub.github.io/PepperHat/consenso/syncpriv-app/#event/' + params.eventId].filter(Boolean).join('\n');

@@ -20,13 +20,13 @@ async function main() {
     check(owner.localId===second.localId,'Dois logins independentes da mesma conta têm o mesmo UID');
     const collection='artifacts/pepperhatapps/users/'+owner.localId+'/consenso_v1';
     const id='sync-'+crypto.randomUUID();eventPath=collection+'/'+id;
-    const config={id,title:'Teste temporário de sincronização',firebaseOwnerUid:owner.localId,startDate:'2099-01-22',endDate:'2099-01-23',createdAt:new Date().toISOString(),quorum:4,finalized:false,votingClosed:false};
+    const config={id,title:'Teste temporário de sincronização',firebaseOwnerUid:owner.localId,startDate:'2099-01-22',endDate:'2099-01-23',createdAt:new Date().toISOString(),quorum:4,votingOpened:false,finalized:false,votingClosed:false};
     check((await request(eventPath,'PATCH',owner,{config})).status===200,'Primeira sessão cria reunião sem identificação local');
     const listing=await request(collection,'GET',second);check(listing.status===200,'Segunda sessão consegue consultar a coleção da conta');
     const listed=await listing.json();check(listed.documents.some(doc=>doc.name.endsWith('/'+id)),'Reunião criada na primeira sessão consta na segunda');
     check(!listed.documents[0].fields.config.mapValue.fields.creatorAdminKey,'Documento remoto não depende de creatorAdminKey');
-    config.title='Atualizada pela primeira sessão';check((await request(eventPath,'PATCH',owner,{config})).status===200,'Primeira sessão atualiza reunião');
-    const updated=await (await request(eventPath,'GET',second)).json();check(updated.fields.config.mapValue.fields.title.stringValue===config.title,'Segunda sessão recebe configuração atualizada');
+    config.votingOpened=true;check((await request(eventPath,'PATCH',owner,{config})).status===200,'Primeira sessão confirma a grade da reunião');
+    const updated=await (await request(eventPath,'GET',second)).json();check(updated.fields.config.mapValue.fields.votingOpened.booleanValue===true,'Segunda sessão recebe configuração atualizada');
     const other=(await createUser()).user;
     const otherList=await (await request('artifacts/pepperhatapps/users/'+other.localId+'/consenso_v1','GET',other)).json();
     check(!(otherList.documents||[]).length,'Coleção de outra conta permanece independente');

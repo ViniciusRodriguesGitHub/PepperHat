@@ -47,6 +47,12 @@ async function main() {
     await expect(votePath, 'PATCH', first.idToken, vote, 200, 'Convidado grava voto com campo obrigatório');
     await expect(votePath, 'PATCH', first.idToken, { ...vote, requiredInfoAnswers: ['13'] }, 200, 'Convidado edita o próprio voto');
     await expect(votePath, 'GET', first.idToken, null, 200, 'Convidado lê o próprio voto');
+    await expect(eventPath.slice(0, eventPath.lastIndexOf('/')), 'GET', first.idToken, null, 403, 'Convidado não lista outras reuniões do organizador');
+    await expect('artifacts/pepperhatapps/public/data/consenso_lookup', 'GET', first.idToken, null, 403, 'Convidado não enumera convites públicos');
+    await expect(votePath, 'PATCH', first.idToken, { ...vote, timeSlots: ['invalid'] }, 403, 'Formato de horário inválido é recusado');
+    await expect(votePath, 'PATCH', first.idToken, { ...vote, timeSlots: [...vote.timeSlots, ...vote.timeSlots] }, 403, 'Horários duplicados são recusados');
+    await expect(votePath, 'PATCH', first.idToken, { ...vote, preferredSlots: [...vote.timeSlots, ...vote.timeSlots] }, 403, 'Preferências duplicadas são recusadas');
+    await expect(eventPath + '/participants/' + second.localId, 'PATCH', second.idToken, {userId: second.localId, votedAt: vote.votedAt}, 403, 'Recibo sem voto não pode falsificar o contador');
     for (const userName of ['', 'Ana']) await expect(votePath, 'PATCH', first.idToken, { ...vote, userName }, 403, 'Sem cadastro: nome vazio ou incompleto é recusado');
     await expect(votePath, 'PATCH', first.idToken, { ...vote, userName: 'João d’Ávila' }, 200, 'Nome completo com acento e apóstrofo é aceito');
     const registeredPath = eventPath + '/votes/' + registered.localId;

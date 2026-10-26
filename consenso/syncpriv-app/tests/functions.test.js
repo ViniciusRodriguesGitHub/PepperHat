@@ -10,7 +10,7 @@ function harness(mail = false, sendFails = false) {
  const db={doc:ref,runTransaction:async fn=>{const ops=[];const result=await fn({get:async target=>target.get(),set:(target,data)=>ops.push(()=>docs.set(target.path,data)),update:(target,data)=>ops.push(()=>update(target.path,data)),delete:target=>ops.push(()=>docs.delete(target.path))});ops.forEach(fn=>fn());return result},batch:()=>{const ops=[];return {set:(target,data)=>ops.push(()=>docs.set(target.path,data)),commit:async()=>ops.forEach(fn=>fn())}},recursiveDelete:async target=>[...docs.keys()].filter(key=>key===target.path||key.startsWith(target.path+'/')).forEach(key=>docs.delete(key))};
  class HttpsError extends Error {constructor(code,message){super(message);this.code=code}}
  const context={exports:{},process:{env:mail?{CONSENSO_SMTP_HOST:'mock',CONSENSO_EMAIL_FROM:'consenso@example.com'}:{}},console,Intl,Date,Promise,Set,Error,require:name=>({
- 'firebase-admin/app':{initializeApp(){}},'firebase-admin/firestore':{getFirestore:()=>db},'firebase-admin/auth':{getAuth:()=>({getUser:async()=>({email:'organizer@example.com',emailVerified:true})})},'firebase-functions/v2/https':{onCall:(opts,fn)=>fn,HttpsError},'firebase-functions/v2/firestore':{onDocumentWritten:(opts,fn)=>fn,onDocumentUpdated:(opts,fn)=>fn,onDocumentCreated:(opts,fn)=>fn},'firebase-functions/v2/scheduler':{onSchedule:(opts,fn)=>fn},'firebase-functions/params':{defineSecret:()=>({value:()=> 'mock-password'})},'firebase-functions/logger':{error(){}},'./consenso-core.cjs':core,nodemailer:{createTransport:()=>({sendMail:async message=>{if(sendFails)throw Error("SMTP temporariamente indisponível");sent.push(message);return {messageId:message.messageId}}})}
+ 'firebase-admin/app':{initializeApp(){}},'firebase-admin/firestore':{getFirestore:()=>db},'firebase-admin/auth':{getAuth:()=>({getUser:async()=>({email:'organizer@example.com',emailVerified:true})})},'firebase-functions/v2/https':{onCall:(opts,fn)=>fn,HttpsError},'firebase-functions/v2/firestore':{onDocumentWritten:(opts,fn)=>fn,onDocumentUpdated:(opts,fn)=>fn,onDocumentCreated:(opts,fn)=>fn},'firebase-functions/v2/scheduler':{onSchedule:(opts,fn)=>fn},'firebase-functions/params':{defineSecret:()=>({value:()=> 'mock-password'})},'firebase-functions/logger':{error(){}},'./consenso-core.cjs':core,'./security.cjs':require('../functions/security.cjs'),nodemailer:{createTransport:()=>({sendMail:async message=>{if(sendFails)throw Error("SMTP temporariamente indisponível");sent.push(message);return {messageId:message.messageId}}})}
  }[name])};
  vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../functions/index.cjs'),'utf8'),context);
  const path='artifacts/pepperhatapps/users/owner/consenso_v1/event';docs.set(path,{config:{id:'event',quorum:4,votingOpened:true,finalized:false,timeZone:'America/Sao_Paulo'}});
@@ -41,6 +41,30 @@ test('notificações não duplicam destinatários e envio confirmado não é rep
 });
 
 test('falha de e-mail para em três tentativas e não fica repetindo indefinidamente',async()=>{
- const h=harness(true,true);const job=h.path+'/notification_jobs/a';h.docs.set(h.path,{config:{finalized:true,title:'Teste',finalResult:{slots:[],totalVotes:1}}});h.docs.set(job,{email:'pessoa@example.com',userName:'Pessoa Teste',status:'pending',attempts:0});const event={data:h.snapshot(job),params:{ownerUid:'owner',eventId:'event',voteUid:'a'}};
+ const h=harness(true,true);const job=h.path+'/notification_jobs/a';h.docs.set(h.path,{config:{finalized:true,emailMode:'required',title:'Teste',finalResult:{slots:[],totalVotes:1}}});h.vote('a');h.docs.get(h.path+'/votes/a').notificationEmail='pessoa@example.com';h.docs.set(job,{email:'pessoa@example.com',userName:'Pessoa Teste',status:'pending',attempts:0});const event={data:h.snapshot(job),params:{ownerUid:'owner',eventId:'event',voteUid:'a'}};
  for(let i=0;i<5;i++){h.docs.get(job).nextAttemptAt='2000-01-01T00:00:00Z';await h.api.consensoDeliverResultEmail(event);}assert.equal(h.docs.get(job).attempts,3);assert.equal(h.docs.get(job).status,'failed');assert.equal(h.sent.length,0);
+});
+
+test('evento atrasado nao sobrescreve identificacao do voto mais recente',async()=>{
+ const h=harness();h.vote('a');const old=h.snapshot(h.path+'/votes/a');const oldData=structuredClone(old.data());old.data=()=>oldData;
+ h.docs.get(h.path+'/votes/a').userName='Nome Atualizado';
+ await h.api.consensoSyncVoteDetails({data:{after:old},params:{ownerUid:'owner',eventId:'event',voteUid:'a'}});
+ assert.equal(h.docs.get(h.path+'/participant_details/a').userName,'Nome Atualizado');
+});
+test('horarios fora da grade e datas invalidas nao entram na apuracao',async()=>{
+ const h=harness();Object.assign(h.docs.get(h.path).config,{startDate:'2099-01-22',endDate:'2099-01-23'});
+ h.vote('a',['2099-01-22|09:00','2099-01-29|10:00','2099-02-31|10:00','invalid']);
+ await h.api.consensoOpenTally(h.request({earlyConfirmed:true}));
+ assert.deepEqual(Array.from(h.docs.get(h.path+'/organizer_results/summary').slots,slot=>slot.key),['2099-01-22|09:00']);
+});
+test('fila em caminho de outro aplicativo e ignorada sem enviar email',async()=>{
+ const h=harness(true);const job='artifacts/another/users/owner/consenso_v1/event/notification_jobs/a';h.docs.set(job,{email:'pessoa@example.com',status:'pending'});
+ await h.api.consensoDeliverResultEmail({data:h.snapshot(job),params:{ownerUid:'owner',eventId:'event',voteUid:'a'}});
+ assert.equal(h.sent.length,0);assert.equal(h.docs.get(job).status,'pending');
+});
+test('email cujo destinatario nao corresponde ao voto e recusado',async()=>{
+ const h=harness(true);h.docs.get(h.path).config={finalized:true,emailMode:'required',finalResult:{slots:[]}};h.vote('a');h.docs.get(h.path+'/votes/a').notificationEmail='real@example.com';
+ const job=h.path+'/notification_jobs/a';h.docs.set(job,{email:'other@example.com',status:'pending'});
+ await h.api.consensoDeliverResultEmail({data:h.snapshot(job),params:{ownerUid:'owner',eventId:'event',voteUid:'a'}});
+ assert.equal(h.sent.length,0);assert.equal(h.docs.get(job).status,'failed');
 });

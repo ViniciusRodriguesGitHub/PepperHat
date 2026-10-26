@@ -17,7 +17,7 @@ function mergeEnv(previous, email) {
   return kept.join('\n').trimEnd() + '\n' + Object.entries(keys).map(([key,value]) => key + '=' + value).join('\n') + '\n';
 }
 function findFirebaseCli() {
-  const roots = [path.join(app, 'node_modules/firebase-tools'), path.join(os.homedir(), 'AppData/Roaming/npm/node_modules/firebase-tools')];
+  const roots = [process.env.FIREBASE_TOOLS_ROOT, path.join(app, 'node_modules/firebase-tools'), path.join(os.homedir(), 'AppData/Roaming/npm/node_modules/firebase-tools'), path.resolve(path.dirname(process.execPath), '../lib/node_modules/firebase-tools')].filter(Boolean);
   const cache = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData/Local'), 'npm-cache/_npx');
   if (fs.existsSync(cache)) for (const entry of fs.readdirSync(cache)) roots.push(path.join(cache, entry, 'node_modules/firebase-tools'));
   for (const root of roots) { const cli = path.join(root, 'lib/bin/firebase.js'); if (fs.existsSync(cli)) return cli; }
@@ -85,4 +85,4 @@ if (require.main === module) {
     try { await setup(input); } finally { input.password = ''; }
   })().catch(error => { console.error(error instanceof SyntaxError ? 'Entrada invalida. Execute scripts/configurar-email.ps1.' : error.message); process.exitCode=1; });
 }
-module.exports = { gmailConfig, mergeEnv };
+module.exports = { gmailConfig, mergeEnv, findFirebaseCli };

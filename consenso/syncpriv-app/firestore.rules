@@ -2,43 +2,61 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Public data used by multiple apps (including Kanban public mode).
-    match /artifacts/{appId}/public/data/{document} {
+    // Compatibilidade do Kanban colaborativo existente, sem wildcard de coleções/apps.
+    match /artifacts/pepperhatapps/public/data/pepperhat_v3/{boardId} {
       allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    match /artifacts/{appId}/public/data/{publicCollection}/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null && publicCollection != 'consenso_lookup';
+      function validBoard() {
+        return request.resource.data.get('board', {}) is map
+          && request.resource.data.get('clients', []) is list
+          && request.resource.data.get('logs', []) is list
+          && request.resource.data.get('lastUpdated', '') is string;
+      }
+      allow create: if request.auth != null && validBoard()
+        && request.resource.data.keys().hasOnly(['board','clients','logs','lastUpdated']);
+      allow update: if request.auth != null && validBoard()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['board','clients','logs','lastUpdated']);
+      allow delete: if request.auth != null;
     }
 
     // Consenso lookup kept explicit for compatibility with existing payload shape.
-    match /artifacts/{appId}/public/data/consenso_lookup/{eventId} {
-      allow read: if true;
+    match /artifacts/pepperhatapps/public/data/consenso_lookup/{eventId} {
+      allow get: if true;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['ownerUid', 'updatedAt'])
-        && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if request.auth != null
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40;
+      allow update: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['ownerUid', 'updatedAt'])
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40;
+      allow delete: if request.auth != null
         && resource.data.ownerUid == request.auth.uid;
     }
 
-    match /artifacts/{appId}/users/{ownerUid}/consenso_v1/{eventId} {
-      allow read: if request.auth != null;
+    match /artifacts/pepperhatapps/users/{ownerUid}/consenso_v1/{eventId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.auth.uid == ownerUid;
       allow create: if request.auth != null && request.auth.uid == ownerUid
-        && request.resource.data.config.get('finalized', false) == false
-        && request.resource.data.config.get('votingClosed', false) == false;
+          && request.resource.data.config.get('finalized', false) == false
+          && request.resource.data.config.get('votingClosed', false) == false
+          && !request.resource.data.config.keys().hasAny(['tallyOpenedAt','finalResult','finalizedAt','selectedFinalSlot','tallyEarly','participantDetailsPreparedAt','notificationStatus','notificationQueueAttempts']);
       allow update: if request.auth != null && request.auth.uid == ownerUid
-        && !request.resource.data.config.diff(resource.data.config).affectedKeys().hasAny(['finalized', 'votingClosed', 'tallyOpenedAt', 'finalResult', 'finalizedAt', 'selectedFinalSlot', 'tallyEarly']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['config', 'updatedAt'])
+        && request.resource.data.config.diff(resource.data.config).affectedKeys().hasOnly(['votingOpened', 'blockedSlots', 'openedAt'])
+        && resource.data.config.get('votingOpened', true) == false
+        && resource.data.config.get('finalized', false) == false
+        && request.resource.data.config.get('blockedSlots', []) is list
+        && request.resource.data.config.get('votingOpened', false) == true;
       allow delete: if request.auth != null && request.auth.uid == ownerUid;
       function voteIsOpen() {
-        let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
+        let config = get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
         return config.get('votingOpened', true) == true && config.get('finalized', false) == false
           && config.get('votingClosed', false) == false
           && (config.get('votingDeadline', null) == null || request.time < timestamp.value(config.votingDeadline));
       }
       function validNotificationEmail() {
-        let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
+        let config = get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
         let email = request.resource.data.get('notificationEmail', '');
         return email is string && email.size() <= 254
           && ((email == '' && config.get('emailMode', 'none') != 'required') || email.matches('^[^@ \\t\\r\\n]+@[^@ \\t\\r\\n]+[.][^@ \\t\\r\\n]+$'));
@@ -49,7 +67,7 @@ service cloud.firestore {
       }
       match /organizer_results/{summaryId} {
         allow read: if request.auth != null && request.auth.uid == ownerUid
-          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('tallyOpenedAt', null) != null;
+          && get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('tallyOpenedAt', null) != null;
         allow write: if false;
       }
       match /notification_jobs/{jobId} {
@@ -58,7 +76,7 @@ service cloud.firestore {
       }
 
       function validRequiredAnswers() {
-        let config = get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
+        let config = get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config;
         let labels = config.get('requiredInfoLabels', []);
         let answers = request.resource.data.get('requiredInfoAnswers', []);
         return labels is list && labels.size() <= 4 && answers is list && answers.size() <= 4
@@ -75,21 +93,24 @@ service cloud.firestore {
           && request.auth.uid == voteUid
           && voteIsOpen()
           && validNotificationEmail()
-          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('votingOpened', true) == true
-          && get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('finalized', false) == false
-          && !request.resource.data.timeSlots.hasAny(get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('blockedSlots', []))
+          && get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('votingOpened', true) == true
+          && get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('finalized', false) == false
+          && !request.resource.data.timeSlots.hasAny(get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('blockedSlots', []))
           && request.resource.data.userId == voteUid
           && request.resource.data.keys().hasOnly(['userId', 'userName', 'timeSlots', 'preferredSlots', 'comment', 'commentVisibility', 'votedAt', 'requiredInfo', 'requiredInfoAnswers', 'notificationEmail'])
           && validRequiredAnswers()
           && request.resource.data.get('requiredInfo', '') is string
           && request.resource.data.get('requiredInfo', '').size() <= 300
-          && (get(/databases/$(database)/documents/artifacts/$(appId)/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('requiredInfoLabel', '') == ''
+          && (get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)).data.config.get('requiredInfoLabel', '') == ''
             || request.resource.data.get('requiredInfo', '').matches('.*[^\\s].*'))
           && request.resource.data.userName is string
           && request.resource.data.userName.size() <= 120
           && request.resource.data.userName.matches("[\\p{L}\\p{M}][\\p{L}\\p{M}’'.-]*( [\\p{L}\\p{M}][\\p{L}\\p{M}’'.-]*)+")
           && request.resource.data.timeSlots is list
           && request.resource.data.preferredSlots is list
+          && request.resource.data.timeSlots.toSet().size() == request.resource.data.timeSlots.size()
+          && request.resource.data.preferredSlots.toSet().size() == request.resource.data.preferredSlots.size()
+          && request.resource.data.timeSlots.join(',').matches('([0-9]{4}-[0-9]{2}-[0-9]{2}[|](day|morning|afternoon|evening|(0[6-9]|1[0-9]|2[0-2]):00)(,[0-9]{4}-[0-9]{2}-[0-9]{2}[|](day|morning|afternoon|evening|(0[6-9]|1[0-9]|2[0-2]):00))*)?')
           && request.resource.data.timeSlots.hasAll(request.resource.data.preferredSlots)
           && request.resource.data.comment is string
           && request.resource.data.comment.size() <= 1000
@@ -101,11 +122,11 @@ service cloud.firestore {
       match /participants/{participantUid} {
         allow read: if request.auth != null;
         allow create, update: if request.auth != null
-          && (request.auth.uid == participantUid || request.auth.uid == ownerUid)
+          && request.auth.uid == participantUid
           && request.resource.data.userId == participantUid
-          && request.resource.data.keys().hasOnly(['userId', 'votedAt']);
-        allow delete: if request.auth != null
-          && (request.auth.uid == participantUid || request.auth.uid == ownerUid);
+          && request.resource.data.keys().hasOnly(['userId', 'votedAt'])
+          && request.resource.data.votedAt == get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)/votes/$(participantUid)).data.votedAt;
+        allow delete: if false;
       }
 
       match /public_comments/{commentUid} {
@@ -118,14 +139,18 @@ service cloud.firestore {
           && request.resource.data.userName.size() <= 120
           && request.resource.data.comment is string
           && request.resource.data.comment.size() > 0
-          && request.resource.data.comment.size() <= 1000;
+          && request.resource.data.comment.size() <= 1000
+          && request.resource.data.comment == get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)/votes/$(commentUid)).data.comment
+          && request.resource.data.userName == get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)/votes/$(commentUid)).data.userName
+          && request.resource.data.votedAt == get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)/votes/$(commentUid)).data.votedAt
+          && get(/databases/$(database)/documents/artifacts/pepperhatapps/users/$(ownerUid)/consenso_v1/$(eventId)/votes/$(commentUid)).data.commentVisibility == 'everyone';
         allow delete: if request.auth != null
           && (request.auth.uid == commentUid || request.auth.uid == ownerUid);
       }
     }
 
     // Generic private user workspace (Kanban and other tools).
-    match /artifacts/{appId}/users/{userId}/{workspaceCollection}/{document=**} {
+    match /artifacts/pepperhatapps/users/{userId}/{workspaceCollection}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId && workspaceCollection != 'consenso_v1';
     }
   }
