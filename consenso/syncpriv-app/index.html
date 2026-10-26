@@ -3261,7 +3261,7 @@
                 </CardContent>
               </Card>
 
-              <Card>
+              {(!isVotingClosed(eventData.config) || eventData.config.finalized) && <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon name="Settings" className="w-4 h-4 text-blue-600" />Ações</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   {eventData.config.votingOpened === false ? (
@@ -3278,7 +3278,7 @@
                     <Button onClick={onViewResults} className="w-full"><Icon name="Eye" className="w-4 h-4 mr-2" />Ver Consenso</Button>
                   )}
                 </CardContent>
-              </Card>
+              </Card>}
             </div>
 
             <Card className="mb-6 border-red-200 bg-red-50/40">
