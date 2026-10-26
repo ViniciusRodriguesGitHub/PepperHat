@@ -193,7 +193,7 @@
   <!-- Firebase (mesmo projeto pepperhatapps que o Kanban Funil de vendas) -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signInWithCredential, GoogleAuthProvider, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import { getAuth, onAuthStateChanged, signInWithCredential, GoogleAuthProvider, signInAnonymously, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
     import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js';
     import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc, getDocs, writeBatch, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
@@ -224,6 +224,7 @@
     window.consensoFsDeleteDoc = deleteDoc;
     window.consensoSignInAnonymously = () => signInAnonymously(auth);
     window.linkConsensoFirebaseWithGoogleJwt = (jwt) => signInWithCredential(auth, GoogleAuthProvider.credential(jwt));
+    window.consensoFirebaseSignOut = () => signOut(auth);
 
     let resolveAuthReady;
     window.consensoFirebaseAuthReady = new Promise((resolve) => { resolveAuthReady = resolve; });
@@ -550,6 +551,7 @@
       const event = getEvent(eventId);
       if (!event) return false;
       const session = getAdminSession();
+      if (event.config.firebaseOwnerUid) return Boolean(session?.firebaseUid && session.firebaseUid === event.config.firebaseOwnerUid);
       const key = adminKey(session);
       if (key && event.config.creatorAdminKey === key) return true;
       if (!event.config.creatorAdminKey) {
@@ -565,7 +567,9 @@
       if (!key) return [];
       const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       return Object.keys(events)
-        .filter((id) => events[id].config.creatorAdminKey === key)
+        .filter((id) => events[id].config.firebaseOwnerUid
+          ? events[id].config.firebaseOwnerUid === session.firebaseUid
+          : events[id].config.creatorAdminKey === key)
         .map((id) => ({ id, ...events[id] }))
         .sort((a, b) => new Date(b.config.createdAt) - new Date(a.config.createdAt));
     };
@@ -814,6 +818,8 @@
       const admin = getAdminSession();
       const ak = adminKey(admin);
       if (!ak) throw new Error('Organizador não autenticado');
+      if (!admin?.firebaseUid) throw new Error('Entre com Google para salvar a reunião na sua conta e acessá-la em outros aparelhos.');
+      if (!consensoFirestoreReady()) throw new Error('A sincronização está indisponível. A reunião ainda não foi criada. Tente novamente com conexão.');
       if ((config.emailMode && config.emailMode !== 'none' || config.votingDeadline) && !admin?.firebaseUid) throw new Error('Entre com Google para usar prazo automático ou e-mail.');
       if (config.meetingInstructions && (typeof config.meetingInstructions !== 'string' || config.meetingInstructions.length > 2000)) throw new Error('As orientações devem ter até 2000 caracteres.');
       if (config.votingDeadline && (!Number.isFinite(new Date(config.votingDeadline).getTime()) || new Date(config.votingDeadline).getTime() <= Date.now())) throw new Error('Escolha um prazo futuro.');
@@ -1114,27 +1120,47 @@
       return () => { unsubscribers.forEach((unsubscribe) => unsubscribe()); if (summaryUnsub) summaryUnsub(); };
     };
 
-    const consensoSyncOrganizerEventsFromFirestore = async () => {
-      const s = getAdminSession();
-      const uid = s?.firebaseUid;
-      if (!uid || !consensoFirestoreReady()) return;
-      try {
-        const col = window.consensoFsCollection(
-          window.consensoFsDoc(window.consensoDb, 'artifacts', CONSENSO_FB_APP_ID, 'users', uid),
-          'consenso_v1'
-        );
-        const snap = await window.consensoFsGetDocs(col);
-        for (const d of snap.docs) {
-          const eventId = d.id;
-          const cfg = consensoConfigFromFs(d.data().config || {});
-          await window.consensoCall('consensoPrepareOrganizerPanel', { ownerUid: uid, eventId });
-          const details = await window.consensoFsGetDocs(window.consensoFsCollection(d.ref, 'participant_details'));
-          const votes = details.docs.map((doc) => ({ ...doc.data(), timeSlots: [], preferredSlots: [] }));
-          mergeHydratedEvent(eventId, { config: cfg, votes });
+    const consensoApplyOrganizerSnapshot = (uid, snap) => {
+      if (getAdminSession()?.firebaseUid !== uid) return;
+      const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const remoteIds = new Set(snap.docs.map(d => d.id));
+      // Uma resposta somente do cache/offline não comprova exclusão no servidor.
+      if (!snap.metadata?.fromCache) {
+        for (const [id, event] of Object.entries(events)) {
+          if (event.config.firebaseOwnerUid === uid && !remoteIds.has(id)) delete events[id];
         }
-      } catch (e) {
-        console.error('[Consenso] sync organizer', e);
       }
+      for (const d of snap.docs) {
+        const cfg = consensoConfigFromFs(d.data().config || {});
+        events[d.id] = {
+          ...events[d.id],
+          config: { ...events[d.id]?.config, ...cfg, id: d.id, firebaseOwnerUid: uid },
+          votes: events[d.id]?.votes || []
+        };
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    };
+
+    const consensoSubscribeOrganizerEvents = async (uid, onChange, onError) => {
+      await waitForConsensoFirebaseUser(uid);
+      if (getAdminSession()?.firebaseUid !== uid) return () => {};
+      const col = window.consensoFsCollection(
+        window.consensoFsDoc(window.consensoDb, 'artifacts', CONSENSO_FB_APP_ID, 'users', uid), 'consenso_v1'
+      );
+      return window.consensoFsOnSnapshot(col, { includeMetadataChanges: true }, (snap) => {
+        if (getAdminSession()?.firebaseUid !== uid) return;
+        try { consensoApplyOrganizerSnapshot(uid, snap); onChange(snap.metadata?.fromCache ? 'cached' : 'synced'); }
+        catch (error) { onError(error); }
+      }, onError);
+    };
+
+    const consensoHydrateOrganizerEvent = async (uid, eventId) => {
+      await waitForConsensoFirebaseUser(uid);
+      if (getAdminSession()?.firebaseUid !== uid) return false;
+      const snap = await window.consensoFsGetDoc(consensoEventDocRef(uid, eventId));
+      if (!snap.exists() || getAdminSession()?.firebaseUid !== uid) return false;
+      mergeHydratedEvent(eventId, { config: { ...consensoConfigFromFs(snap.data().config), id: eventId, firebaseOwnerUid: uid } });
+      return true;
     };
 
     /** Convidado em reunião na nuvem usa o uid do Firebase (anônimo), para bater com as regras do Firestore. */
@@ -1453,16 +1479,15 @@
                   picture: payload.picture || '',
                   sub: payload.sub,
                 };
-                setAdminSession(baseSession);
                 try {
-                  if (window.linkConsensoFirebaseWithGoogleJwt) {
-                    const cred = await window.linkConsensoFirebaseWithGoogleJwt(response.credential);
-                    setAdminSession({ ...baseSession, firebaseUid: cred.user.uid });
-                  }
+                  if (!window.linkConsensoFirebaseWithGoogleJwt) throw new Error('Autenticação indisponível.');
+                  const cred = await window.linkConsensoFirebaseWithGoogleJwt(response.credential);
+                  setAdminSession({ ...baseSession, firebaseUid: cred.user.uid });
+                  if (!cancelledRef.current) onSuccessRef.current();
                 } catch (err) {
                   console.error('[Consenso] Firebase Auth (Google):', err);
+                  if (!cancelledRef.current) setGisError('Não foi possível entrar na sua conta. Verifique a conexão e tente novamente.');
                 }
-                if (!cancelledRef.current) onSuccessRef.current();
               }
             });
             el.innerHTML = '';
@@ -1526,7 +1551,7 @@
             <Card className="w-full max-w-md p-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">Acesso do organizador</h1>
               <p className="text-sm text-slate-600 mb-6">
-                Quem cria reuniões precisa identificar-se para listar eventos e gerir resultados. Com Google, a reunião pode sincronizar no Firestore (projeto pepperhatapps, como o Kanban). Quem recebe o link vota sem cadastro (login anônimo só no navegador).
+                Entre com Google para salvar suas reuniões na conta e acessá-las pelo computador ou celular. Convidados continuam podendo votar sem cadastro.
               </p>
 
               {googleClientId ? (
@@ -1545,7 +1570,7 @@
 
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500">ou e-mail</span></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500">dados locais antigos</span></div>
               </div>
 
               <form onSubmit={handleEmailLogin} className="space-y-4">
@@ -1555,11 +1580,11 @@
                 </div>
                 <Button type="submit" className="w-full" disabled={!email.trim()}>
                   <Icon name="LogIn" className="w-4 h-4 mr-2" />
-                  Entrar com este e-mail
+                  Acessar reuniões locais antigas
                 </Button>
               </form>
               <p className="text-xs text-slate-500 mt-4 text-center">
-                O login por e-mail nesta versão é local ao navegador (sem senha por e-mail). Use Google para identificação mais forte.
+                Este acesso recupera apenas dados antigos deste navegador. Para criar reuniões e sincronizar entre aparelhos, entre com Google.
               </p>
             </Card>
           </main>
@@ -1570,6 +1595,9 @@
     const AdminEventsScreen = ({ onOpenEvent, onCreate, topBar, addToast, onUserRegistered }) => {
       const [, bumpList] = useState(0);
       const [registeredUser, setRegisteredUser] = useState(() => getRegisteredUser());
+      const [syncState, setSyncState] = useState('loading');
+      const [retrySync, setRetrySync] = useState(0);
+      const organizerUid = topBar?.adminSession?.firebaseUid;
       
       const handleDeleteRow = async (e, id, title) => {
         e.preventDefault();
@@ -1586,20 +1614,18 @@
       
       useEffect(() => {
         let cancelled = false;
-        const pull = async () => {
-          await consensoSyncOrganizerEventsFromFirestore();
-          if (!cancelled) bumpList((t) => t + 1);
-        };
-        pull();
-        const onVis = () => {
-          if (document.visibilityState === 'visible') pull();
-        };
-        document.addEventListener('visibilitychange', onVis);
+        let unsubscribe = null;
+        setSyncState(organizerUid ? 'loading' : 'local');
+        if (organizerUid) consensoSubscribeOrganizerEvents(organizerUid, (state) => {
+          if (!cancelled) { setSyncState(state); bumpList(t => t + 1); }
+        }, () => { if (!cancelled) setSyncState('error'); }).then(stop => {
+          if (cancelled) stop(); else unsubscribe = stop;
+        }).catch(() => { if (!cancelled) setSyncState('error'); });
         return () => {
           cancelled = true;
-          document.removeEventListener('visibilitychange', onVis);
+          if (unsubscribe) unsubscribe();
         };
-      }, []);
+      }, [organizerUid, retrySync]);
       
       const createdList = getEventsForAdmin();
       const participatedList = getParticipatedEvents();
@@ -1624,7 +1650,14 @@
             </div>
           </header>
           <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-1">
-            {createdList.length === 0 && participatedList.length === 0 ? (
+            <div role="status" className="mb-5 text-sm text-slate-600">
+              {syncState === 'loading' && 'Carregando as reuniões da sua conta…'}
+              {syncState === 'synced' && 'Reuniões sincronizadas com sua conta. Alterações feitas em outros aparelhos aparecem aqui automaticamente.'}
+              {syncState === 'cached' && 'Exibindo dados salvos neste aparelho. Aguardando conexão para confirmar as reuniões da conta.'}
+              {syncState === 'local' && 'Estas reuniões antigas estão salvas apenas neste navegador. Entre com Google para usar reuniões sincronizadas.'}
+              {syncState === 'error' && <span className="text-red-700">Não foi possível carregar as reuniões da conta. Seus dados locais foram preservados. <button type="button" className="underline font-medium" onClick={() => setRetrySync(n => n + 1)}>Tentar novamente</button></span>}
+            </div>
+            {createdList.length === 0 && participatedList.length === 0 && !['loading', 'error', 'cached'].includes(syncState) ? (
               <Card className="p-10 text-center">
                 <Icon name="Calendar" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                 <p className="text-slate-600 mb-4">
@@ -1648,7 +1681,7 @@
                           <button type="button" onClick={() => onOpenEvent(row.id)} className="flex-1 min-w-0 text-left p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow transition-all">
                             <div className="font-semibold text-slate-900">{row.config.title}</div>
                             <div className="text-sm text-slate-500 mt-1">
-                              {formatDisplayDateFull(new Date(row.config.startDate))} — {row.votes.length}/{row.config.quorum} votos
+                              {formatDisplayDateFull(new Date(row.config.startDate))} — {row.config.firebaseOwnerUid ? 'Ver participação no painel' : `${row.votes.length}/${row.config.quorum} votos — somente neste aparelho`}
                             </div>
                           </button>
                           <Button
@@ -3448,6 +3481,32 @@
         window.location.hash = '';
       };
 
+      useEffect(() => {
+        let active = true;
+        const restore = () => {
+          if (!active) return;
+          const user = window.consensoFirebaseUser;
+          const previous = getAdminSession();
+          const google = !user?.isAnonymous && user?.providerData?.find(provider => provider.providerId === 'google.com');
+          if (google) {
+            const session = { provider: 'google', sub: google.uid, firebaseUid: user.uid, email: user.email || google.email || '', name: user.displayName || '', picture: user.photoURL || '' };
+            setAdminSession(session);
+            setAdminSessionState(session);
+            if (window.location.hash.startsWith('#manage/')) setRouteNonce(n => n + 1);
+          } else if (previous?.firebaseUid || previous?.provider === 'google') {
+            clearAdminSession();
+            setAdminSessionState(null);
+          }
+          if (previous?.firebaseUid && previous.firebaseUid !== user?.uid) {
+            setCurrentView(view => ['manage', 'create', 'share', 'vote', 'results'].includes(view) ? 'home' : view);
+            setIsManager(false);
+          }
+        };
+        window.addEventListener('consenso-firebase-auth', restore);
+        if (window.consensoFirebaseAuthReady) window.consensoFirebaseAuthReady.then(restore);
+        return () => { active = false; window.removeEventListener('consenso-firebase-auth', restore); };
+      }, []);
+
       const applyRouteFromHash = () => {
         tryHydrateEventFromInviteHash();
         const raw = window.location.hash.replace(/^#/, '');
@@ -3474,6 +3533,18 @@
         if (raw.startsWith('manage/')) {
           const id = raw.slice(7).split('?')[0];
           setEventId(id);
+          const uid = getAdminSession()?.firebaseUid;
+          if (uid && !getEvent(id)) {
+            const requestedHash = window.location.hash;
+            consensoHydrateOrganizerEvent(uid, id).then(found => {
+              if (window.location.hash !== requestedHash || getAdminSession()?.firebaseUid !== uid) return;
+              if (found) applyRouteFromHash();
+              else { addToast('Esta reunião não foi encontrada na sua conta.', 'error'); goHome(); }
+            }).catch(() => {
+              if (window.location.hash === requestedHash) { addToast('Não foi possível carregar a reunião. Verifique a conexão e abra o link novamente.', 'error'); goHome(); }
+            });
+            return;
+          }
           if (canManageEventId(id)) {
             setIsManager(true);
             setCurrentView('manage');
@@ -3511,7 +3582,10 @@
         setAdminSessionState(getAdminSession());
         const p = pendingAfterLogin;
         setPendingAfterLogin(null);
-        if (p?.view === 'create') setCurrentView('create');
+        if (p?.view === 'create') {
+          if (getAdminSession()?.firebaseUid) setCurrentView('create');
+          else { setCurrentView('admin-events'); addToast('Dados locais recuperados. Para criar reuniões sincronizadas, entre com Google.', 'info'); }
+        }
         else if (p?.view === 'manage' && p.eventId) {
           if (canManageEventId(p.eventId)) {
             setEventId(p.eventId);
@@ -3532,7 +3606,7 @@
       };
 
       const openCreateFlow = () => {
-        if (!getAdminSession()) {
+        if (!getAdminSession()?.firebaseUid) {
           setPendingAfterLogin({ view: 'create' });
           setCurrentView('admin-login');
           return;
@@ -3621,9 +3695,13 @@
         setCurrentView('admin-login');
       };
 
-      const handleOrganizerLogout = () => {
+      const handleOrganizerLogout = async () => {
+        try { if (window.consensoFirebaseSignOut) await window.consensoFirebaseSignOut(); }
+        catch { addToast('Não foi possível sair da conta. Tente novamente.', 'error'); return; }
         clearAdminSession();
         setAdminSessionState(null);
+        setIsManager(false);
+        goHome();
         addToast('Sessão encerrada', 'info');
       };
 

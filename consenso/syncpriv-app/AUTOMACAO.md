@@ -1,5 +1,15 @@
 # Apuração e notificações do Consenso
 
+## Sincronização das reuniões por conta
+
+As reuniões sincronizadas pertencem ao UID autenticado do Firebase, no caminho `artifacts/pepperhatapps/users/{uid}/consenso_v1`. A lista e a permissão de gestão usam esse proprietário; `creatorAdminKey` é apenas compatibilidade com dados locais antigos e não autoriza reuniões da nuvem. A lista assina a coleção do proprietário após autenticar, acompanha inclusão/alteração/exclusão e cancela a assinatura ao sair da tela ou trocar de conta. Não consulta votos nem chama uma função por reunião: os detalhes são carregados ao abrir o painel. Cada atualização faz uma única gravação do cache local.
+
+Respostas atrasadas de outra conta são ignoradas. Uma lista vazia apenas do cache não apaga dados locais; somente um snapshot confirmado pelo servidor reconcilia exclusões daquela conta. Reuniões de outras contas e dados locais legados são preservados. A tela informa carregamento, modo cache e falha com nova tentativa. O painel por link direto também busca a reunião no caminho autenticado quando o aparelho não tem cache.
+
+Novas reuniões exigem login Google concluído no Firebase e gravação bem-sucedida na nuvem. Informar apenas um e-mail continua disponível exclusivamente para acessar reuniões locais antigas; não cria uma identidade autenticada. Reuniões antigas exclusivamente locais não são publicadas automaticamente nem têm seus votos reenviados: isso evita sobrescrever reuniões existentes ou atribuir votos antigos a identidades diferentes. Elas permanecem identificadas como locais no aparelho original. O login Google restaura a sessão a partir do Firebase e sair encerra também essa autenticação.
+
+`npm run test:account:live` valida dois logins independentes da mesma conta com dados temporários, sem usar sessões pessoais, e remove reunião/identidades ao final.
+
 O total esperado de participantes é usado como referência. Mais da metade significa estritamente mais de 50%: com 6 esperados, 4 votos; com 5, 3 votos. A lista de opções nunca é exibida enquanto os votos estiverem abertos. Antes da maioria, a antecipação exige confirmação explícita. Abrir a apuração encerra votos e edições definitivamente. O organizador vê todas as opções escolhidas por pelo menos um participante e pode selecionar uma futura, com alerta se parte do grupo estiver indisponível.
 
 As grades individuais são lidas apenas pelo próprio participante e pelo servidor. O organizador recebe identificação e comentários separados, sem horários. A regra genérica de workspace não se aplica ao Consenso; a apuração agregada fica em organizer_results/summary e só pode ser lida pelo organizador após o encerramento. Administradores técnicos do projeto Firebase ainda têm acesso administrativo: a proteção é da aplicação e não constitui criptografia contra o proprietário da infraestrutura.
