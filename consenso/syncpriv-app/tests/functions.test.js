@@ -18,6 +18,31 @@ function harness(mail = false, sendFails = false) {
  const request=data=>({auth:{uid:'owner'},data:{ownerUid:'owner',eventId:'event',...data}});
  return {api:context.exports,docs,sent,path,vote,request,ref,snapshot};
 }
+
+test('only owner deletes a vote and all associated participant data', async()=>{
+ const h=harness();h.vote('a');h.vote('b');
+ for(const collection of ['participants','participant_details','public_comments'])h.docs.set(h.path+'/'+collection+'/a',{userId:'a'});
+ await assert.rejects(h.api.consensoDeleteVote({auth:{uid:'other'},data:{ownerUid:'owner',eventId:'event',voteUid:'a'}}),/organizador/);
+ await assert.rejects(h.api.consensoDeleteVote(h.request({voteUid:'../a'})),/inválido/);
+ await h.api.consensoDeleteVote(h.request({voteUid:'a'}));
+ for(const collection of ['votes','participants','participant_details','public_comments'])assert.equal(h.docs.has(h.path+'/'+collection+'/a'),false);
+ assert.equal(h.docs.has(h.path+'/votes/b'),true);assert.equal(h.docs.get(h.path).config.voteCount,1);
+ assert.equal((await h.api.consensoDeleteVote(h.request({voteUid:'a'}))).deleted,false);
+});
+test('vote deletion recalculates an open tally without reopening voting',async()=>{
+ const h=harness();h.vote('a');h.vote('b',['2099-01-23|10:00']);await h.api.consensoOpenTally(h.request({earlyConfirmed:true}));
+ await h.api.consensoDeleteVote(h.request({voteUid:'a'}));
+ const summary=h.docs.get(h.path+'/organizer_results/summary');assert.equal(summary.totalVotes,1);assert.equal(summary.slots.length,1);assert.equal(summary.slots[0].key,'2099-01-23|10:00');assert.equal(h.docs.get(h.path).config.votingClosed,true);
+ await h.api.consensoDeleteVote(h.request({voteUid:'b'}));assert.equal(h.docs.get(h.path+'/organizer_results/summary').slots.length,0);
+});
+test('final result and expired deadline prevent vote deletion',async()=>{
+ for(const update of [{finalized:true},{votingDeadline:'2020-01-01T00:00:00Z'}]){const h=harness();h.vote('a');Object.assign(h.docs.get(h.path).config,update);await assert.rejects(h.api.consensoDeleteVote(h.request({voteUid:'a'})),/prazo/);assert.equal(h.docs.has(h.path+'/votes/a'),true);}
+});
+test('manual alternatives survive server tally and exclude unlisted combinations',async()=>{
+ const h=harness();Object.assign(h.docs.get(h.path).config,{granularity:'manual',manualSlots:['2099-01-22|03:15','2099-01-25|23:30']});h.vote('a',['2099-01-22|03:15','2099-01-22|23:30']);
+ await h.api.consensoOpenTally(h.request({earlyConfirmed:true}));const summary=h.docs.get(h.path+'/organizer_results/summary');assert.equal(summary.slots.length,1);assert.equal(summary.slots[0].key,'2099-01-22|03:15');
+ await h.api.consensoFinalize(h.request({selectedSlotKey:'2099-01-22|03:15'}));assert.equal(h.docs.get(h.path).config.finalResult.slots[0].time,'03:15');
+});
 test('abrir a apuração exige organizador e confirmação se não passou da metade',async()=>{
  const h=harness();h.vote('a');h.vote('b');assert.throws(()=>h.api.consensoOpenTally({auth:{uid:'other'},data:{ownerUid:'owner',eventId:'event'}}),/organizador/);await assert.rejects(h.api.consensoOpenTally(h.request()),/antecipação/);
  await h.api.consensoOpenTally(h.request({earlyConfirmed:true}));assert.equal(h.docs.get(h.path).config.votingClosed,true);assert.equal(h.docs.get(h.path).config.tallyEarly,true);assert.equal(h.docs.get(h.path+'/organizer_results/summary').slots.length,1);

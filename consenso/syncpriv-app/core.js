@@ -28,7 +28,7 @@
     const blockedSlots = new Set(Array.isArray(config.blockedSlots) ? config.blockedSlots : []);
     votes.forEach((vote) => {
       new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
-      if (blockedSlots.has(slotKey)) return;
+      if (blockedSlots.has(slotKey) || (config.granularity === 'manual' && !(config.manualSlots || []).includes(slotKey))) return;
       const [dateStr, time] = String(slotKey).split('|');
       if (!dateStr || !time) return;
       if (!slotMap.has(slotKey)) slotMap.set(slotKey, { date: parseLocalDate(dateStr), time, votes: 0 });
@@ -48,7 +48,7 @@
     const slotMap = new Map();
     (votes || []).forEach((vote) => {
       new Set(Array.isArray(vote.timeSlots) ? vote.timeSlots : []).forEach((slotKey) => {
-        if (blockedSlots.has(slotKey)) return;
+        if (blockedSlots.has(slotKey) || (config.granularity === 'manual' && !(config.manualSlots || []).includes(slotKey))) return;
         const [dateStr, time] = String(slotKey).split('|');
         if (!dateStr || !time) return;
         if (!slotMap.has(slotKey)) slotMap.set(slotKey, { key: slotKey, date: parseLocalDate(dateStr), time, votes: 0 });

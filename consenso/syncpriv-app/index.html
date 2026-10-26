@@ -176,7 +176,7 @@
   <script src="https://unpkg.com/@babel/standalone@7.28.5/babel.min.js"></script>
   <script src="https://unpkg.com/lucide@1.61.0"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
-  <script src="core.js?v=8"></script>
+  <script src="core.js?v=9"></script>
 </head>
 <body class="bg-slate-50 safe-area-top safe-area-bottom">
   <!-- PWA Install Prompt Container -->
@@ -814,6 +814,12 @@
     };
     
     const createEvent = async (config) => {
+      if (config.granularity === 'manual' && (!Array.isArray(config.manualSlots) || !config.manualSlots.length || new Set(config.manualSlots).size !== config.manualSlots.length || config.manualSlots.some(slot => {
+        if (typeof slot !== 'string' || !/^\d{4}-\d{2}-\d{2}\|([01]\d|2[0-3]):[0-5]\d$/.test(slot)) return true;
+        const date = new Date(slot.split('|')[0] + 'T00:00:00Z');
+        return !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== slot.split('|')[0];
+      }))) throw new Error('Adicione opções manuais com datas e horários válidos, sem repetir.');
+      if (config.votingDeadline && new Date(config.votingDeadline).getMinutes() !== 0) throw new Error('O prazo deve terminar em uma hora inteira, com minutos 00.');
       if (config.requiredInfoLabels !== undefined && (!Array.isArray(config.requiredInfoLabels) || config.requiredInfoLabels.length > 4 || config.requiredInfoLabels.some((label) => typeof label !== 'string' || !label.trim() || label.length > 80))) throw new Error('Defina até 4 informações com títulos de até 80 caracteres.');
       const admin = getAdminSession();
       const ak = adminKey(admin);
@@ -879,6 +885,7 @@
       vote = { ...vote, userName: normalizeFullName(vote.userName) };
       if (isVotingClosed(event.config) || event.config.votingOpened === false) throw new Error('A votação não está aberta.');
       if ((vote.timeSlots || []).some((slot) => (event.config.blockedSlots || []).includes(slot))) throw new Error('O voto contém horários bloqueados.');
+      if (event.config.granularity === 'manual' && (vote.timeSlots || []).some(slot => !(event.config.manualSlots || []).includes(slot))) throw new Error('Escolha apenas as opções definidas pelo organizador.');
       if (event.config.firebaseOwnerUid && !consensoFirestoreReady()) throw new Error('A sincronização está indisponível. Tente novamente com conexão.');
       const notificationEmail = String(vote.notificationEmail || '').trim();
       if (event.config.emailMode === 'required' && !notificationEmail) throw new Error('Informe seu e-mail para receber o resultado.');
@@ -2045,6 +2052,9 @@
       const [startDate, setStartDate] = useState(formatDate(new Date()));
       const [endDate, setEndDate] = useState(formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
       const [granularity, setGranularity] = useState('hour');
+      const [manualSlots, setManualSlots] = useState([]);
+      const [manualDate, setManualDate] = useState(formatDate(new Date()));
+      const [manualTime, setManualTime] = useState('09:00');
       const [quorumInput, setQuorumInput] = useState('');
       const quorum = Number(quorumInput);
       const [managerMode, setManagerMode] = useState('participant');
@@ -2062,20 +2072,23 @@
         if (!getAdminSession()) { addToast('Faça login como organizador para criar uma reunião', 'error'); return; }
         if (!title.trim()) { addToast('Por favor, informe o nome do evento', 'error'); return; }
         if (requiredInfoLabels.some((label) => !label.trim())) { addToast('Informe qual informação será obrigatória para votar.', 'error'); return; }
+        const isManual = granularity === 'manual';
         const start = parseLocalDate(startDate), end = parseLocalDate(endDate);
-        if (!startDate || !endDate || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) { addToast('Informe datas de início e fim válidas.', 'error'); return; }
-        if (start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
+        if (!isManual && (!startDate || !endDate || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))) { addToast('Informe datas de início e fim válidas.', 'error'); return; }
+        if (!isManual && start > end) { addToast('Data de início deve ser anterior à data de fim', 'error'); return; }
         if (votingDeadline && (!automationStatus.deadlineReady || new Date(votingDeadline).getTime() <= Date.now())) { addToast('Escolha um prazo futuro com a automação disponível.', 'error'); return; }
         if (emailMode !== 'none' && !automationStatus.emailReady) { addToast('O envio automático de e-mails ainda precisa ser configurado.', 'error'); return; }
         if (!Number.isInteger(quorum) || quorum < 2) { addToast('Informe o total esperado de votantes, com pelo menos 2 pessoas.', 'error'); return; }
-        const allowedKeys = new Set(creationSlotKeys(startDate, endDate, granularity));
-        const effectiveBlocked = Array.from(blockedSlots).filter(key => allowedKeys.has(key));
+        if (isManual && !manualSlots.length) { addToast('Adicione pelo menos uma data e horário.', 'error'); return; }
+        const orderedManual = [...manualSlots].sort();
+        const allowedKeys = new Set(isManual ? orderedManual : creationSlotKeys(startDate, endDate, granularity));
+        const effectiveBlocked = isManual ? [] : Array.from(blockedSlots).filter(key => allowedKeys.has(key));
         if (effectiveBlocked.length === allowedKeys.size) { addToast('Deixe pelo menos uma data ou horário disponível para votar.', 'error'); return; }
 
         setIsSubmitting(true);
         try {
           const user = getCurrentUser();
-          const config = await createEvent({ title: title.trim(), startDate: start, endDate: end, granularity, quorum, managerMode, votingOpened: true, blockedSlots: effectiveBlocked, meetingInstructions: meetingInstructions.trim(), emailMode, votingDeadline: votingDeadline ? new Date(votingDeadline).toISOString() : null, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, automationVersion: 2, requiredInfoLabels: requiredInfoLabels.slice(0, 4).map((label) => label.trim().slice(0, 80)), earlyRevelation: false, creatorId: user.id });
+          const config = await createEvent({ title: title.trim(), startDate: isManual ? parseLocalDate(orderedManual[0].split('|')[0]) : start, endDate: isManual ? parseLocalDate(orderedManual[orderedManual.length - 1].split('|')[0]) : end, granularity, ...(isManual ? {manualSlots: orderedManual} : {}), quorum, managerMode, votingOpened: true, blockedSlots: effectiveBlocked, meetingInstructions: meetingInstructions.trim(), emailMode, votingDeadline: votingDeadline ? new Date(votingDeadline).toISOString() : null, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, automationVersion: 2, requiredInfoLabels: requiredInfoLabels.slice(0, 4).map((label) => label.trim().slice(0, 80)), earlyRevelation: false, creatorId: user.id });
           addToast('Reunião criada com sucesso!', 'success');
           onCreate(config);
         } catch (error) {
@@ -2103,7 +2116,7 @@
                   <Input id="event-title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Reunião do condomínio" />
                 </div>
 
-                <div>
+                {granularity !== 'manual' && <div>
                   <Label className="flex items-center gap-2">
                     <Icon name="Calendar" className="w-4 h-4" />
                     Período de Datas
@@ -2118,18 +2131,18 @@
                       <Input id="event-end" required type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                     </div>
                   </div>
-                </div>
+                </div>}
 
                 <div>
                   <Label className="flex items-center gap-2">
                     <Icon name="Clock" className="w-4 h-4" />
                     Votar por dia, turno ou horário?
                   </Label>
-                  <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-lg">
-                    {['day', 'shift', 'hour'].map(g => (
-                      <button key={g} onClick={() => setGranularity(g)} 
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg">
+                    {['day', 'shift', 'hour', 'manual'].map(g => (
+                      <button type="button" key={g} onClick={() => setGranularity(g)}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${granularity === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
-                        {g === 'day' ? 'Dia Inteiro' : g === 'shift' ? 'Turnos' : 'Hora em Hora'}
+                        {g === 'day' ? 'Dia Inteiro' : g === 'shift' ? 'Turnos' : g === 'manual' ? 'Escolha manual' : 'Hora em Hora'}
                       </button>
                     ))}
                   </div>
@@ -2137,8 +2150,24 @@
                     {granularity === 'day' && 'Os participantes votarão em dias inteiros'}
                     {granularity === 'shift' && 'Manhã (6h-12h), Tarde (12h-18h), Noite (18h-22h)'}
                     {granularity === 'hour' && 'Grade completa das 06:00 às 22:00'}
+                    {granularity === 'manual' && 'Adicione as alternativas exatas. Os convidados verão somente essas opções, sem horários bloqueados.'}
                   </p>
                 </div>
+
+                {granularity === 'manual' && <div className="space-y-3 border rounded-xl p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label htmlFor="manual-date">Data</Label><Input id="manual-date" type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} /></div>
+                    <div><Label htmlFor="manual-time">Horário</Label><Input id="manual-time" type="time" value={manualTime} onChange={e => setManualTime(e.target.value)} /></div>
+                  </div>
+                  <Button variant="outline" className="w-full" onClick={() => {
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(manualDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(manualTime)) { addToast('Informe uma data e um horário válidos.', 'error'); return; }
+                    const key = `${manualDate}|${manualTime}`;
+                    if (manualSlots.includes(key)) { addToast('Essa opção já foi adicionada.', 'error'); return; }
+                    setManualSlots(current => [...current, key].sort());
+                  }}>Adicionar opção</Button>
+                  <ul className="space-y-2 max-h-64 overflow-y-auto">{manualSlots.map(key => <li key={key} className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg p-3 text-sm"><span>{parseLocalDate(key.split('|')[0]).toLocaleDateString('pt-BR')} às {key.split('|')[1]}</span><button type="button" className="text-red-700 underline" aria-label={`Remover ${key}`} onClick={() => setManualSlots(current => current.filter(slot => slot !== key))}>Remover</button></li>)}</ul>
+                  {!manualSlots.length && <p className="text-sm text-slate-500">Nenhuma opção adicionada ainda.</p>}
+                </div>}
 
                 <div>
                   <Label htmlFor="event-voters">Quantas pessoas vão votar?</Label>
@@ -2147,7 +2176,7 @@
                   <label className="flex items-center gap-3 mt-4 text-sm font-medium"><input type="checkbox" checked={managerMode === 'participant'} onChange={(e) => setManagerMode(e.target.checked ? 'participant' : 'administrative')} className="w-4 h-4" />Também vou votar</label>
                 </div>
 
-                <CreationSlotPicker startDate={startDate} endDate={endDate} granularity={granularity} blockedSlots={blockedSlots} onChange={setBlockedSlots} />
+                {granularity !== 'manual' && <CreationSlotPicker startDate={startDate} endDate={endDate} granularity={granularity} blockedSlots={blockedSlots} onChange={setBlockedSlots} />}
 
                 <details ref={optionsRef} className="border rounded-xl">
                 <summary className="cursor-pointer p-4 font-medium">Mais opções <span className="font-normal text-sm text-slate-500">— orientações, prazo e informações dos participantes</span></summary>
@@ -2159,7 +2188,8 @@
                 </div>
                 <div className="rounded-xl border p-4 space-y-3">
                   <Label htmlFor="event-deadline">Prazo final para votar e definir o resultado (opcional)</Label>
-                  <Input id="event-deadline" type="datetime-local" value={votingDeadline} disabled={!automationStatus.deadlineReady} onChange={(e) => setVotingDeadline(e.target.value)} min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16)} />
+                  <Input id="event-deadline" type="datetime-local" step="3600" value={votingDeadline} disabled={!automationStatus.deadlineReady} onChange={(e) => setVotingDeadline(e.target.value ? e.target.value.slice(0, 14) + '00' : '')} min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,13) + ':00'} />
+                  <p className="text-xs text-slate-500 mt-1">O prazo usa horas inteiras, sempre com minutos 00.</p>
                   <p className="text-xs text-slate-500">{automationStatus.deadlineReady ? 'Ao terminar o prazo, vence o horário futuro com mais disponíveis; em empate, o mais próximo. Sem prazo, você decide quando encerrar.' : 'Prazo automático indisponível no momento. Sem prazo, você decide quando encerrar.'}</p>
                 </div>
                 {automationStatus.emailReady && <div className="rounded-xl border p-4 space-y-3">
@@ -2253,11 +2283,11 @@
               selectionInitializedRef.current = true;
             }
           } else if (!voted && !selectionInitializedRef.current) {
-            const eventDates = getDatesInRange(event.config.startDate, event.config.endDate);
+            const eventDates = event.config.granularity === 'manual' ? [] : getDatesInRange(event.config.startDate, event.config.endDate);
             const eventTimes = event.config.granularity === 'hour'
               ? HOUR_SLOTS
               : event.config.granularity === 'shift' ? ['morning', 'afternoon', 'evening'] : ['day'];
-            setSelectedSlots(new Set(eventDates.flatMap((date) => eventTimes.map((time) => `${formatDate(date)}|${time}`)).filter((slot) => !configuredBlocked.has(slot))));
+            setSelectedSlots(new Set((event.config.granularity === 'manual' ? event.config.manualSlots || [] : eventDates.flatMap((date) => eventTimes.map((time) => `${formatDate(date)}|${time}`))).filter((slot) => !configuredBlocked.has(slot))));
             selectionInitializedRef.current = true;
           }
           return true;
@@ -2337,7 +2367,7 @@
         };
       }, [eventId]);
 
-      const dates = eventData ? getDatesInRange(eventData.config.startDate, eventData.config.endDate) : [];
+      const dates = eventData ? (eventData.config.granularity === 'manual' ? Array.from(new Set((eventData.config.manualSlots || []).map(key => key.split('|')[0]))).map(parseLocalDate) : getDatesInRange(eventData.config.startDate, eventData.config.endDate)) : [];
 
       const getTimeSlots = () => {
         if (!eventData) return [];
@@ -2350,7 +2380,7 @@
       };
 
       const getSlotKey = (date, time) => `${formatDate(date)}|${time}`;
-      const allSlotKeys = dates.flatMap((date) => getTimeSlots().map((time) => getSlotKey(date, time)));
+      const allSlotKeys = eventData?.config.granularity === 'manual' ? eventData.config.manualSlots || [] : dates.flatMap((date) => getTimeSlots().map((time) => getSlotKey(date, time)));
 
       const setSlotsAvailability = (slotKeys, available) => {
         if (!slotsInteractive) return;
@@ -2601,14 +2631,17 @@
 
               {slotsInteractive && (
                 <div className="p-3 border-b bg-white flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-slate-600">{organizerPreparation ? 'Clique ou arraste para bloquear/desbloquear opções.' : 'Clique ou arraste para marcar/desmarcar sua disponibilidade.'}</p>
+                  <p className="text-xs font-medium text-slate-600">{organizerPreparation ? 'Clique ou arraste para bloquear/desbloquear opções.' : eventData.config.granularity === 'manual' ? 'Marque as opções em que você pode participar.' : 'Clique ou arraste para marcar/desmarcar sua disponibilidade.'}</p>
                   <div className="flex gap-2">
                     {organizerPreparation ? <><Button variant="outline" size="sm" onClick={() => setSlotsBlocked(allSlotKeys, false)}>Desbloquear tudo</Button><Button variant="outline" size="sm" onClick={() => setSlotsBlocked(allSlotKeys, true)}>Bloquear tudo</Button></> : <><Button variant="outline" size="sm" onClick={() => setSlotsNormalAvailable(allSlotKeys)}>Marcar tudo</Button><Button variant="outline" size="sm" onClick={() => setSlotsAvailability(allSlotKeys, false)}>Desmarcar tudo</Button></>}
                   </div>
                 </div>
               )}
 
-              <div className="p-4 overflow-x-auto">
+              {eventData.config.granularity === 'manual' ? <div className="p-4 space-y-3">{allSlotKeys.map(key => {
+                const [date, time] = key.split('|');
+                return <label key={key} className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer ${selectedSlots.has(key) ? 'bg-blue-50 border-blue-400' : 'bg-white'}`}><input type="checkbox" checked={selectedSlots.has(key)} disabled={!slotsInteractive} onChange={() => toggleSlotGroup([key])} /><span className="font-medium">{parseLocalDate(date).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'})} às {time}</span><span className="ml-auto text-xs text-slate-500">{selectedSlots.has(key) ? 'Disponível' : 'Indisponível'}</span></label>;
+              })}</div> : <div className="p-4 overflow-x-auto">
                 <div className="min-w-max">
                   <div className="flex">
                     <div className="w-20 flex-shrink-0"></div>
@@ -2679,13 +2712,13 @@
                   })}
                   {!organizerPreparation && allSlotKeys.length > 0 && allSlotKeys.every((key) => blockedSlots.has(key)) && <div className="p-8 text-center text-slate-500">O organizador bloqueou todos os períodos desta votação.</div>}
                 </div>
-              </div>
+              </div>}
 
               <div className="p-4 bg-slate-50 border-t flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-slate-100 rounded border"></div><span className="text-slate-600">Indisponível</span></div>
                 <div className="flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center"><Icon name="Check" className="w-3 h-3 text-white" /></div><span className="text-slate-600">Disponível</span></div>
-                <div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-100 border-2 border-red-300 rounded flex items-center justify-center"><Icon name="Ban" className="w-3 h-3 text-red-700" /></div><span className="text-slate-600">Bloqueado pelo organizador</span></div>
-                <div className="flex items-center gap-2 ml-auto"><div className="w-6 h-1 bg-red-400"></div><span className="text-slate-600">Divisão período</span></div>
+                {eventData.config.granularity !== 'manual' && <><div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-100 border-2 border-red-300 rounded flex items-center justify-center"><Icon name="Ban" className="w-3 h-3 text-red-700" /></div><span className="text-slate-600">Bloqueado pelo organizador</span></div>
+                <div className="flex items-center gap-2 ml-auto"><div className="w-6 h-1 bg-red-400"></div><span className="text-slate-600">Divisão período</span></div></>}
               </div>
             </Card>
 
@@ -2719,7 +2752,7 @@
               ) : (
                 <>
                   <div className="text-sm text-slate-500">
-                    {organizerPreparation ? 'Revise os bloqueios: após abrir, convidados poderão votar e a grade ficará fixa.' : editingChoices ? 'Desmarque os períodos indisponíveis e salve.' : 'Dica: clique e arraste para marcar ou desmarcar vários períodos'}
+                    {organizerPreparation ? 'Revise os bloqueios: após abrir, convidados poderão votar e a grade ficará fixa.' : eventData.config.granularity === 'manual' ? 'Confira sua disponibilidade nas opções acima e confirme seu voto.' : editingChoices ? 'Desmarque os períodos indisponíveis e salve.' : 'Dica: clique e arraste para marcar ou desmarcar vários períodos'}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end w-full max-w-2xl">
                     {!organizerPreparation && (
@@ -3003,6 +3036,32 @@
       const [finalizing, setFinalizing] = useState(false);
       const [selectedFinalSlot, setSelectedFinalSlot] = useState('');
       const [openingTally, setOpeningTally] = useState(false);
+      const [deletingVote, setDeletingVote] = useState('');
+
+      const handleDeleteVote = async (vote) => {
+        if (deletingVote || finalizing || openingTally) return;
+        if (!window.confirm(`Excluir o voto de ${vote.userName || 'Participante'}? Suas respostas e comentários serão removidos e a apuração será recalculada. Essa exclusão não tem volta. Enquanto a votação estiver aberta, a pessoa poderá votar novamente.`)) return;
+        setDeletingVote(vote.userId);
+        try {
+          if (!canManageEventId(eventId) || eventData.config.finalized || (eventData.config.votingDeadline && new Date(eventData.config.votingDeadline).getTime() <= Date.now())) throw new Error('Não é possível excluir este voto após o prazo ou o resultado final.');
+          if (eventData.config.firebaseOwnerUid) {
+            await waitForConsensoFirebaseUser(eventData.config.firebaseOwnerUid);
+            await window.consensoCall('consensoDeleteVote', { ownerUid: eventData.config.firebaseOwnerUid, eventId, voteUid: vote.userId });
+          } else {
+            const events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            const event = events[eventId];
+            event.votes = event.votes.filter(item => item.userId !== vote.userId);
+            event.config.voteCount = event.votes.length;
+            event.publicComments = (event.publicComments || []).filter(item => item.userId !== vote.userId);
+            if (event.config.tallyOpenedAt) event.organizerSummary = {totalVotes:event.votes.length, slots:rankConsensusSlots(event).map(slot => ({...slot, date:slot.key.split('|')[0]}))};
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+          }
+          setSelectedFinalSlot('');
+          loadEventData();
+          addToast('Voto excluído. A contagem será atualizada.', 'success');
+        } catch (error) { addToast(error?.message || 'Não foi possível excluir o voto.', 'error'); }
+        finally { setDeletingVote(''); }
+      };
 
       useEffect(() => { loadEventData(); }, [eventId]);
 
@@ -3186,6 +3245,11 @@
               <CardHeader><CardTitle>Identificação dos participantes</CardTitle><p className="text-sm text-slate-500">Respostas privadas para o organizador.</p></CardHeader>
               <CardContent><div className="space-y-4 max-h-96 overflow-y-auto">{eventData.votes.length ? eventData.votes.map((vote) => <div key={vote.userId} className="border rounded-xl p-4"><p className="font-semibold text-sm mb-3">{vote.userName || 'Participante'}</p><dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">{getRequiredInfoLabels(eventData.config).map((label, index) => <div key={index} className="min-w-0"><dt className="text-xs text-slate-500 break-words">{label}</dt><dd className="text-sm text-slate-800 whitespace-pre-wrap break-words mt-1">{getRequiredInfoAnswers(vote)[index] || 'Não informado'}</dd></div>)}</dl></div>) : <p className="text-sm text-slate-500">Nenhum voto recebido.</p>}</div></CardContent>
             </Card>}
+
+            {!eventData.config.finalized && !(eventData.config.votingDeadline && new Date(eventData.config.votingDeadline).getTime() <= Date.now()) && eventData.votes.length > 0 && <details className="mb-6 bg-white border rounded-xl">
+              <summary className="cursor-pointer p-4 font-medium">Gerenciar votos <span className="text-sm font-normal text-slate-500">— excluir duplicados ou inválidos</span></summary>
+              <div className="px-4 pb-4"><p className="text-sm text-slate-500 mb-3">Confira a identificação antes de excluir. As escolhas individuais permanecem privadas.</p><ul className="space-y-3 max-h-96 overflow-y-auto">{eventData.votes.map(vote => <li key={vote.userId} className="border rounded-lg p-3 flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><p className="font-medium break-words">{vote.userName || 'Participante'}</p>{vote.notificationEmail && <p className="text-xs text-slate-500 break-all">{vote.notificationEmail}</p>}<p className="text-xs text-slate-500">{vote.votedAt ? new Date(vote.votedAt).toLocaleString('pt-BR') : 'Data não informada'}</p><p className="text-xs text-slate-400 break-all">Identificador: {vote.userId}</p></div><Button variant="outline" disabled={Boolean(deletingVote) || finalizing || openingTally} onClick={() => handleDeleteVote(vote)} className="text-red-700">{deletingVote === vote.userId ? 'Excluindo...' : 'Excluir voto'}</Button></li>)}</ul></div>
+            </details>}
 
             {voterComments.length > 0 && <details className="mb-6 bg-white border rounded-xl">
               <summary className="cursor-pointer p-4 font-medium">Comentários dos participantes ({voterComments.length}) <span className="text-sm font-normal text-slate-500">— leitura opcional</span></summary>

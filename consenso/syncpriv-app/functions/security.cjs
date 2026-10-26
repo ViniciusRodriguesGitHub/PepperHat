@@ -17,10 +17,11 @@ function calendarDate(value, timeZone) {
 }
 function validSlot(config, slot) {
   if (typeof slot !== 'string') return false;
-  const match = /^(\d{4}-\d{2}-\d{2})\|(day|morning|afternoon|evening|(?:0[6-9]|1[0-9]|2[0-2]):00)$/.exec(slot);
+  const match = /^(\d{4}-\d{2}-\d{2})\|(day|morning|afternoon|evening|(?:[01]\d|2[0-3]):[0-5]\d)$/.exec(slot);
   if (!match) return false;
   const date = new Date(match[1]+'T00:00:00Z');
   if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==match[1]) return false;
+  if (config.granularity === 'manual') return Array.isArray(config.manualSlots) && config.manualSlots.includes(slot) && /^\d{2}:\d{2}$/.test(match[2]);
   if ((config.blockedSlots || []).includes(slot)) return false;
   if (config.granularity && !({day:['day'],shift:['morning','afternoon','evening'],hour:['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00']}[config.granularity] || []).includes(match[2])) return false;
   try {

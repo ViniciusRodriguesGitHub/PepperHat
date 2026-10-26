@@ -88,6 +88,22 @@ exports.consensoAutomationStatus = onCall(options, request => {
 });
 exports.consensoOpenTally = onCall(options, request => openTally(requireOwner(request), request.data.earlyConfirmed));
 exports.consensoFinalize = onCall(options, request => finalize(requireOwner(request), request.data.selectedSlotKey));
+exports.consensoDeleteVote = onCall(options, async request => {
+  const ref = requireOwner(request);
+  const voteUid = request.data?.voteUid;
+  if (typeof voteUid !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(voteUid)) throw new HttpsError('invalid-argument', 'Voto inválido.');
+  return db.runTransaction(async tx => {
+    const [snap, votes] = await Promise.all([tx.get(ref), tx.get(ref.collection('votes'))]);
+    const event = snapshotEvent(snap, votes);
+    if (event.config.finalized || (event.config.votingDeadline && new Date(event.config.votingDeadline).getTime() <= Date.now())) throw new HttpsError('failed-precondition', 'Não é possível excluir votos após o prazo ou o resultado final.');
+    if (!votes.docs.some(doc => doc.id === voteUid)) return { deleted: false };
+    const remaining = { config: event.config, votes: event.votes.filter(vote => vote.userId !== voteUid) };
+    for (const collection of ['votes', 'participants', 'participant_details', 'public_comments']) tx.delete(ref.collection(collection).doc(voteUid));
+    tx.update(ref, { 'config.voteCount': remaining.votes.length });
+    if (event.config.tallyOpenedAt) tx.set(ref.collection('organizer_results').doc('summary'), tallySummary(remaining));
+    return { deleted: true };
+  });
+});
 exports.consensoPrepareOrganizerPanel = onCall(options, async request => {
   const ref = requireOwner(request); const snap = await ref.get();
   if (!snap.exists) throw new HttpsError('not-found', 'Reunião não encontrada.');

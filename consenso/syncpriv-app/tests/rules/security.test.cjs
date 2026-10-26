@@ -40,6 +40,15 @@ test('convidado grava e edita apenas o proprio voto',async()=>{
  await assertFails(setDoc(doc(db('other'),root+'/votes/guest'),vote));
 });
 test('anonimo sem autenticacao nao pode votar',async()=>assertFails(setDoc(doc(db(null),root+'/votes/guest'),vote)));
+
+test('manual vote accepts only exact alternatives including times outside the regular grid',async()=>{
+ await seed({[root]:{config:{...config,granularity:'manual',blockedSlots:[],manualSlots:['2099-01-22|03:15','2099-01-23|23:30']}}});
+ const target=doc(db(),root+'/votes/guest');
+ await assertSucceeds(setDoc(target,{...vote,timeSlots:['2099-01-22|03:15','2099-01-23|23:30']}));
+ for(const timeSlots of [['2099-01-22|23:30'],['2099-01-22|09:00'],['2099-01-22|day']])await assertFails(setDoc(target,{...vote,timeSlots}));
+ await assertFails(deleteDoc(doc(db('owner'),root+'/votes/guest')));
+ await assertFails(updateDoc(doc(db('owner'),root),{'config.manualSlots':['2099-01-22|09:00']}));
+});
 test('votos malformados duplicados bloqueados e campos extras sao recusados',async()=>{
  for(const partial of [{timeSlots:['invalid']},{timeSlots:[123]},{timeSlots:['2099-01-22|09:00','2099-01-22|09:00']},{timeSlots:['2099-01-22|10:00']},{preferredSlots:['2099-01-22|09:00','2099-01-22|09:00']},{extra:true},{userName:'Pessoa'}])await assertFails(setDoc(doc(db(),root+'/votes/guest'),{...vote,...partial}));
 });

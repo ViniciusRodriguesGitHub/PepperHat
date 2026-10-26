@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
+const core = require('../core.js');
 function handler(name) {
   const start = html.indexOf('      const ' + name + ' =');
   assert.ok(start >= 0);
@@ -37,4 +38,22 @@ test('cancelled or busy publication saves nothing',async()=>{
 });
 test('publication failure releases the button for retry',async()=>{
   const {state,run}=publication({fail:true});await run();assert.equal(state.saved,0);assert.deepEqual(state.busy,[true,false]);assert.equal(state.messages.length,1);
+});
+
+function manualCreation(slots) {
+ const state={};
+ const context={getAdminSession:()=>({firebaseUid:'owner'}),title:'Manual',requiredInfoLabels:[],granularity:'manual',startDate:'2099-12-31',endDate:'2099-01-01',manualSlots:slots,blockedSlots:new Set(['2099-11-01|09:00']),quorum:4,managerMode:'participant',meetingInstructions:'',emailMode:'none',votingDeadline:'',automationStatus:{},parseLocalDate:core.parseLocalDate,creationSlotKeys(){throw Error('Manual must not generate a regular grid');},addToast:message=>state.message=message,setIsSubmitting(){},getCurrentUser:()=>({id:'owner'}),createEvent:async config=>{state.config=config;return config;},onCreate(){state.created=true;},Intl,Date,console};
+ const start=html.indexOf('      const handleSubmit =',html.indexOf('    const EventCreation ='));
+ const code=html.slice(start,html.indexOf('\n      };',start)+9)+'\nglobalThis.run=handleSubmit;';
+ vm.runInNewContext(code,context);
+ return {state,run:context.run};
+}
+test('manual creation derives its dates, preserves only exact alternatives and never blocks options',async()=>{
+ const {state,run}=manualCreation(['2099-11-05|18:00','2099-10-27|15:00','2099-11-01|09:00']);await run();
+ assert.equal(state.created,true);assert.equal(state.config.votingOpened,true);assert.equal(state.config.blockedSlots.length,0);
+ assert.equal(core.formatLocalDate(state.config.startDate),'2099-10-27');assert.equal(core.formatLocalDate(state.config.endDate),'2099-11-05');
+ assert.deepEqual(Array.from(state.config.manualSlots),['2099-10-27|15:00','2099-11-01|09:00','2099-11-05|18:00']);
+});
+test('manual creation requires at least one explicit alternative',async()=>{
+ const {state,run}=manualCreation([]);await run();assert.equal(state.created,undefined);assert.match(state.message,/pelo menos/);
 });

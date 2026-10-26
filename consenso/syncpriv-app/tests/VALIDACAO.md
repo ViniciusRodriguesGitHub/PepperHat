@@ -1,5 +1,14 @@
 # Validação do Consenso
 
+## Grade manual e moderação — 26/10/2026
+
+- `npm test`: 84 testes passaram; `npm run test:rules`: 16 testes passaram, incluindo compatibilidade do Kanban.
+- Navegador Edge em 390px: troca entre modalidades sem enviar o formulário, inclusão/remoção de alternativas manuais, voto apenas nessas alternativas, prazo com minutos 00 e exclusão de voto com recálculo.
+- `node scripts/verify-manual-live.cjs`: 16 verificações no Firebase publicado, usando somente reunião e identidades temporárias, removidas ao final. Cobertura: alternativas exatas (incluindo 23:30), recusa de combinações não oferecidas, permissão exclusiva do organizador para excluir, remoção de recibo/dados privados/comentário, apuração recalculada, finalização e impedimento de exclusão após resultado.
+- Publicação restrita às regras Firestore e funções `consensoDeleteVote`, `consensoOpenTally`, `consensoFinalize` e `consensoFinalizeDeadlines`. Nenhuma alteração de plano ou serviço remetente.
+
+Excluir um voto não bloqueia a identidade: enquanto a votação estiver aberta, a pessoa pode votar novamente. Após abrir a apuração, a exclusão atualiza o resumo sem reabrir votos. Após o prazo ou o resultado final, a exclusão é recusada pelo servidor.
+
 ## Correção em produção — 20/10/2026
 
 O evento maso1s39y73fyyf082io estava aberto, sem finalização, e exigia a informação “nº”. As regras ativas no Firebase eram de 08/08/2026 e não permitiam requiredInfoAnswers no voto. Isso causava HTTP 403 para convidados, mesmo autenticados. O proprietário conseguia escrever por uma permissão própria mais ampla, ocultando o problema nos testes feitos apenas com o organizador.
